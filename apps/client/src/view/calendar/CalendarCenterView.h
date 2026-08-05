@@ -38,8 +38,28 @@ signals:
     void calendarDeleteRequested(const QString& eventUuid, qulonglong revision);
 
 private:
-    void requestCurrentWeek();
-    void rebuildWeekGrid();
+    /** @brief 日程主视图模式；决定服务端查询范围、导航步长和中央网格结构。 */
+    enum class ViewMode
+    {
+        Day,
+        Week,
+        Month
+    };
+
+    /** @brief 按当前模式请求日、周或月半开区间；查询仍由 Gateway 使用认证用户重新鉴权。 */
+    void requestVisibleRange();
+    /** @brief 根据当前模式重建中央网格；只投影 Model 中服务端已授权的事件。 */
+    void rebuildCalendarGrid();
+    /** @brief 切换视图并同步按钮状态、网格结构和服务端查询范围。 */
+    void setViewMode(ViewMode mode);
+    /** @brief 按当前模式向前或向后导航一个日、周或月。 */
+    void navigatePeriod(int direction);
+    /** @brief 弹出与左侧复选框双向同步的筛选菜单。 */
+    void showFilterMenu();
+    /** @brief 弹出刷新、新建和复制摘要等辅助操作菜单。 */
+    void showMoreMenu();
+    /** @brief 判断共享日历事件是否符合研发、产品、市场复选框。 */
+    [[nodiscard]] bool eventCalendarVisible(const RemoteCalendarEvent& event) const;
     void showSelectedEvent();
     void openCreateDialog();
     void openEditDialog();
@@ -56,6 +76,12 @@ private:
     QCheckBox* includeCancelledCheck_{nullptr};
     QCheckBox* remindersOnlyCheck_{nullptr};
     QPushButton* createButton_{nullptr};
+    /** @brief 三个视图按钮与工具按钮只由本 View 拥有，生命周期随页面结束。 */
+    QPushButton* dayViewButton_{nullptr};
+    QPushButton* weekViewButton_{nullptr};
+    QPushButton* monthViewButton_{nullptr};
+    QPushButton* filterButton_{nullptr};
+    QPushButton* moreButton_{nullptr};
     QLabel* rangeLabel_{nullptr};
     QTableWidget* weekGrid_{nullptr};
     QLabel* detailTitle_{nullptr};
@@ -71,6 +97,8 @@ private:
     QPushButton* editButton_{nullptr};
     QPushButton* shareButton_{nullptr};
     QPushButton* deleteButton_{nullptr};
+    /** @brief 当前中央视图模式；默认周视图与设计图保持一致。 */
+    ViewMode viewMode_{ViewMode::Week};
     bool networkConnected_{false};
 };
 

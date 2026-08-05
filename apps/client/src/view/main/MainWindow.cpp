@@ -128,15 +128,17 @@ MainWindow::MainWindow(OrganizationTreeModel* organizationModel,
     {
         // 主窗口按逻辑可用区初始化，保证高 DPI 环境仍能完整呈现四栏和底部安全状态。
         const auto available = screen->availableGeometry().size();
-        resize(std::min(1500, std::max(minimumWidth(), available.width() - 20)),
-               std::min(900, std::max(minimumHeight(), available.height() - 20)));
+        // 参考稿画布为约 1586×990；扣除 Windows 原生边框后使用 1570×951 的客户区，
+        // 同时仍受当前屏幕可用区约束，避免小屏或高 DPI 环境出现窗口越界。
+        resize(std::min(1570, std::max(minimumWidth(), available.width() - 20)),
+               std::min(951, std::max(minimumHeight(), available.height() - 20)));
     }
     else
     {
         resize(1200, 760);
     }
     setStyleSheet(QStringLiteral(R"QSS(
-QMainWindow, QWidget#mainSurface { background:#f5f7fb; color:#172033; font-family:"Microsoft YaHei UI"; font-size:14px; }
+QMainWindow, QWidget#mainSurface { background:#f5f7fb; color:#172033; font-family:"Microsoft YaHei UI"; font-size:15px; }
 QFrame#topHeader, QFrame#bottomStatus { background:#ffffff; border:0; }
 QLabel#brandLogo { background:#0b63f6; color:white; border-radius:8px; font-weight:700; font-size:18px; }
 QLabel#brandName { font-size:18px; font-weight:700; }
@@ -701,7 +703,9 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
             ? QStringLiteral("★ 已置顶") : QStringLiteral("☆ 置顶"));
         emit conversationPreferenceRequested(currentConversationId_, currentConversationPinned_, false);
     });
-    connect(shell_, &ApplicationShell::sectionChanged, this, [this](int row) {
+    connect(shell_, &ApplicationShell::sectionChanged, this, [this, contextPanel](int row) {
+        // 日程参考稿的月历上下文栏为 265px，其余模块保持既有 300px 信息密度。
+        contextPanel->setFixedWidth(row == 5 ? 265 : 300);
         if (row == 0)
         {
             contextStack_->setCurrentIndex(1);

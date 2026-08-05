@@ -47,8 +47,9 @@ void CalendarModel::replaceEvents(QList<RemoteCalendarEvent> events)
     {
         selectedEventUuid_.clear();
     }
-    // 首次加载或原选中日程离开当前周时，默认定位第一条可见日程，保证详情区始终与周视图同步。
-    if (selectedEventUuid_.isEmpty() && !events_.isEmpty()) selectedEventUuid_ = events_.constFirst().eventUuid;
+    // 首次加载或原选中日程离开当前查询范围时，只定位筛选后可见事件，避免详情显示已被隐藏的日历。
+    const auto visible = visibleEvents();
+    if (selectedEventUuid_.isEmpty() && !visible.isEmpty()) selectedEventUuid_ = visible.constFirst().eventUuid;
     emit eventsChanged();
     if (previousSelection != selectedEventUuid_) emit selectedEventChanged();
 }

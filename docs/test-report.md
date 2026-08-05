@@ -32,7 +32,7 @@
 - 通知中心采用独立 `NotificationListModel`、`NotificationCenterView`、`NotificationController`，实现分类计数、未读筛选、搜索、分页、右侧详情、附件、状态动作、全部已读和 CSV 导出；通知徽标与聊天未读独立维护。
 - 设置中心采用独立 `SettingsModel`、`SettingsCenterView`、`SettingsController`，实现安全与登录三栏界面、服务端确认后提交、失败回滚、设备/存储聚合状态、诊断导出和恢复默认，并复用公共导航固定索引 6。
 - 通讯录个人化采用独立 `ContactCenterModel`、`ContactController` 并复用现有 `MainWindow` 三栏工作区；真实账号选择人员后可读取详情、共同群组、最近联系人，并通过乐观 revision 更新个人收藏、标签和备注。
-- 日程中心采用独立 `CalendarModel`、`CalendarCenterView`、`CalendarController`，按参考图实现迷你月历、个人/工作/共享日历筛选、周网格、创建/编辑/取消和右侧详情；两个 Release 窗口分别展示组织者可编辑态与参与者只读态。
+- 日程中心采用独立 `CalendarModel`、`CalendarCenterView`、`CalendarController`，按参考图实现迷你月历、个人/工作/共享日历筛选、可交互日/周/月网格、按模式导航、创建/编辑/取消和右侧详情；两个便携 Release 窗口分别展示组织者可编辑态与参与者只读态。
 
 ### 协议与 Gateway
 
@@ -97,7 +97,7 @@ TLS 栈测试只通过宿主机公开端口访问容器，使用 `test1`、`test
 
 Windows 独立运行验证已清除 `QT_PLUGIN_PATH`、Qt SDK `PATH` 和 `ORGLINK_TLS_CA_FILE`，客户端仍可从发布目录启动，并通过相对 `certs/server.crt` 使用 `test1 / 123456` 完成 TLS 登录，证明不再依赖开发机 Qt 环境。
 
-界面验证按实际窗口边界分别截图，见 [登录窗口](screenshots/login-window-v2.png)、[组织客户端](screenshots/client-chatuser1-v2.png)、[通讯录 test1](screenshots/contact-center-test1-20260805.png)、[通讯录 test2](screenshots/contact-center-test2-20260805.png)、[消息客户端一](screenshots/orglink-client-user1-message.png)、[消息客户端二](screenshots/orglink-client-user2-message.png)、[群组客户端 test1](screenshots/group-center-test1-20260805.png)、[群组客户端 test2](screenshots/group-center-test2-20260805.png)、[通知客户端 test1](screenshots/notification-center-test1-20260805.png)、[通知客户端 test2](screenshots/notification-center-test2-20260805.png)、[设置客户端 test1](screenshots/settings-center-test1-20260805.png)、[设置客户端 test2](screenshots/settings-center-test2-20260805.png)、[文件中心 test1](screenshots/file-center-test1-window-final-20260805.png)、[文件中心 test2 已接收](screenshots/file-center-test2-received-window-final-20260805.png)、[日程中心 test1 组织者](screenshots/calendar-center-test1-window-20260805.png) 和 [日程中心 test2 参与者](screenshots/calendar-center-test2-window-20260805.png)。
+界面验证按实际窗口边界分别截图，见 [登录窗口](screenshots/login-window-v2.png)、[组织客户端](screenshots/client-chatuser1-v2.png)、[通讯录 test1](screenshots/contact-center-test1-20260805.png)、[通讯录 test2](screenshots/contact-center-test2-20260805.png)、[消息客户端一](screenshots/orglink-client-user1-message.png)、[消息客户端二](screenshots/orglink-client-user2-message.png)、[群组客户端 test1](screenshots/group-center-test1-20260805.png)、[群组客户端 test2](screenshots/group-center-test2-20260805.png)、[通知客户端 test1](screenshots/notification-center-test1-20260805.png)、[通知客户端 test2](screenshots/notification-center-test2-20260805.png)、[设置客户端 test1](screenshots/settings-center-test1-20260805.png)、[设置客户端 test2](screenshots/settings-center-test2-20260805.png)、[文件中心 test1](screenshots/file-center-test1-window-final-20260805.png)、[文件中心 test2 已接收](screenshots/file-center-test2-received-window-final-20260805.png)、[日程中心便携版 test1 组织者](screenshots/calendar-center-portable-final-test1-20260805.png) 和 [日程中心便携版 test2 参与者](screenshots/calendar-center-portable-final-test2-20260805.png)。
 
 ## 代码已实现但验证范围有限
 

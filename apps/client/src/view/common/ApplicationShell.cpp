@@ -52,7 +52,8 @@ ApplicationShell::ApplicationShell(QWidget* parent) : QWidget(parent)
     contentLayout_->setSpacing(8);
     auto* navigationPanel = new QFrame(body);
     navigationPanel->setObjectName(QStringLiteral("navigationPanel"));
-    navigationPanel->setFixedWidth(150);
+    // 160px 导航栏与参考稿左侧菜单占比一致，并为 15px 中文菜单保留稳定留白。
+    navigationPanel->setFixedWidth(160);
     auto* navigationLayout = new QVBoxLayout(navigationPanel);
     navigationLayout->setContentsMargins(0, 14, 0, 14);
     navigation_ = new QListWidget(navigationPanel);

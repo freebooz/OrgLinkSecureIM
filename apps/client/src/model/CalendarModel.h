@@ -11,7 +11,7 @@ namespace orglink::client
 {
 
 /**
- * @brief 日程中心 Model，保存当前周、服务端事件快照、选择项和本地展示筛选。
+ * @brief 日程中心 Model，保存当前日期/周锚点、服务端可见范围快照、选择项和本地展示筛选。
  * @details 本类不访问网络或 QWidget；UTC 时间只在 View 渲染时转换为本地时区。
  */
 class CalendarModel final : public QObject
@@ -26,7 +26,7 @@ public:
     [[nodiscard]] QList<RemoteCalendarEvent> visibleEvents() const;
     [[nodiscard]] std::optional<RemoteCalendarEvent> selectedEvent() const;
 
-    /** @brief 原子替换服务端返回的当前范围；若选择项消失则清空详情。 */
+    /** @brief 原子替换服务端返回的当前日、周或月范围；若选择项消失则定位首条可见日程。 */
     void replaceEvents(QList<RemoteCalendarEvent> events);
     /** @brief 以 UUID 插入或替换事务提交后的权威事件。 */
     void upsertEvent(RemoteCalendarEvent event);

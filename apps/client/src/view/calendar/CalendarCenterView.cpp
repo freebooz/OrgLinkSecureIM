@@ -1,5 +1,6 @@
 #include "view/calendar/CalendarCenterView.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QAbstractItemView>
 #include <QCalendarWidget>
@@ -18,16 +19,20 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QMenu>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QSplitter>
+#include <QStyle>
 #include <QTableWidget>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
 #include <optional>
 #include <algorithm>
+#include <utility>
 
 namespace orglink::client
 {
@@ -148,24 +153,29 @@ CalendarCenterView::CalendarCenterView(CalendarModel* model, QWidget* parent)
     setStyleSheet(QStringLiteral(R"(
 QWidget#calendarCenterView, QWidget#calendarContext { background:#f7faff; color:#172033; }
 QFrame#calendarCard, QFrame#calendarDetail { background:#ffffff; border:1px solid #e7edf7; border-radius:12px; }
-QPushButton { min-height:34px; border:1px solid #d9e2f1; border-radius:7px; background:#ffffff; padding:0 12px; }
+QWidget#calendarCenterView, QWidget#calendarContext { font-size:14px; }
+QPushButton { min-height:38px; border:1px solid #d9e2f1; border-radius:7px; background:#ffffff; padding:0 14px; font-size:14px; }
 QPushButton:hover { border-color:#1677ff; color:#075df5; }
 QPushButton#calendarPrimary { background:#0868f7; color:#ffffff; border:none; font-weight:600; }
 QPushButton#calendarDanger { color:#ff4d4f; border-color:#ff7875; background:#ffffff; }
-QLabel#calendarSectionTitle { font-size:18px; font-weight:700; color:#101828; }
-QLabel#calendarDetailTitle { font-size:19px; font-weight:700; color:#101828; }
-QTableWidget { background:#ffffff; border:none; gridline-color:#edf1f7; }
-QTableWidget::item:selected { border:2px solid #1677ff; }
-QHeaderView::section { background:#ffffff; border:none; border-right:1px solid #edf1f7; border-bottom:1px solid #edf1f7; padding:8px; }
-QCalendarWidget { background:#ffffff; border:1px solid #e7edf7; border-radius:9px; }
-QCheckBox { spacing:8px; min-height:27px; }
+QPushButton[viewModeButton="true"] { min-width:54px; padding:0 8px; }
+QPushButton[viewModeButton="true"][active="true"] { color:#075df5; background:#eef4ff; border-color:#c9dafb; font-weight:700; }
+QLabel#calendarContextSectionTitle { font-size:15px; font-weight:700; color:#101828; padding-top:6px; }
+QLabel#calendarSectionTitle { font-size:19px; font-weight:700; color:#101828; }
+QLabel#calendarDetailTitle { font-size:20px; font-weight:700; color:#101828; }
+QTableWidget { background:#ffffff; border:none; gridline-color:#edf1f7; font-size:13px; }
+QTableWidget::item:selected { background:#eaf2ff; color:#075df5; border:2px solid #1677ff; }
+QHeaderView::section { background:#ffffff; border:none; border-right:1px solid #edf1f7; border-bottom:1px solid #edf1f7; padding:10px 8px; font-size:14px; font-weight:600; }
+QCalendarWidget { background:#ffffff; border:1px solid #e7edf7; border-radius:9px; font-size:14px; }
+QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
 )"));
 
     contextWidget_ = new QWidget;
     contextWidget_->setObjectName(QStringLiteral("calendarContext"));
     auto* contextLayout = new QVBoxLayout(contextWidget_);
-    contextLayout->setContentsMargins(12, 14, 12, 14);
-    contextLayout->setSpacing(12);
+    // 公共上下文卡外层已有 16px 留白，这里不重复占用水平空间，保证窄栏中的月历仍达到设计宽度。
+    contextLayout->setContentsMargins(0, 4, 0, 4);
+    contextLayout->setSpacing(11);
     createButton_ = new QPushButton(QStringLiteral("＋  新建日程"), contextWidget_);
     createButton_->setObjectName(QStringLiteral("calendarPrimary"));
     createButton_->setMinimumHeight(42);
@@ -174,10 +184,11 @@ QCheckBox { spacing:8px; min-height:27px; }
     miniCalendar_->setObjectName(QStringLiteral("miniCalendar"));
     miniCalendar_->setGridVisible(false);
     miniCalendar_->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    miniCalendar_->setFixedHeight(250);
     contextLayout->addWidget(miniCalendar_);
 
     auto* myTitle = new QLabel(QStringLiteral("我的日历"), contextWidget_);
-    myTitle->setStyleSheet(QStringLiteral("font-weight:700;margin-top:4px;"));
+    myTitle->setObjectName(QStringLiteral("calendarContextSectionTitle"));
     contextLayout->addWidget(myTitle);
     personalCalendarCheck_ = new QCheckBox(QStringLiteral("我的日历"), contextWidget_);
     workCalendarCheck_ = new QCheckBox(QStringLiteral("工作日程"), contextWidget_);
@@ -186,7 +197,7 @@ QCheckBox { spacing:8px; min-height:27px; }
     contextLayout->addWidget(personalCalendarCheck_);
     contextLayout->addWidget(workCalendarCheck_);
     auto* sharedTitle = new QLabel(QStringLiteral("共享日历"), contextWidget_);
-    sharedTitle->setStyleSheet(QStringLiteral("font-weight:700;margin-top:8px;"));
+    sharedTitle->setObjectName(QStringLiteral("calendarContextSectionTitle"));
     contextLayout->addWidget(sharedTitle);
     researchCalendarCheck_ = new QCheckBox(QStringLiteral("研发团队日历"), contextWidget_);
     productCalendarCheck_ = new QCheckBox(QStringLiteral("产品团队日历"), contextWidget_);
@@ -198,7 +209,7 @@ QCheckBox { spacing:8px; min-height:27px; }
     contextLayout->addWidget(productCalendarCheck_);
     contextLayout->addWidget(marketCalendarCheck_);
     auto* filterTitle = new QLabel(QStringLiteral("过滤条件"), contextWidget_);
-    filterTitle->setStyleSheet(QStringLiteral("font-weight:700;margin-top:8px;"));
+    filterTitle->setObjectName(QStringLiteral("calendarContextSectionTitle"));
     contextLayout->addWidget(filterTitle);
     includeCancelledCheck_ = new QCheckBox(QStringLiteral("已取消的日程"), contextWidget_);
     remindersOnlyCheck_ = new QCheckBox(QStringLiteral("仅显示有提醒的日程"), contextWidget_);
@@ -216,10 +227,16 @@ QCheckBox { spacing:8px; min-height:27px; }
     calendarLayout->setContentsMargins(10, 10, 10, 10);
     calendarLayout->setSpacing(8);
     auto* toolbar = new QHBoxLayout;
-    for (const auto& label : {QStringLiteral("日"), QStringLiteral("周"), QStringLiteral("月")})
+    toolbar->setSpacing(8);
+    dayViewButton_ = new QPushButton(QStringLiteral("日"), calendarCard);
+    weekViewButton_ = new QPushButton(QStringLiteral("周"), calendarCard);
+    monthViewButton_ = new QPushButton(QStringLiteral("月"), calendarCard);
+    dayViewButton_->setObjectName(QStringLiteral("calendarDayViewButton"));
+    weekViewButton_->setObjectName(QStringLiteral("calendarWeekViewButton"));
+    monthViewButton_->setObjectName(QStringLiteral("calendarMonthViewButton"));
+    for (auto* button : {dayViewButton_, weekViewButton_, monthViewButton_})
     {
-        auto* button = new QPushButton(label, calendarCard);
-        if (label == QStringLiteral("周")) button->setStyleSheet(QStringLiteral("color:#075df5;background:#eef4ff;"));
+        button->setProperty("viewModeButton", true);
         toolbar->addWidget(button);
     }
     auto* today = new QPushButton(QStringLiteral("今天"), calendarCard);
@@ -227,21 +244,27 @@ QCheckBox { spacing:8px; min-height:27px; }
     auto* next = new QPushButton(QStringLiteral("›"), calendarCard);
     rangeLabel_ = new QLabel(calendarCard);
     rangeLabel_->setAlignment(Qt::AlignCenter);
-    rangeLabel_->setStyleSheet(QStringLiteral("font-size:17px;font-weight:600;"));
+    rangeLabel_->setStyleSheet(QStringLiteral("font-size:18px;font-weight:700;color:#101828;"));
     toolbar->addWidget(today);
     toolbar->addWidget(previous);
     toolbar->addWidget(next);
     toolbar->addWidget(rangeLabel_, 1);
-    toolbar->addWidget(new QPushButton(QStringLiteral("▽ 筛选"), calendarCard));
-    toolbar->addWidget(new QPushButton(QStringLiteral("更多…"), calendarCard));
+    filterButton_ = new QPushButton(QStringLiteral("▽ 筛选"), calendarCard);
+    moreButton_ = new QPushButton(QStringLiteral("更多…"), calendarCard);
+    filterButton_->setObjectName(QStringLiteral("calendarFilterButton"));
+    moreButton_->setObjectName(QStringLiteral("calendarMoreButton"));
+    toolbar->addWidget(filterButton_);
+    toolbar->addWidget(moreButton_);
     calendarLayout->addLayout(toolbar);
     weekGrid_ = new QTableWidget(12, 7, calendarCard);
     weekGrid_->setObjectName(QStringLiteral("calendarWeekGrid"));
     weekGrid_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     weekGrid_->setSelectionMode(QAbstractItemView::SingleSelection);
     weekGrid_->setSelectionBehavior(QAbstractItemView::SelectItems);
-    weekGrid_->verticalHeader()->setDefaultSectionSize(56);
+    weekGrid_->verticalHeader()->setMinimumWidth(58);
+    weekGrid_->verticalHeader()->setDefaultSectionSize(60);
     weekGrid_->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    weekGrid_->horizontalHeader()->setMinimumHeight(58);
     weekGrid_->setVerticalHeaderLabels({QStringLiteral("全天"), QStringLiteral("08:00"),
         QStringLiteral("09:00"), QStringLiteral("10:00"), QStringLiteral("11:00"),
         QStringLiteral("12:00"), QStringLiteral("13:00"), QStringLiteral("14:00"),
@@ -251,11 +274,11 @@ QCheckBox { spacing:8px; min-height:27px; }
 
     auto* detail = new QFrame(splitter);
     detail->setObjectName(QStringLiteral("calendarDetail"));
-    detail->setMinimumWidth(285);
-    detail->setMaximumWidth(360);
+    detail->setMinimumWidth(310);
+    detail->setMaximumWidth(330);
     auto* detailLayout = new QVBoxLayout(detail);
-    detailLayout->setContentsMargins(18, 18, 18, 18);
-    detailLayout->setSpacing(15);
+    detailLayout->setContentsMargins(20, 20, 20, 20);
+    detailLayout->setSpacing(16);
     detailTitle_ = new QLabel(QStringLiteral("请选择日程"), detail);
     detailTitle_->setObjectName(QStringLiteral("calendarDetailTitle"));
     detailTitle_->setWordWrap(true);
@@ -281,7 +304,7 @@ QCheckBox { spacing:8px; min-height:27px; }
                         detailParticipants_, detailDescription_, detailReminder_, detailCalendar_})
     {
         label->setWordWrap(true);
-        label->setStyleSheet(QStringLiteral("color:#344054;line-height:1.5;"));
+        label->setStyleSheet(QStringLiteral("color:#344054;font-size:14px;line-height:1.55;"));
         detailLayout->addWidget(label);
     }
     detailLayout->addStretch();
@@ -291,23 +314,29 @@ QCheckBox { spacing:8px; min-height:27px; }
     splitter->addWidget(calendarCard);
     splitter->addWidget(detail);
     splitter->setStretchFactor(0, 1);
-    splitter->setSizes({720, 310});
+    splitter->setSizes({790, 320});
     rootLayout->addWidget(splitter);
 
-    connect(model_, &CalendarModel::eventsChanged, this, &CalendarCenterView::rebuildWeekGrid);
-    connect(model_, &CalendarModel::weekChanged, this, [this](const QDate&) { requestCurrentWeek(); });
-    connect(model_, &CalendarModel::selectedDateChanged, miniCalendar_, &QCalendarWidget::setSelectedDate);
+    connect(model_, &CalendarModel::eventsChanged, this, &CalendarCenterView::rebuildCalendarGrid);
+    connect(model_, &CalendarModel::selectedDateChanged, this, [this](const QDate& date) {
+        // 小月历和主视图共用同一选中日期；阻断回调可避免程序化同步再次触发网络请求。
+        const QSignalBlocker blocker(miniCalendar_);
+        miniCalendar_->setSelectedDate(date);
+        rebuildCalendarGrid();
+        requestVisibleRange();
+    });
     connect(model_, &CalendarModel::selectedEventChanged, this, &CalendarCenterView::showSelectedEvent);
     connect(miniCalendar_, &QCalendarWidget::selectionChanged, this, [this]() {
         model_->setSelectedDate(miniCalendar_->selectedDate());
     });
     connect(today, &QPushButton::clicked, this, [this]() { model_->setSelectedDate(QDate::currentDate()); });
-    connect(previous, &QPushButton::clicked, this, [this]() {
-        model_->setSelectedDate(model_->weekStart().addDays(-7));
-    });
-    connect(next, &QPushButton::clicked, this, [this]() {
-        model_->setSelectedDate(model_->weekStart().addDays(7));
-    });
+    connect(previous, &QPushButton::clicked, this, [this]() { navigatePeriod(-1); });
+    connect(next, &QPushButton::clicked, this, [this]() { navigatePeriod(1); });
+    connect(dayViewButton_, &QPushButton::clicked, this, [this]() { setViewMode(ViewMode::Day); });
+    connect(weekViewButton_, &QPushButton::clicked, this, [this]() { setViewMode(ViewMode::Week); });
+    connect(monthViewButton_, &QPushButton::clicked, this, [this]() { setViewMode(ViewMode::Month); });
+    connect(filterButton_, &QPushButton::clicked, this, &CalendarCenterView::showFilterMenu);
+    connect(moreButton_, &QPushButton::clicked, this, &CalendarCenterView::showMoreMenu);
     connect(createButton_, &QPushButton::clicked, this, &CalendarCenterView::openCreateDialog);
     connect(editButton_, &QPushButton::clicked, this, &CalendarCenterView::openEditDialog);
     connect(deleteButton_, &QPushButton::clicked, this, [this]() {
@@ -336,24 +365,34 @@ QCheckBox { spacing:8px; min-height:27px; }
     const auto updateFilters = [this]() {
         model_->setFilters(personalCalendarCheck_->isChecked(), workCalendarCheck_->isChecked(),
             sharedCalendarVisible(), includeCancelledCheck_->isChecked(), remindersOnlyCheck_->isChecked());
-        requestCurrentWeek();
+        const auto selected = model_->selectedEvent();
+        if (selected && !eventCalendarVisible(*selected)) model_->selectEvent(QString{});
+        // 研发/产品/市场属于同一服务端共享类型，细分勾选由 View 本地即时投影，无需等待往返即可生效。
+        rebuildCalendarGrid();
+        requestVisibleRange();
     };
     for (auto* check : {personalCalendarCheck_, workCalendarCheck_, researchCalendarCheck_,
                         productCalendarCheck_, marketCalendarCheck_, includeCancelledCheck_, remindersOnlyCheck_})
         connect(check, &QCheckBox::toggled, this, [updateFilters](bool) { updateFilters(); });
     connect(weekGrid_, &QTableWidget::itemSelectionChanged, this, [this]() {
         const auto items = weekGrid_->selectedItems();
-        model_->selectEvent(items.isEmpty() ? QString{} : items.constFirst()->data(Qt::UserRole).toString());
+        const auto eventUuid = items.isEmpty() ? QString{} : items.constFirst()->data(Qt::UserRole).toString();
+        if (!items.isEmpty())
+        {
+            const auto date = items.constFirst()->data(Qt::UserRole + 1).toDate();
+            if (date.isValid() && date != model_->selectedDate()) model_->setSelectedDate(date);
+        }
+        model_->selectEvent(eventUuid);
     });
 
     miniCalendar_->setSelectedDate(model_->selectedDate());
-    rebuildWeekGrid();
+    setViewMode(ViewMode::Week);
     showSelectedEvent();
 }
 
 void CalendarCenterView::reload()
 {
-    requestCurrentWeek();
+    requestVisibleRange();
 }
 
 void CalendarCenterView::setNetworkConnected(bool connected)
@@ -369,45 +408,205 @@ bool CalendarCenterView::sharedCalendarVisible() const
         || marketCalendarCheck_->isChecked();
 }
 
-void CalendarCenterView::requestCurrentWeek()
+void CalendarCenterView::requestVisibleRange()
 {
-    const auto start = QDateTime(model_->weekStart(), QTime(0, 0)).toUTC();
-    const auto end = start.addDays(7);
+    QDate startDate;
+    QDate endDate;
+    switch (viewMode_)
+    {
+    case ViewMode::Day:
+        startDate = model_->selectedDate();
+        endDate = startDate.addDays(1);
+        break;
+    case ViewMode::Week:
+        startDate = model_->weekStart();
+        endDate = startDate.addDays(7);
+        break;
+    case ViewMode::Month:
+        startDate = QDate(model_->selectedDate().year(), model_->selectedDate().month(), 1);
+        endDate = startDate.addMonths(1);
+        break;
+    }
+    if (!startDate.isValid() || !endDate.isValid()) return;
+    const auto start = QDateTime(startDate, QTime(0, 0)).toUTC();
+    const auto end = QDateTime(endDate, QTime(0, 0)).toUTC();
+    // 服务端按半开时间区间执行权限裁剪；客户端模式切换不会扩大到当前可见日、周或月之外。
     emit calendarRangeRequested(static_cast<qulonglong>(start.toMSecsSinceEpoch()),
         static_cast<qulonglong>(end.toMSecsSinceEpoch()),
         includeCancelledCheck_->isChecked(), remindersOnlyCheck_->isChecked());
 }
 
-void CalendarCenterView::rebuildWeekGrid()
+void CalendarCenterView::setViewMode(ViewMode mode)
 {
+    viewMode_ = mode;
+    for (const auto& entry : {std::pair{dayViewButton_, ViewMode::Day},
+                              std::pair{weekViewButton_, ViewMode::Week},
+                              std::pair{monthViewButton_, ViewMode::Month}})
+    {
+        auto* button = entry.first;
+        button->setProperty("active", entry.second == viewMode_);
+        // 动态属性改变后显式刷新样式，避免不同平台主题缓存旧的选中态。
+        button->style()->unpolish(button);
+        button->style()->polish(button);
+    }
+    rebuildCalendarGrid();
+    requestVisibleRange();
+}
+
+void CalendarCenterView::navigatePeriod(int direction)
+{
+    if (direction == 0) return;
+    auto date = model_->selectedDate();
+    if (viewMode_ == ViewMode::Day) date = date.addDays(direction);
+    else if (viewMode_ == ViewMode::Week) date = date.addDays(direction * 7);
+    else date = date.addMonths(direction);
+    model_->setSelectedDate(date);
+}
+
+void CalendarCenterView::showFilterMenu()
+{
+    QMenu menu(this);
+    auto* cancelled = menu.addAction(QStringLiteral("显示已取消日程"));
+    auto* reminders = menu.addAction(QStringLiteral("仅显示有提醒日程"));
+    cancelled->setCheckable(true);
+    reminders->setCheckable(true);
+    cancelled->setChecked(includeCancelledCheck_->isChecked());
+    reminders->setChecked(remindersOnlyCheck_->isChecked());
+    connect(cancelled, &QAction::toggled, includeCancelledCheck_, &QCheckBox::setChecked);
+    connect(reminders, &QAction::toggled, remindersOnlyCheck_, &QCheckBox::setChecked);
+    menu.exec(filterButton_->mapToGlobal(QPoint(0, filterButton_->height())));
+}
+
+void CalendarCenterView::showMoreMenu()
+{
+    QMenu menu(this);
+    auto* refresh = menu.addAction(QStringLiteral("刷新日程"));
+    auto* create = menu.addAction(QStringLiteral("新建日程"));
+    auto* copySummary = menu.addAction(QStringLiteral("复制选中日程摘要"));
+    create->setEnabled(networkConnected_);
+    copySummary->setEnabled(model_->selectedEvent().has_value());
+    const auto* selected = menu.exec(moreButton_->mapToGlobal(QPoint(0, moreButton_->height())));
+    if (selected == refresh) requestVisibleRange();
+    else if (selected == create) openCreateDialog();
+    else if (selected == copySummary) shareButton_->click();
+}
+
+bool CalendarCenterView::eventCalendarVisible(const RemoteCalendarEvent& event) const
+{
+    if (event.kind != 3) return true;
+    if (event.calendarName.contains(QStringLiteral("研发"))) return researchCalendarCheck_->isChecked();
+    if (event.calendarName.contains(QStringLiteral("产品"))) return productCalendarCheck_->isChecked();
+    if (event.calendarName.contains(QStringLiteral("市场"))) return marketCalendarCheck_->isChecked();
+    return sharedCalendarVisible();
+}
+
+void CalendarCenterView::rebuildCalendarGrid()
+{
+    const QSignalBlocker blocker(weekGrid_);
     weekGrid_->clearContents();
-    const auto monday = model_->weekStart();
     const QStringList weekNames{QStringLiteral("周一"), QStringLiteral("周二"), QStringLiteral("周三"),
         QStringLiteral("周四"), QStringLiteral("周五"), QStringLiteral("周六"), QStringLiteral("周日")};
+    const auto selectedEvent = model_->selectedEvent();
+    const auto selectedUuid = selectedEvent ? selectedEvent->eventUuid : QString{};
+
+    if (viewMode_ == ViewMode::Month)
+    {
+        const auto monthStart = QDate(model_->selectedDate().year(), model_->selectedDate().month(), 1);
+        const auto gridStart = mondayOf(monthStart);
+        weekGrid_->setRowCount(6);
+        weekGrid_->setColumnCount(7);
+        weekGrid_->verticalHeader()->hide();
+        weekGrid_->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        weekGrid_->setHorizontalHeaderLabels(weekNames);
+        rangeLabel_->setText(monthStart.toString(QStringLiteral("yyyy年M月")));
+
+        for (int row = 0; row < 6; ++row)
+        {
+            for (int column = 0; column < 7; ++column)
+            {
+                const auto date = gridStart.addDays(row * 7 + column);
+                QStringList lines{date.toString(QStringLiteral("M月d日"))};
+                QStringList tooltips;
+                QString firstEventUuid;
+                QColor firstColor(QStringLiteral("#1677FF"));
+                for (const auto& event : model_->visibleEvents())
+                {
+                    if (!eventCalendarVisible(event)) continue;
+                    const auto eventDate = QDateTime::fromMSecsSinceEpoch(
+                        static_cast<qint64>(event.startsAtUtcMs)).toLocalTime().date();
+                    if (eventDate != date) continue;
+                    if (firstEventUuid.isEmpty())
+                    {
+                        firstEventUuid = event.eventUuid;
+                        const QColor candidate(event.color);
+                        if (candidate.isValid()) firstColor = candidate;
+                    }
+                    if (lines.size() < 4) lines.push_back(QStringLiteral("• %1").arg(event.title));
+                    tooltips.push_back(QStringLiteral("%1：%2").arg(event.title, event.description));
+                }
+                auto* item = new QTableWidgetItem(lines.join(QLatin1Char('\n')));
+                item->setData(Qt::UserRole, firstEventUuid);
+                item->setData(Qt::UserRole + 1, date);
+                item->setTextAlignment(Qt::AlignLeft | Qt::AlignTop);
+                item->setToolTip(tooltips.join(QLatin1Char('\n')));
+                if (date.month() != monthStart.month()) item->setForeground(QColor(QStringLiteral("#98A2B3")));
+                else if (!firstEventUuid.isEmpty()) item->setForeground(firstColor.darker(145));
+                if (date == model_->selectedDate()) item->setBackground(QColor(QStringLiteral("#EAF2FF")));
+                weekGrid_->setItem(row, column, item);
+                if (!selectedUuid.isEmpty() && firstEventUuid == selectedUuid) weekGrid_->setCurrentItem(item);
+            }
+        }
+        return;
+    }
+
+    const auto firstDate = viewMode_ == ViewMode::Day ? model_->selectedDate() : model_->weekStart();
+    const auto columnCount = viewMode_ == ViewMode::Day ? 1 : 7;
+    weekGrid_->setRowCount(12);
+    weekGrid_->setColumnCount(columnCount);
+    weekGrid_->verticalHeader()->show();
+    weekGrid_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    weekGrid_->verticalHeader()->setDefaultSectionSize(60);
+    weekGrid_->setVerticalHeaderLabels({QStringLiteral("全天"), QStringLiteral("08:00"),
+        QStringLiteral("09:00"), QStringLiteral("10:00"), QStringLiteral("11:00"),
+        QStringLiteral("12:00"), QStringLiteral("13:00"), QStringLiteral("14:00"),
+        QStringLiteral("15:00"), QStringLiteral("16:00"), QStringLiteral("17:00"),
+        QStringLiteral("18:00")});
     QStringList headers;
-    for (int day = 0; day < 7; ++day)
-        headers.push_back(QStringLiteral("%1\n%2").arg(weekNames.at(day), monday.addDays(day).toString(QStringLiteral("M/d"))));
+    for (int day = 0; day < columnCount; ++day)
+    {
+        const auto date = firstDate.addDays(day);
+        headers.push_back(QStringLiteral("%1\n%2").arg(weekNames.at(date.dayOfWeek() - 1),
+            date.toString(QStringLiteral("M/d"))));
+    }
     weekGrid_->setHorizontalHeaderLabels(headers);
-    rangeLabel_->setText(QStringLiteral("%1 - %2").arg(
-        monday.toString(QStringLiteral("yyyy年M月d日")), monday.addDays(6).toString(QStringLiteral("M月d日"))));
+    rangeLabel_->setText(viewMode_ == ViewMode::Day
+        ? QStringLiteral("%1  %2").arg(firstDate.toString(QStringLiteral("yyyy年M月d日")),
+              weekNames.at(firstDate.dayOfWeek() - 1))
+        : QStringLiteral("%1 - %2").arg(firstDate.toString(QStringLiteral("yyyy年M月d日")),
+              firstDate.addDays(6).toString(QStringLiteral("M月d日"))));
+
     for (const auto& event : model_->visibleEvents())
     {
+        if (!eventCalendarVisible(event)) continue;
         const auto start = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(event.startsAtUtcMs)).toLocalTime();
         const auto end = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(event.endsAtUtcMs)).toLocalTime();
-        const auto column = monday.daysTo(start.date());
-        if (column < 0 || column >= 7) continue;
+        const auto column = firstDate.daysTo(start.date());
+        if (column < 0 || column >= columnCount) continue;
         const auto row = event.allDay ? 0 : std::clamp(start.time().hour() - 7, 1, 11);
         auto* item = new QTableWidgetItem(QStringLiteral("%1 - %2\n%3\n%4")
             .arg(start.time().toString(QStringLiteral("HH:mm")), end.time().toString(QStringLiteral("HH:mm")),
                  event.cancelled ? QStringLiteral("[已取消] %1").arg(event.title) : event.title,
                  event.location));
         item->setData(Qt::UserRole, event.eventUuid);
+        item->setData(Qt::UserRole + 1, start.date());
+        item->setTextAlignment(Qt::AlignLeft | Qt::AlignTop);
         auto color = QColor(event.color);
         if (!color.isValid()) color = QColor(QStringLiteral("#1677FF"));
         item->setBackground(color.lighter(185));
         item->setForeground(color.darker(150));
         item->setToolTip(event.description);
         weekGrid_->setItem(row, column, item);
+        if (event.eventUuid == selectedUuid) weekGrid_->setCurrentItem(item);
     }
 }
 

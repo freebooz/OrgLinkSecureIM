@@ -19,6 +19,8 @@
 #include <QSignalSpy>
 #include <QLabel>
 #include <QListWidget>
+#include <QPushButton>
+#include <QTableWidget>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -69,10 +71,27 @@ private slots:
         // 设置中心必须替换导航索引 6 的占位页，并保留独立上下文分类列表。
         QVERIFY(window.findChild<QObject*>(QStringLiteral("settingsCenterView")) != nullptr);
         QVERIFY(window.findChild<QObject*>(QStringLiteral("settingsCategoryList")) != nullptr);
-        // 日程中心必须替换导航索引 5 的占位页，并提供小月历与周视图网格。
+        // 日程中心必须替换导航索引 5 的占位页，并提供可交互的小月历及日/周/月网格。
         QVERIFY(window.findChild<QObject*>(QStringLiteral("calendarCenterView")) != nullptr);
         QVERIFY(window.findChild<QObject*>(QStringLiteral("miniCalendar")) != nullptr);
-        QVERIFY(window.findChild<QObject*>(QStringLiteral("calendarWeekGrid")) != nullptr);
+        auto* calendarGrid = window.findChild<QTableWidget*>(QStringLiteral("calendarWeekGrid"));
+        auto* dayView = window.findChild<QPushButton*>(QStringLiteral("calendarDayViewButton"));
+        auto* weekView = window.findChild<QPushButton*>(QStringLiteral("calendarWeekViewButton"));
+        auto* monthView = window.findChild<QPushButton*>(QStringLiteral("calendarMonthViewButton"));
+        QVERIFY(calendarGrid != nullptr);
+        QVERIFY(dayView != nullptr);
+        QVERIFY(weekView != nullptr);
+        QVERIFY(monthView != nullptr);
+        // 模式按钮必须真实改变网格结构，防止界面退化为只有样式的空壳按钮。
+        dayView->click();
+        QCOMPARE(calendarGrid->rowCount(), 12);
+        QCOMPARE(calendarGrid->columnCount(), 1);
+        monthView->click();
+        QCOMPARE(calendarGrid->rowCount(), 6);
+        QCOMPARE(calendarGrid->columnCount(), 7);
+        weekView->click();
+        QCOMPARE(calendarGrid->rowCount(), 12);
+        QCOMPARE(calendarGrid->columnCount(), 7);
         auto* navigation = window.findChild<QListWidget*>(QStringLiteral("primaryNavigation"));
         QVERIFY(navigation != nullptr);
         navigation->setCurrentRow(6);

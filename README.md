@@ -45,7 +45,7 @@ cmake --build --preset windows-qt-production
 .\deploy\client\package-windows.ps1
 ```
 
-生产构建会在 EXE 重新链接后自动调用 `windeployqt`；打包脚本还会把当前 Compose 开发 CA 放入发布目录的 `certs` 子目录。运行或分发时必须保留整个 `Release` 目录，不能只复制 `orglink-client.exe`。Qt SDK 默认路径为忽略目录 `.tools/Qt/6.8.3/msvc2022_64`；其他环境可修改 preset 或传入单位批准的 Qt 6 SDK。
+生产构建会在 EXE 重新链接后自动调用 `windeployqt`；`package-windows.ps1` 还会自动发现 Visual Studio，将 x64 MSVC CRT 作为应用本地 DLL 发布。运行或分发时必须保留完整发布目录，不能只复制 `orglink-client.exe`。发布脚本默认不夹带开发 CA；部署者应通过 `ORGLINK_TLS_CA_FILE` 指向单位批准的外部信任锚，或显式使用 `-CaFile` 生成受控内部安装包。Qt SDK 默认路径为忽略目录 `.tools/Qt/6.8.3/msvc2022_64`。
 
 ## PostgreSQL + Docker 一键部署
 
