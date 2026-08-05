@@ -1,0 +1,10 @@
+build
+.tools
+.git
+.vs
+deploy/docker/.env
+deploy/docker/runtime-certs
+docs/screenshots
+*.db
+*.sqlite
+*.log

@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 最近联系人/收藏联系人列表只携带渲染摘要，详细联系方式必须通过鉴权详情接口取得。
+message ContactSummary {
+  uint64 person_id = 1;
+  string display_name = 2;
+  string avatar_resource_id = 3;
+  uint32 presence_state = 4;
+  bool favorite = 5;
+  uint64 last_interaction_at_utc_ms = 6;
+  uint32 interaction_count = 7;
+}
+
+// 群组预览只返回请求人与目标联系人共同加入的活动群组。
+message ContactGroupPreview {
+  uint64 group_id = 1;
+  string name = 2;
+  uint32 group_type = 3;
+}
+
+// 组织主数据是只读投影；favorite、tags 和 note 属于当前用户私有偏好并受 revision 控制。
+message ContactDetail {
+  uint64 person_id = 1;
+  string display_name = 2;
+  string avatar_resource_id = 3;
+  string employee_number = 4;
+  string work_phone = 5;
+  string extension_number = 6;
+  string work_email = 7;
+  string department_name = 8;
+  string position_name = 9;
+  string office_location = 10;
+  uint64 manager_person_id = 11;
+  string manager_name = 12;
+  uint32 presence_state = 13;
+  bool favorite = 14;
+  uint64 revision = 15;
+  string note = 16;
+  repeated string tags = 17;
+  repeated ContactGroupPreview groups = 18;
+}
+
+message ContactCenterRequest {}
+
+message ContactCenterResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated ContactSummary recent_contacts = 4;
+  repeated ContactSummary favorite_contacts = 5;
+}
+
+message ContactDetailRequest { uint64 contact_person_id = 1; }
+
+message ContactDetailResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  ContactDetail detail = 4;
+}
+
+message ContactPreferenceUpdateRequest {
+  uint64 contact_person_id = 1;
+  uint64 expected_revision = 2;
+  bool favorite = 3;
+  string note = 4;
+  repeated string tags = 5;
+}
+
+message ContactPreferenceUpdateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  ContactDetail detail = 4;
+}

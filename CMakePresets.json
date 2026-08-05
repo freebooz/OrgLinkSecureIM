@@ -1,0 +1,103 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-msvc",
+      "displayName": "Windows MSVC（自动探测 Qt）",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/windows-msvc",
+      "cacheVariables": {
+        "ORGLINK_ENABLE_MOCK_MODE": "ON",
+        "ORGLINK_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-core",
+      "displayName": "Windows MSVC（无 Qt 核心构建）",
+      "inherits": "windows-msvc",
+      "binaryDir": "${sourceDir}/build/windows-core",
+      "cacheVariables": {
+        "ORGLINK_BUILD_QT_CLIENT": "OFF"
+      }
+    },
+    {
+      "name": "windows-qt-local",
+      "displayName": "Windows MSVC（项目本地 Qt 6.8.3）",
+      "inherits": "windows-msvc",
+      "binaryDir": "${sourceDir}/build/windows-qt-local",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "${sourceDir}/.tools/Qt/6.8.3/msvc2022_64",
+        "PostgreSQL_ROOT": "C:/Program Files/Common Files/Reallusion/PostgreSQL",
+        "ORGLINK_BUILD_QT_CLIENT": "ON"
+      }
+    },
+    {
+      "name": "windows-qt-production",
+      "displayName": "Windows MSVC（生产客户端，关闭 Mock）",
+      "inherits": "windows-msvc",
+      "binaryDir": "${sourceDir}/build/windows-qt-production",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "${sourceDir}/.tools/Qt/6.8.3/msvc2022_64",
+        "PostgreSQL_ROOT": "C:/Program Files/Common Files/Reallusion/PostgreSQL",
+        "ORGLINK_BUILD_QT_CLIENT": "ON",
+        "ORGLINK_BUILD_TESTS": "OFF",
+        "ORGLINK_ENABLE_MOCK_MODE": "OFF"
+      }
+    },
+    {
+      "name": "linux-ninja",
+      "displayName": "Linux Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ORGLINK_ENABLE_MOCK_MODE": "ON",
+        "ORGLINK_BUILD_TESTS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "windows-core", "configurePreset": "windows-core", "configuration": "Debug" },
+    { "name": "windows-msvc", "configurePreset": "windows-msvc", "configuration": "Debug" },
+    { "name": "windows-qt-local", "configurePreset": "windows-qt-local", "configuration": "Debug" },
+    { "name": "windows-qt-production", "configurePreset": "windows-qt-production", "configuration": "Release" },
+    { "name": "linux-ninja", "configurePreset": "linux-ninja" }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-core",
+      "configurePreset": "windows-core",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "windows-msvc",
+      "configurePreset": "windows-msvc",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "environment": { "QT_QPA_PLATFORM": "offscreen" }
+    },
+    {
+      "name": "windows-qt-local",
+      "configurePreset": "windows-qt-local",
+      "configuration": "Debug",
+      "output": { "outputOnFailure": true },
+      "environment": {
+        "QT_QPA_PLATFORM": "offscreen",
+        "PATH": "${sourceDir}/.tools/Qt/6.8.3/msvc2022_64/bin;C:/Program Files/Common Files/Reallusion/PostgreSQL/lib;C:/Program Files/Common Files/Reallusion/PostgreSQL/bin;$penv{PATH}"
+      }
+    },
+    {
+      "name": "linux-ninja",
+      "configurePreset": "linux-ninja",
+      "output": { "outputOnFailure": true },
+      "environment": { "QT_QPA_PLATFORM": "offscreen" }
+    }
+  ]
+}

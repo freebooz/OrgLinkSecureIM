@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>OrgLink 安全会议</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand"><span class="shield">◆</span> OrgLink 安全会议</div>
+      <div id="room-name">正在加入会议…</div>
+      <div id="status" role="status">初始化媒体设备</div>
+    </header>
+    <main id="participants" aria-live="polite"></main>
+    <footer>
+      <button id="microphone" type="button">麦克风</button>
+      <button id="camera" type="button">摄像头</button>
+      <button id="screen" type="button">共享屏幕</button>
+      <button id="leave" class="danger" type="button">离开会议</button>
+    </footer>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

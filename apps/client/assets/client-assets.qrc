@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/orglink/assets">
+        <file alias="orglink-logo.png">orglink-logo.png</file>
+    </qresource>
+</RCC>

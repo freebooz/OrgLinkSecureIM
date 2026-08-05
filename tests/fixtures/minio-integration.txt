@@ -1,0 +1,2 @@
+OrgLink Secure IM MinIO integration fixture.
+该文件用于验证客户端上传、服务端鉴权、对象存储和消息元数据持久化的完整链路。

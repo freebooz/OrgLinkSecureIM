@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 群组类型与数据库小整数保持一致；已发布数值不可复用。
+enum GroupType {
+  GROUP_TYPE_NORMAL = 0;
+  GROUP_TYPE_DEPARTMENT = 1;
+  GROUP_TYPE_PROJECT = 2;
+  GROUP_TYPE_INTEREST = 3;
+  GROUP_TYPE_ANNOUNCEMENT = 4;
+}
+
+message GroupSummary {
+  uint64 group_id = 1;
+  uint64 conversation_id = 2;
+  string group_code = 3;
+  string name = 4;
+  GroupType type = 5;
+  uint32 member_count = 6;
+  string last_message_preview = 7;
+  uint64 last_activity_utc_ms = 8;
+  uint32 unread_count = 9;
+  uint32 activity_score = 10;
+  repeated string tags = 11;
+  bool owner = 12;
+  bool administrator = 13;
+  bool pinned = 14;
+  bool favorite = 15;
+}
+
+message GroupMemberInfo {
+  uint64 person_id = 1;
+  string display_name = 2;
+  string department_name = 3;
+  string position_name = 4;
+  string avatar_resource_id = 5;
+  uint32 role = 6;
+  uint64 joined_at_utc_ms = 7;
+}
+
+message GroupFileInfo {
+  string asset_uuid = 1;
+  string file_name = 2;
+  string media_type = 3;
+  uint64 size_bytes = 4;
+  string owner_display_name = 5;
+  uint64 created_at_utc_ms = 6;
+}
+
+message GroupListRequest {
+  uint32 filter = 1;
+  string search_text = 2;
+  uint32 limit = 3;
+}
+
+message GroupListResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated GroupSummary groups = 4;
+  uint32 total_count = 5;
+  uint32 managed_count = 6;
+  uint32 active_today_count = 7;
+  uint32 unread_count = 8;
+}
+
+message GroupDetailRequest { uint64 group_id = 1; }
+
+message GroupDetailResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  GroupSummary group = 4;
+  string owner_display_name = 5;
+  string announcement = 6;
+  uint64 created_at_utc_ms = 7;
+  repeated GroupMemberInfo members = 8;
+  repeated GroupFileInfo files = 9;
+}
+
+message GroupCreateRequest {
+  string name = 1;
+  GroupType type = 2;
+  string announcement = 3;
+  repeated string tags = 4;
+  repeated uint64 member_person_ids = 5;
+}
+
+message GroupCreateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  GroupSummary group = 4;
+}
+
+message GroupJoinRequest { string group_code = 1; }
+
+message GroupJoinResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  GroupSummary group = 4;
+}
+
+enum GroupMemberAction {
+  GROUP_MEMBER_ACTION_UNSPECIFIED = 0;
+  GROUP_MEMBER_ACTION_ADD = 1;
+  GROUP_MEMBER_ACTION_REMOVE = 2;
+  GROUP_MEMBER_ACTION_GRANT_ADMINISTRATOR = 3;
+  GROUP_MEMBER_ACTION_REVOKE_ADMINISTRATOR = 4;
+}
+
+message GroupMemberUpdateRequest {
+  uint64 group_id = 1;
+  GroupMemberAction action = 2;
+  repeated uint64 person_ids = 3;
+}
+
+message GroupMemberUpdateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 group_id = 4;
+  uint32 updated_count = 5;
+  repeated GroupMemberInfo members = 6;
+}

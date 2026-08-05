@@ -1,0 +1,235 @@
+name: orglink-secure-im
+
+x-server-environment: &server-environment
+  ORGLINK_DATABASE_HOST: postgres
+  ORGLINK_DATABASE_PORT: "5432"
+  ORGLINK_DATABASE_NAME: orglink
+  ORGLINK_DATABASE_USER: orglink_app
+  ORGLINK_DATABASE_PASSWORD: ${ORGLINK_DATABASE_PASSWORD:?请设置 OrgLink 应用数据库口令}
+  ORGLINK_DATABASE_SSLMODE: disable
+  ORGLINK_DATABASE_CONNECT_TIMEOUT: "5"
+  ORGLINK_MESSAGE_STORAGE_KEY: ${ORGLINK_MESSAGE_STORAGE_KEY:?请设置消息静态加密密钥}
+  ORGLINK_MINIO_ENDPOINT: http://minio:9000
+  ORGLINK_MINIO_ACCESS_KEY: ${ORGLINK_MINIO_ACCESS_KEY:?请设置 MinIO 访问密钥}
+  ORGLINK_MINIO_SECRET_KEY: ${ORGLINK_MINIO_SECRET_KEY:?请设置 MinIO 访问秘密}
+  ORGLINK_MINIO_BUCKET: ${ORGLINK_MINIO_BUCKET:-orglink-files}
+  ORGLINK_MINIO_REGION: ${ORGLINK_MINIO_REGION:-us-east-1}
+  ORGLINK_MINIO_TIMEOUT_MS: "15000"
+  ORGLINK_LIVEKIT_API_KEY: ${ORGLINK_LIVEKIT_API_KEY:?请设置 LiveKit API Key}
+  ORGLINK_LIVEKIT_API_SECRET: ${ORGLINK_LIVEKIT_API_SECRET:?请设置 LiveKit API Secret}
+  ORGLINK_LIVEKIT_PUBLIC_URL: ws://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_LIVEKIT_SIGNAL_PORT:-7880}
+  ORGLINK_CONFERENCE_WEB_URL: http://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_CONFERENCE_WEB_PORT:-7888}
+  ORGLINK_LIVEKIT_TOKEN_TTL_SECONDS: "600"
+  TZ: Asia/Shanghai
+
+services:
+  postgres:
+    image: ${ORGLINK_POSTGRES_IMAGE:-postgres:16-bookworm}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orglink
+      POSTGRES_USER: orglink_owner
+      POSTGRES_PASSWORD: ${ORGLINK_POSTGRES_ADMIN_PASSWORD:?请设置 PostgreSQL 管理口令}
+      ORGLINK_DATABASE_PASSWORD: ${ORGLINK_DATABASE_PASSWORD:?请设置 OrgLink 应用数据库口令}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # 官方镜像首装阶段只创建最小权限角色；所有 SQL 模式均由可重复运行的 migrator 管理。
+      - ../../database/migrations/postgresql/000_create_app_role.sh:/docker-entrypoint-initdb.d/000_create_app_role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orglink_owner -d orglink"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [backend]
+
+  certificate-generator:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: orglink-secure-im/server:0.2.0
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c"]
+    # 仅缺少任一文件时精确删除这一对旧 TLS 资产后全量重建，避免证书与私钥错配。
+    command:
+      - >-
+        if [ ! -s /certs/server.crt ] || [ ! -s /certs/server.key ]; then
+          rm -f /certs/server.crt /certs/server.key;
+          openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 -subj /CN=orglink-server -addext subjectAltName=DNS:orglink-server,DNS:localhost,IP:127.0.0.1 -addext basicConstraints=critical,CA:TRUE -keyout /certs/server.key -out /certs/server.crt;
+          chown orglink:orglink /certs/server.crt /certs/server.key;
+          chmod 644 /certs/server.crt;
+          chmod 640 /certs/server.key;
+        fi
+    volumes:
+      - ./runtime-certs:/certs
+    restart: "no"
+    network_mode: none
+
+  orglink-migrator:
+    image: orglink-secure-im/server:0.2.0
+    entrypoint: ["/opt/orglink/bin/orglink-migrator"]
+    command: ["--apply", "/opt/orglink/migrations/postgresql"]
+    environment:
+      ORGLINK_DATABASE_HOST: postgres
+      ORGLINK_DATABASE_PORT: "5432"
+      ORGLINK_DATABASE_NAME: orglink
+      ORGLINK_DATABASE_USER: orglink_owner
+      ORGLINK_DATABASE_PASSWORD: ${ORGLINK_POSTGRES_ADMIN_PASSWORD:?请设置 PostgreSQL 管理口令}
+      ORGLINK_DATABASE_SSLMODE: disable
+      ORGLINK_DATABASE_CONNECT_TIMEOUT: "5"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  orglink-bootstrap-admin:
+    image: orglink-secure-im/server:0.2.0
+    command: ["--bootstrap-admin"]
+    environment:
+      <<: *server-environment
+      ORGLINK_BOOTSTRAP_LOGIN: ${ORGLINK_BOOTSTRAP_LOGIN:-admin}
+      ORGLINK_BOOTSTRAP_PASSWORD: ${ORGLINK_BOOTSTRAP_PASSWORD:?请设置初始管理员口令}
+      ORGLINK_BOOTSTRAP_DISPLAY_NAME: ${ORGLINK_BOOTSTRAP_DISPLAY_NAME:-系统管理员}
+    depends_on:
+      orglink-migrator:
+        condition: service_completed_successfully
+    restart: "no"
+    networks: [backend]
+
+  minio:
+    image: ${ORGLINK_MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${ORGLINK_MINIO_ACCESS_KEY:?请设置 MinIO 访问密钥}
+      MINIO_ROOT_PASSWORD: ${ORGLINK_MINIO_SECRET_KEY:?请设置 MinIO 访问秘密}
+      MINIO_BROWSER_REDIRECT_URL: http://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_MINIO_CONSOLE_PORT:-9001}
+      TZ: Asia/Shanghai
+    volumes:
+      - minio-data:/data
+    ports:
+      - "${ORGLINK_MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    networks: [backend, frontend]
+
+  minio-init:
+    image: ${ORGLINK_MINIO_MC_IMAGE:-quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z}
+    entrypoint: ["/bin/sh", "-c"]
+    # 桶保持私有；客户端所有上传下载都必须经过 Gateway 会话成员鉴权。
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}" &&
+        mc anonymous set none "local/$${MINIO_BUCKET}"
+    environment:
+      MINIO_ROOT_USER: ${ORGLINK_MINIO_ACCESS_KEY:?请设置 MinIO 访问密钥}
+      MINIO_ROOT_PASSWORD: ${ORGLINK_MINIO_SECRET_KEY:?请设置 MinIO 访问秘密}
+      MINIO_BUCKET: ${ORGLINK_MINIO_BUCKET:-orglink-files}
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  livekit:
+    image: ${ORGLINK_LIVEKIT_IMAGE:-livekit/livekit-server:v1.13.1}
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: "${ORGLINK_LIVEKIT_API_KEY:?请设置 LiveKit API Key}: ${ORGLINK_LIVEKIT_API_SECRET:?请设置 LiveKit API Secret}"
+      NODE_IP: ${ORGLINK_LIVEKIT_NODE_IP:?请设置 LiveKit 对外发布 IPv4 地址}
+      UDP_PORT: "7882"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+        room:
+          empty_timeout: 300
+          departure_timeout: 30
+          max_participants: 50
+        logging:
+          level: info
+          json: true
+    command: ["--bind", "0.0.0.0"]
+    ports:
+      - "${ORGLINK_LIVEKIT_SIGNAL_PORT:-7880}:7880/tcp"
+      - "${ORGLINK_LIVEKIT_RTC_TCP_PORT:-7881}:7881/tcp"
+      - "${ORGLINK_LIVEKIT_RTC_UDP_PORT:-7882}:7882/udp"
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend]
+
+  conference-web:
+    build:
+      context: ../conference-web
+      dockerfile: Dockerfile
+    image: orglink-secure-im/conference-web:0.1.0
+    restart: unless-stopped
+    ports:
+      - "${ORGLINK_CONFERENCE_WEB_PORT:-7888}:8080"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=0755
+      - /var/run:size=1m,mode=0755
+    security_opt:
+      - no-new-privileges:true
+    networks: [frontend]
+
+  orglink-server:
+    image: orglink-secure-im/server:0.2.0
+    restart: unless-stopped
+    environment:
+      <<: *server-environment
+      ORGLINK_GATEWAY_LISTEN: 0.0.0.0
+      ORGLINK_GATEWAY_PORT: "7443"
+      ORGLINK_GATEWAY_HEALTH_HOST: 127.0.0.1
+      ORGLINK_TLS_CERTIFICATE: /var/lib/orglink/tls/server.crt
+      ORGLINK_TLS_PRIVATE_KEY: /var/lib/orglink/tls/server.key
+      ORGLINK_LOG_LEVEL: info
+    depends_on:
+      certificate-generator:
+        condition: service_completed_successfully
+      orglink-bootstrap-admin:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
+      conference-web:
+        condition: service_started
+    ports:
+      - "${ORGLINK_GATEWAY_PUBLISHED_PORT:-7443}:7443"
+    volumes:
+      - ./runtime-certs:/var/lib/orglink/tls:ro
+    healthcheck:
+      test: ["CMD", "/opt/orglink/bin/orglink-server", "--check-runtime"]
+      interval: 15s
+      timeout: 8s
+      retries: 3
+      start_period: 15s
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    networks: [backend, frontend]
+
+networks:
+  backend:
+    internal: true
+  frontend:
+
+volumes:
+  postgres-data:
+  minio-data:

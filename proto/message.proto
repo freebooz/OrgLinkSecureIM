@@ -1,0 +1,185 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+import "common.proto";
+
+enum MessageKind {
+  MESSAGE_KIND_UNKNOWN = 0;
+  MESSAGE_KIND_TEXT = 1;
+  MESSAGE_KIND_IMAGE = 2;
+  MESSAGE_KIND_FILE = 3;
+  MESSAGE_KIND_SYSTEM = 4;
+}
+
+message SendMessageRequest {
+  uint64 conversation_id = 1;
+  string client_message_id = 2;
+  MessageKind kind = 3;
+  bytes content = 4;
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  string client_message_id = 4;
+  string server_message_id = 5;
+  uint64 conversation_id = 6;
+  uint64 conversation_sequence = 7;
+  uint64 accepted_at_utc_ms = 8;
+}
+
+message DirectMessagePush {
+  string server_message_id = 1;
+  string client_message_id = 2;
+  uint64 conversation_id = 3;
+  uint64 conversation_sequence = 4;
+  uint64 sender_person_id = 5;
+  uint64 recipient_person_id = 6;
+  MessageKind kind = 7;
+  bytes content = 8;
+  uint64 created_at_utc_ms = 9;
+}
+
+message DeliveryReceipt {
+  string server_message_id = 1;
+  uint64 conversation_id = 2;
+  uint64 continuous_delivered_sequence = 3;
+  uint64 recipient_person_id = 4;
+}
+
+message ReadReceipt {
+  string server_message_id = 1;
+  uint64 conversation_id = 2;
+  uint64 continuous_read_sequence = 3;
+  uint64 reader_person_id = 4;
+}
+
+message DirectConversationGetOrCreateRequest {
+  uint64 peer_person_id = 1;
+}
+
+message DirectConversationResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 conversation_id = 4;
+  uint64 peer_person_id = 5;
+}
+
+// 历史页按序号升序返回；before_sequence 为零表示最新一页。
+message MessageHistoryRequest {
+  uint64 conversation_id = 1;
+  uint64 before_sequence = 2;
+  uint32 limit = 3;
+}
+
+message MessageHistoryResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 conversation_id = 4;
+  repeated DirectMessagePush messages = 5;
+  bool has_more = 6;
+}
+
+message ConversationSummary {
+  uint64 conversation_id = 1;
+  uint64 peer_person_id = 2;
+  string display_name = 3;
+  string last_message_preview = 4;
+  uint64 last_activity_utc_ms = 5;
+  uint32 unread_count = 6;
+  bool pinned = 7;
+  bool muted = 8;
+  uint64 last_message_sequence = 9;
+  uint64 last_read_sequence = 10;
+}
+
+message ConversationListRequest { uint32 limit = 1; }
+
+message ConversationListResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated ConversationSummary conversations = 4;
+}
+
+message ConversationPreferenceRequest {
+  uint64 conversation_id = 1;
+  bool pinned = 2;
+  bool muted = 3;
+}
+
+message ConversationPreferenceResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 conversation_id = 4;
+  bool pinned = 5;
+  bool muted = 6;
+}
+
+// 当前版本通过 TLS Gateway 代理不超过 8 MiB 的文件，后续可在保持响应语义下扩展分片。
+message FileUploadRequest {
+  uint64 conversation_id = 1;
+  string client_message_id = 2;
+  string file_name = 3;
+  string media_type = 4;
+  string sha256_hex = 5;
+  bytes content = 6;
+}
+
+message FileUploadResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  string client_message_id = 4;
+  string asset_uuid = 5;
+  string server_message_id = 6;
+  uint64 conversation_id = 7;
+  uint64 conversation_sequence = 8;
+  uint64 accepted_at_utc_ms = 9;
+}
+
+message FileDownloadRequest { string asset_uuid = 1; }
+
+message FileDownloadResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  string asset_uuid = 4;
+  string file_name = 5;
+  string media_type = 6;
+  string sha256_hex = 7;
+  uint64 size_bytes = 8;
+  bytes content = 9;
+}
+
+message ConferenceJoinRequest {
+  uint64 conversation_id = 1;
+  bool video_enabled = 2;
+}
+
+message ConferenceJoinResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  string conference_uuid = 4;
+  string room_name = 5;
+  string server_url = 6;
+  string web_url = 7;
+  string participant_token = 8;
+  uint64 expires_at_utc_ms = 9;
+  bool video_enabled = 10;
+}
+
+message ConferenceLeaveRequest { string conference_uuid = 1; }
+
+message ConferenceLeaveResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  string conference_uuid = 4;
+}

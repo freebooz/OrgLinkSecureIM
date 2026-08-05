@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 独立文件中心复用 4001～4004 的有界正文上传/下载；本协议只管理可鉴权元数据。
+enum FileCenterScope {
+  FILE_CENTER_SCOPE_MY_FILES = 0;
+  FILE_CENTER_SCOPE_RECENT = 1;
+  FILE_CENTER_SCOPE_RECEIVED = 2;
+  FILE_CENTER_SCOPE_TEAM_SHARED = 3;
+  FILE_CENTER_SCOPE_FAVORITES = 4;
+  FILE_CENTER_SCOPE_RECYCLE_BIN = 5;
+}
+
+enum FileMediaCategory {
+  FILE_MEDIA_CATEGORY_ALL = 0;
+  FILE_MEDIA_CATEGORY_DOCUMENT = 1;
+  FILE_MEDIA_CATEGORY_SPREADSHEET = 2;
+  FILE_MEDIA_CATEGORY_PRESENTATION = 3;
+  FILE_MEDIA_CATEGORY_IMAGE = 4;
+  FILE_MEDIA_CATEGORY_VIDEO = 5;
+  FILE_MEDIA_CATEGORY_ARCHIVE = 6;
+  FILE_MEDIA_CATEGORY_OTHER = 7;
+}
+
+enum FileCenterItemKind {
+  FILE_CENTER_ITEM_KIND_UNSPECIFIED = 0;
+  FILE_CENTER_ITEM_KIND_FOLDER = 1;
+  FILE_CENTER_ITEM_KIND_FILE = 2;
+}
+
+enum FileCenterAction {
+  FILE_CENTER_ACTION_UNSPECIFIED = 0;
+  FILE_CENTER_ACTION_SET_FAVORITE = 1;
+  FILE_CENTER_ACTION_RECYCLE = 2;
+  FILE_CENTER_ACTION_RESTORE = 3;
+  FILE_CENTER_ACTION_RENAME = 4;
+  FILE_CENTER_ACTION_SHARE_PERSON = 5;
+  FILE_CENTER_ACTION_REVOKE_PERSON = 6;
+}
+
+message FileCenterItem {
+  string item_uuid = 1;
+  FileCenterItemKind kind = 2;
+  string name = 3;
+  string asset_uuid = 4;
+  string media_type = 5;
+  FileMediaCategory category = 6;
+  uint64 size_bytes = 7;
+  uint64 owner_person_id = 8;
+  string owner_display_name = 9;
+  string location = 10;
+  uint64 modified_at_utc_ms = 11;
+  bool favorite = 12;
+  bool deleted = 13;
+  uint32 shared_count = 14;
+  uint64 revision = 15;
+  uint32 security_status = 16;
+}
+
+message FileCenterVersion {
+  uint32 version_number = 1;
+  string asset_uuid = 2;
+  uint64 size_bytes = 3;
+  string created_by_display_name = 4;
+  uint64 created_at_utc_ms = 5;
+  bool current = 6;
+}
+
+message FileCenterPermission {
+  uint64 person_id = 1;
+  string display_name = 2;
+  uint32 permission = 3;
+}
+
+message FileCenterDetail {
+  FileCenterItem item = 1;
+  uint64 created_at_utc_ms = 2;
+  string sha256_hex = 3;
+  repeated FileCenterVersion versions = 4;
+  repeated FileCenterPermission permissions = 5;
+}
+
+message FileCenterListRequest {
+  FileCenterScope scope = 1;
+  FileMediaCategory category = 2;
+  string search_text = 3;
+  uint32 offset = 4;
+  uint32 limit = 5;
+}
+
+message FileCenterListResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated FileCenterItem items = 4;
+  uint32 total_count = 5;
+  uint64 used_bytes = 6;
+  uint64 quota_bytes = 7;
+  uint64 document_bytes = 8;
+  uint64 image_bytes = 9;
+  uint64 video_bytes = 10;
+  uint64 other_bytes = 11;
+}
+
+message FileCenterDetailRequest { string item_uuid = 1; }
+
+message FileCenterDetailResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  FileCenterDetail detail = 4;
+}
+
+message FileCenterFolderCreateRequest {
+  string parent_folder_uuid = 1;
+  string name = 2;
+}
+
+message FileCenterFolderCreateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  FileCenterItem folder = 4;
+}
+
+message FileCenterUpdateRequest {
+  string document_uuid = 1;
+  uint64 expected_revision = 2;
+  FileCenterAction action = 3;
+  bool desired_favorite = 4;
+  string value = 5;
+  uint64 target_person_id = 6;
+  uint32 permission = 7;
+}
+
+message FileCenterUpdateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  FileCenterDetail detail = 4;
+}

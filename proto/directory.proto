@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+import "common.proto";
+
+enum DirectoryChangeType {
+  DIRECTORY_CHANGE_UNKNOWN = 0;
+  ORGANIZATION_CREATED = 1;
+  ORGANIZATION_UPDATED = 2;
+  ORGANIZATION_DISABLED = 3;
+  DEPARTMENT_CREATED = 4;
+  DEPARTMENT_UPDATED = 5;
+  DEPARTMENT_MOVED = 6;
+  DEPARTMENT_DISABLED = 7;
+  PERSON_CREATED = 8;
+  PERSON_UPDATED = 9;
+  PERSON_DISABLED = 10;
+  PERSON_ASSIGNMENT_CHANGED = 11;
+  POSITION_UPSERTED = 12;
+  DIRECTORY_ENTITY_REMOVED = 13;
+}
+
+message OrganizationRecord {
+  uint64 id = 1;
+  string code = 2;
+  string name = 3;
+  optional uint64 parent_id = 4;
+  uint64 revision = 5;
+  bool enabled = 6;
+}
+
+message DepartmentRecord {
+  uint64 id = 1;
+  uint64 organization_id = 2;
+  optional uint64 parent_department_id = 3;
+  string code = 4;
+  string name = 5;
+  string short_name = 6;
+  int32 sort_order = 7;
+  bool enabled = 8;
+}
+
+message PersonRecord {
+  uint64 id = 1;
+  string employee_number = 2;
+  string display_name = 3;
+  string avatar_resource_id = 4;
+  string work_phone = 5;
+  string extension_number = 6;
+  string work_email = 7;
+  optional uint64 primary_department_id = 8;
+  optional uint64 primary_position_id = 9;
+  bool enabled = 10;
+}
+
+message PositionRecord {
+  uint64 id = 1;
+  string code = 2;
+  string name = 3;
+  int32 sort_order = 4;
+}
+
+message PersonAssignmentRecord {
+  uint64 id = 1;
+  uint64 person_id = 2;
+  uint64 department_id = 3;
+  optional uint64 position_id = 4;
+  bool primary_assignment = 5;
+  int32 sort_order = 6;
+}
+
+message OrganizationSnapshotRequest {
+  uint64 local_revision = 1;
+}
+
+message OrganizationSnapshotResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 revision = 4;
+  repeated OrganizationRecord organizations = 10;
+  repeated DepartmentRecord departments = 11;
+  repeated PositionRecord positions = 12;
+  repeated PersonRecord people = 13;
+  repeated PersonAssignmentRecord assignments = 14;
+}
+
+message DirectoryChange {
+  uint64 revision = 1;
+  DirectoryChangeType type = 2;
+  uint64 entity_id = 3;
+  OrganizationRecord organization = 10;
+  DepartmentRecord department = 11;
+  PositionRecord position = 12;
+  PersonRecord person = 13;
+  PersonAssignmentRecord assignment = 14;
+}
+
+message OrganizationDeltaRequest {
+  // 组织编号绝不由客户端决定，Gateway 使用认证 PersonId 重新计算可见范围。
+  uint64 from_revision_exclusive = 1;
+}
+
+message OrganizationDeltaResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 from_revision = 4;
+  uint64 current_revision = 5;
+  bool full_snapshot_required = 6;
+  repeated DirectoryChange changes = 10;
+}
+
+message DepartmentPersonnelRequest {
+  RequestContext context = 1;
+  uint64 department_id = 2;
+  bool include_children = 3;
+  uint32 page_size = 4;
+  string page_token = 5;
+}
+
+message DepartmentPersonnelResponse {
+  ErrorStatus error = 1;
+  repeated PersonRecord people = 2;
+  string next_page_token = 3;
+}
+
+message PersonSearchRequest {
+  RequestContext context = 1;
+  string keyword = 2;
+  uint32 limit = 3;
+}
+
+message PersonSearchResponse {
+  ErrorStatus error = 1;
+  repeated PersonRecord people = 2;
+}

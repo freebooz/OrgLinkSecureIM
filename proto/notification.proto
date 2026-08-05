@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 通知分类与数据库 notification_category 保持稳定映射，零值仅表示查询全部分类。
+enum NotificationCategory {
+  NOTIFICATION_CATEGORY_ALL = 0;
+  NOTIFICATION_CATEGORY_APPROVAL = 1;
+  NOTIFICATION_CATEGORY_SYSTEM = 2;
+  NOTIFICATION_CATEGORY_SECURITY = 3;
+  NOTIFICATION_CATEGORY_MENTION = 4;
+  NOTIFICATION_CATEGORY_FILE = 5;
+  NOTIFICATION_CATEGORY_TASK = 6;
+  NOTIFICATION_CATEGORY_OTHER = 7;
+}
+
+enum NotificationPriority {
+  NOTIFICATION_PRIORITY_LOW = 0;
+  NOTIFICATION_PRIORITY_MEDIUM = 1;
+  NOTIFICATION_PRIORITY_HIGH = 2;
+}
+
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNREAD = 0;
+  NOTIFICATION_STATUS_READ = 1;
+  NOTIFICATION_STATUS_PROCESSING = 2;
+  NOTIFICATION_STATUS_IGNORED = 3;
+  NOTIFICATION_STATUS_COMPLETED = 4;
+}
+
+enum NotificationAction {
+  NOTIFICATION_ACTION_UNSPECIFIED = 0;
+  NOTIFICATION_ACTION_MARK_READ = 1;
+  NOTIFICATION_ACTION_START_PROCESSING = 2;
+  NOTIFICATION_ACTION_IGNORE = 3;
+}
+
+// 列表投影不携带业务 JSON 或对象存储键，接收人由认证连接决定。
+message NotificationSummary {
+  uint64 notification_id = 1;
+  NotificationCategory category = 2;
+  string title = 3;
+  string summary = 4;
+  string source_name = 5;
+  NotificationPriority priority = 6;
+  NotificationStatus status = 7;
+  string actor_display_name = 8;
+  uint64 occurred_at_utc_ms = 9;
+}
+
+message NotificationListRequest {
+  NotificationCategory category = 1;
+  bool unread_only = 2;
+  string search_text = 3;
+  uint32 offset = 4;
+  uint32 limit = 5;
+}
+
+message NotificationListResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated NotificationSummary notifications = 4;
+  uint32 total_count = 5;
+  uint32 unread_count = 6;
+  uint32 approval_count = 7;
+  uint32 system_count = 8;
+  uint32 security_count = 9;
+  uint32 mention_count = 10;
+  uint32 file_count = 11;
+  uint32 task_count = 12;
+  uint32 other_count = 13;
+}
+
+message NotificationDetailField {
+  string label = 1;
+  string value = 2;
+  bool emphasized = 3;
+}
+
+// asset_uuid 只作为受权下载请求标识，客户端不能据此推导 MinIO 地址。
+message NotificationAttachment {
+  string asset_uuid = 1;
+  string file_name = 2;
+  string media_type = 3;
+  uint64 size_bytes = 4;
+}
+
+message NotificationDetailRequest { uint64 notification_id = 1; }
+
+message NotificationDetailResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  NotificationSummary notification = 4;
+  string business_reference = 5;
+  string explanation = 6;
+  repeated NotificationDetailField fields = 7;
+  repeated NotificationAttachment attachments = 8;
+}
+
+message NotificationStatusRequest {
+  uint64 notification_id = 1;
+  NotificationAction action = 2;
+}
+
+message NotificationStatusResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 notification_id = 4;
+  NotificationStatus status = 5;
+  uint32 unread_count = 6;
+}
+
+message NotificationMarkAllReadRequest { NotificationCategory category = 1; }
+
+message NotificationMarkAllReadResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint32 updated_count = 4;
+  uint32 unread_count = 5;
+}

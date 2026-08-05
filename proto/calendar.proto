@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 日历类型仅用于展示与筛选，可见性仍由创建者和参与人关系决定。
+enum CalendarKind {
+  CALENDAR_KIND_UNSPECIFIED = 0;
+  CALENDAR_KIND_PERSONAL = 1;
+  CALENDAR_KIND_WORK = 2;
+  CALENDAR_KIND_SHARED = 3;
+}
+
+enum CalendarParticipationStatus {
+  CALENDAR_PARTICIPATION_PENDING = 0;
+  CALENDAR_PARTICIPATION_ACCEPTED = 1;
+  CALENDAR_PARTICIPATION_DECLINED = 2;
+}
+
+message CalendarParticipant {
+  uint64 person_id = 1;
+  string display_name = 2;
+  string avatar_resource_id = 3;
+  CalendarParticipationStatus status = 4;
+}
+
+message CalendarEvent {
+  string event_uuid = 1;
+  string title = 2;
+  string description = 3;
+  string location = 4;
+  string calendar_name = 5;
+  CalendarKind kind = 6;
+  string color = 7;
+  uint64 organizer_person_id = 8;
+  string organizer_display_name = 9;
+  uint64 starts_at_utc_ms = 10;
+  uint64 ends_at_utc_ms = 11;
+  bool all_day = 12;
+  bool cancelled = 13;
+  string meeting_number = 14;
+  uint32 reminder_minutes = 15;
+  uint64 revision = 16;
+  bool editable = 17;
+  repeated CalendarParticipant participants = 18;
+}
+
+message CalendarListRequest {
+  uint64 range_start_utc_ms = 1;
+  uint64 range_end_utc_ms = 2;
+  bool include_cancelled = 3;
+  bool reminders_only = 4;
+}
+
+message CalendarListResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  repeated CalendarEvent events = 4;
+}
+
+message CalendarCreateRequest {
+  string title = 1;
+  string description = 2;
+  string location = 3;
+  string calendar_name = 4;
+  CalendarKind kind = 5;
+  string color = 6;
+  uint64 starts_at_utc_ms = 7;
+  uint64 ends_at_utc_ms = 8;
+  bool all_day = 9;
+  bool conference_enabled = 10;
+  uint32 reminder_minutes = 11;
+  repeated string participant_login_names = 12;
+}
+
+message CalendarUpdateRequest {
+  string event_uuid = 1;
+  uint64 expected_revision = 2;
+  CalendarCreateRequest event = 3;
+}
+
+message CalendarDeleteRequest {
+  string event_uuid = 1;
+  uint64 expected_revision = 2;
+}
+
+message CalendarMutationResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  CalendarEvent event = 4;
+}

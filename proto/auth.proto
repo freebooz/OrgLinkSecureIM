@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 登录请求中的口令只存在于受保护传输和认证调用栈，服务端不得写入日志或普通消息队列。
+message LoginRequest {
+  string login_name = 1;
+  string password = 2;
+  string device_uuid = 3;
+  string device_name = 4;
+  string platform = 5;
+}
+
+message LoginResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  uint64 account_id = 4;
+  uint64 person_id = 5;
+  uint64 device_id = 6;
+  uint64 session_id = 7;
+  string display_name = 8;
+}
+
+message HeartbeatPing {
+  uint64 continuous_received_sequence = 1;
+}
+
+message HeartbeatPong {
+  uint64 server_time_utc_ms = 1;
+}

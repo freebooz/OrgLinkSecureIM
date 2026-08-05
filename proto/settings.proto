@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package orglink.protocol.v1;
+
+// 用户设置采用完整快照和修订号更新；客户端不能在请求中声明目标人员。
+message UserSettingsProfile {
+  uint64 revision = 1;
+  bool two_factor_enabled = 2;
+  bool startup_enabled = 3;
+  bool auto_login_enabled = 4;
+  uint32 auto_lock_minutes = 5;
+  bool chat_watermark_enabled = 6;
+  bool screenshot_protection_enabled = 7;
+  string download_path = 8;
+  string language = 9;
+  string theme = 10;
+}
+
+// 右侧安全与系统状态只包含聚合信息，不暴露设备 UUID、对象键或证书正文。
+message SettingsSystemInfo {
+  uint32 device_count = 1;
+  uint32 trusted_device_count = 2;
+  uint64 storage_used_bytes = 3;
+  uint64 storage_quota_bytes = 4;
+  bool intranet_mode = 5;
+  bool end_to_end_encryption_available = 6;
+  string certificate_status = 7;
+  string transport_encryption = 8;
+  string crypto_status = 9;
+  string product_name = 10;
+  string current_version = 11;
+  string update_date = 12;
+}
+
+message SettingsGetRequest {}
+
+message SettingsGetResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  UserSettingsProfile settings = 4;
+  SettingsSystemInfo system_info = 5;
+}
+
+message SettingsUpdateRequest {
+  uint64 expected_revision = 1;
+  UserSettingsProfile settings = 2;
+}
+
+message SettingsUpdateResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  UserSettingsProfile settings = 4;
+}
+
+message SettingsResetRequest { uint64 expected_revision = 1; }
+
+message SettingsResetResponse {
+  bool success = 1;
+  uint32 error_code = 2;
+  string error_message = 3;
+  UserSettingsProfile settings = 4;
+}

@@ -1,0 +1,10 @@
+/build/
+/.tools/
+/deploy/docker/runtime-certs/
+/.vs/
+/deploy/docker/.env
+*.user
+*.log
+*.db
+*.sqlite
+aqtinstall.log
