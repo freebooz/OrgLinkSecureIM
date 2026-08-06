@@ -16,7 +16,14 @@ class DepartmentPersonnelModel final : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    enum Role { PersonIdRole = Qt::UserRole + 1, PresenceRole, DepartmentIdRole };
+    /** @brief View 使用的只读业务角色；头像角色仅提供资源标识，不持有像素数据。 */
+    enum Role {
+        PersonIdRole = Qt::UserRole + 1,
+        PresenceRole,
+        DepartmentIdRole,
+        AvatarResourceRole,
+        DisplayNameRole
+    };
 
     explicit DepartmentPersonnelModel(QObject* parent = nullptr);
 

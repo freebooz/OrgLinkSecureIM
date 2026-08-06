@@ -1,4 +1,5 @@
 #include "view/settings/SettingsCenterView.h"
+#include "view/common/UiAssets.h"
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -19,6 +20,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <utility>
 
 namespace orglink::client
 {
@@ -46,7 +48,7 @@ QCheckBox* switchControl(const QString& accessibleName, QWidget* parent)
 }
 
 /** @brief 构造中心卡片的单行设置，尾部控件所有权转移给返回卡片。 */
-QFrame* settingRow(const QString& icon, const QString& title, const QString& subtitle,
+QFrame* settingRow(UiIcon icon, const QString& title, const QString& subtitle,
                    QWidget* trailing, QWidget* parent)
 {
     auto* row = new QFrame(parent);
@@ -55,11 +57,12 @@ QFrame* settingRow(const QString& icon, const QString& title, const QString& sub
     auto* layout = new QHBoxLayout(row);
     layout->setContentsMargins(10, 4, 10, 4);
     layout->setSpacing(10);
-    auto* iconLabel = new QLabel(icon, row);
+    auto* iconLabel = new QLabel(row);
     iconLabel->setFixedSize(36, 36);
     iconLabel->setAlignment(Qt::AlignCenter);
     iconLabel->setStyleSheet(QStringLiteral(
-        "background:#edf4ff;color:#1769ff;border-radius:18px;font-size:17px;"));
+        "background:#edf4ff;color:#1769ff;border-radius:18px;"));
+    iconLabel->setPixmap(makeUiIcon(icon, QColor(QStringLiteral("#1769ff"))).pixmap(22, 22));
     auto* labels = new QWidget(row);
     auto* labelsLayout = new QVBoxLayout(labels);
     labelsLayout->setContentsMargins(0, 0, 0, 0);
@@ -87,11 +90,14 @@ QFrame* settingsCard(QWidget* parent)
 void addStatusRow(QVBoxLayout* layout, const QString& name, QLabel*& valueLabel, QWidget* parent)
 {
     auto* row = new QHBoxLayout;
-    auto* nameLabel = new QLabel(QStringLiteral("✓  %1").arg(name), parent);
+    auto* statusIcon = new QLabel(parent);
+    applyUiIcon(statusIcon, UiIcon::Check, 16, QColor(QStringLiteral("#16a34a")));
+    auto* nameLabel = new QLabel(name, parent);
     nameLabel->setStyleSheet(QStringLiteral("color:#166534;"));
     valueLabel = new QLabel(QStringLiteral("--"), parent);
     valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     valueLabel->setStyleSheet(QStringLiteral("color:#475569;"));
+    row->addWidget(statusIcon);
     row->addWidget(nameLabel);
     row->addStretch();
     row->addWidget(valueLabel);
@@ -127,17 +133,14 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     setStyleSheet(QStringLiteral(
         "QWidget#settingsCenterView{background:#f5f8fd;}"
         "QFrame#settingsCard,QFrame#settingsRightCard{background:#fff;border:1px solid #e5eaf3;border-radius:11px;}"
-        "QFrame#settingsRow{background:transparent;border:0;border-bottom:1px solid #edf0f5;}"
-        "QPushButton{min-height:34px;border:1px solid #d8e0ec;border-radius:7px;background:#fff;padding:0 13px;}"
-        "QPushButton:hover{border-color:#1769ff;color:#1769ff;}"
-        "QPushButton#settingsPrimary{background:#1769ff;color:#fff;border-color:#1769ff;font-weight:600;}"
-        "QLineEdit,QComboBox{min-height:34px;border:1px solid #d8e0ec;border-radius:7px;background:#fff;padding:0 9px;}"));
+        "QFrame#settingsRow{background:transparent;border:0;border-bottom:1px solid #edf0f5;}"));
 
     auto* contextLayout = new QVBoxLayout(contextWidget_);
     contextLayout->setContentsMargins(10, 8, 10, 8);
     contextLayout->setSpacing(10);
     auto* contextTitle = new QLabel(QStringLiteral("设置"), contextWidget_);
-    contextTitle->setStyleSheet(QStringLiteral("font-size:19px;font-weight:700;color:#121a2c;padding:6px;"));
+    contextTitle->setObjectName(QStringLiteral("settingsSectionTitle"));
+    contextTitle->setStyleSheet(QStringLiteral("padding:6px;"));
     contextLayout->addWidget(contextTitle);
     categoryList_ = new QListWidget(contextWidget_);
     categoryList_->setObjectName(QStringLiteral("settingsCategoryList"));
@@ -147,10 +150,13 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
         "QListWidget{background:transparent;border:0;outline:0;}"
         "QListWidget::item{height:46px;padding-left:10px;border-radius:8px;}"
         "QListWidget::item:selected{background:#e9f1ff;color:#075df5;font-weight:600;}"));
-    categoryList_->addItems({QStringLiteral("♙  账号与资料"), QStringLiteral("◇  安全与登录"),
-        QStringLiteral("♢  消息与通知"), QStringLiteral("□  文件与存储"),
-        QStringLiteral("◉  界面与主题"), QStringLiteral("♧  通话与设备"),
-        QStringLiteral("ⓘ  关于系统")});
+    const QList<std::pair<UiIcon, QString>> categories{{UiIcon::User, QStringLiteral("账号与资料")},
+        {UiIcon::Shield, QStringLiteral("安全与登录")}, {UiIcon::Notification, QStringLiteral("消息与通知")},
+        {UiIcon::Folder, QStringLiteral("文件与存储")}, {UiIcon::Palette, QStringLiteral("界面与主题")},
+        {UiIcon::Phone, QStringLiteral("通话与设备")}, {UiIcon::About, QStringLiteral("关于系统")}};
+    categoryList_->setIconSize(QSize(20, 20));
+    for (const auto& [icon, text] : categories)
+        categoryList_->addItem(new QListWidgetItem(makeUiIcon(icon), text));
     categoryList_->setCurrentRow(1);
     contextLayout->addWidget(categoryList_, 1);
 
@@ -168,15 +174,16 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     centerLayout->setSpacing(10);
     centerLayout->addWidget(headingLabel(QStringLiteral("安全与登录"), center));
 
-    auto* passwordButton = new QPushButton(QStringLiteral("修改  ›"), center);
+    auto* passwordButton = new QPushButton(QStringLiteral("修改"), center);
+    applyUiIcon(passwordButton, UiIcon::Edit, 18);
     auto* identityCard = settingsCard(center);
     auto* identityLayout = new QVBoxLayout(identityCard);
     identityLayout->setContentsMargins(0, 0, 0, 0);
     identityLayout->setSpacing(0);
-    identityLayout->addWidget(settingRow(QStringLiteral("🔒"), QStringLiteral("账户密码"),
+    identityLayout->addWidget(settingRow(UiIcon::Lock, QStringLiteral("账户密码"),
         QStringLiteral("定期修改密码可有效保护账户安全"), passwordButton, identityCard));
     twoFactorCheck_ = switchControl(QStringLiteral("双重认证策略"), identityCard);
-    identityLayout->addWidget(settingRow(QStringLiteral("✓"), QStringLiteral("双重认证策略"),
+    identityLayout->addWidget(settingRow(UiIcon::Shield, QStringLiteral("双重认证策略"),
         QStringLiteral("启用后需由组织配置验证源；不能与自动登录同时开启"), twoFactorCheck_, identityCard));
     centerLayout->addWidget(identityCard);
 
@@ -184,19 +191,19 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     auto* deviceLayout = new QVBoxLayout(deviceCard);
     deviceLayout->setContentsMargins(0, 0, 0, 0);
     deviceLayout->setSpacing(0);
-    deviceCountLabel_ = new QLabel(QStringLiteral("--  ›"), deviceCard);
+    deviceCountLabel_ = new QLabel(QStringLiteral("--"), deviceCard);
     deviceCountLabel_->setStyleSheet(QStringLiteral("color:#1769ff;"));
-    deviceLayout->addWidget(settingRow(QStringLiteral("▣"), QStringLiteral("设备管理"),
+    deviceLayout->addWidget(settingRow(UiIcon::Devices, QStringLiteral("设备管理"),
         QStringLiteral("查看当前账号已登记的登录设备"), deviceCountLabel_, deviceCard));
-    trustedDeviceLabel_ = new QLabel(QStringLiteral("--  ›"), deviceCard);
+    trustedDeviceLabel_ = new QLabel(QStringLiteral("--"), deviceCard);
     trustedDeviceLabel_->setStyleSheet(QStringLiteral("color:#1769ff;"));
-    deviceLayout->addWidget(settingRow(QStringLiteral("✓"), QStringLiteral("信任设备"),
+    deviceLayout->addWidget(settingRow(UiIcon::Check, QStringLiteral("信任设备"),
         QStringLiteral("可信标记由服务端设备记录统计"), trustedDeviceLabel_, deviceCard));
     startupCheck_ = switchControl(QStringLiteral("开机自启动偏好"), deviceCard);
-    deviceLayout->addWidget(settingRow(QStringLiteral("↗"), QStringLiteral("开机自启动偏好"),
+    deviceLayout->addWidget(settingRow(UiIcon::Refresh, QStringLiteral("开机自启动偏好"),
         QStringLiteral("保存跨端偏好；操作系统启动项由本机部署策略执行"), startupCheck_, deviceCard));
     autoLoginCheck_ = switchControl(QStringLiteral("自动登录偏好"), deviceCard);
-    deviceLayout->addWidget(settingRow(QStringLiteral("↻"), QStringLiteral("自动登录偏好"),
+    deviceLayout->addWidget(settingRow(UiIcon::Lock, QStringLiteral("自动登录偏好"),
         QStringLiteral("不在服务端保存凭据；启用双重认证时不可开启"), autoLoginCheck_, deviceCard));
     autoLockCombo_ = new QComboBox(deviceCard);
     autoLockCombo_->addItem(QStringLiteral("5 分钟"), 5);
@@ -204,7 +211,7 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     autoLockCombo_->addItem(QStringLiteral("15 分钟"), 15);
     autoLockCombo_->addItem(QStringLiteral("30 分钟"), 30);
     autoLockCombo_->addItem(QStringLiteral("60 分钟"), 60);
-    deviceLayout->addWidget(settingRow(QStringLiteral("◷"), QStringLiteral("锁屏超时"),
+    deviceLayout->addWidget(settingRow(UiIcon::Lock, QStringLiteral("锁屏超时"),
         QStringLiteral("闲置达到时限后要求重新验证"), autoLockCombo_, deviceCard));
     centerLayout->addWidget(deviceCard);
 
@@ -214,13 +221,13 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     privacyLayout->setSpacing(0);
     e2eCapabilityLabel_ = new QLabel(QStringLiteral("协议预留  ›"), privacyCard);
     e2eCapabilityLabel_->setStyleSheet(QStringLiteral("color:#b45309;"));
-    privacyLayout->addWidget(settingRow(QStringLiteral("◇"), QStringLiteral("端到端加密"),
+    privacyLayout->addWidget(settingRow(UiIcon::Shield, QStringLiteral("端到端加密"),
         QStringLiteral("仅展示服务端真实能力，当前不会伪装为已启用"), e2eCapabilityLabel_, privacyCard));
     watermarkCheck_ = switchControl(QStringLiteral("聊天水印偏好"), privacyCard);
-    privacyLayout->addWidget(settingRow(QStringLiteral("W"), QStringLiteral("聊天水印偏好"),
+    privacyLayout->addWidget(settingRow(UiIcon::File, QStringLiteral("聊天水印偏好"),
         QStringLiteral("保存外发消息水印策略偏好"), watermarkCheck_, privacyCard));
     screenshotProtectionCheck_ = switchControl(QStringLiteral("防截屏提示策略"), privacyCard);
-    privacyLayout->addWidget(settingRow(QStringLiteral("▧"), QStringLiteral("防截屏提示策略"),
+    privacyLayout->addWidget(settingRow(UiIcon::Eye, QStringLiteral("防截屏提示策略"),
         QStringLiteral("保存策略偏好；系统级阻止能力尚未启用"), screenshotProtectionCheck_, privacyCard));
     centerLayout->addWidget(privacyCard);
 
@@ -236,18 +243,18 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     auto* browseButton = new QPushButton(QStringLiteral("浏览"), pathEditor);
     pathLayout->addWidget(downloadPathEdit_);
     pathLayout->addWidget(browseButton);
-    preferenceLayout->addWidget(settingRow(QStringLiteral("□"), QStringLiteral("文件下载路径"),
+    preferenceLayout->addWidget(settingRow(UiIcon::Folder, QStringLiteral("文件下载路径"),
         QStringLiteral("仅作为客户端保存位置偏好，服务端不会访问该路径"), pathEditor, preferenceCard));
     languageCombo_ = new QComboBox(preferenceCard);
     languageCombo_->addItem(QStringLiteral("简体中文"), QStringLiteral("zh-CN"));
     languageCombo_->addItem(QStringLiteral("English"), QStringLiteral("en-US"));
-    preferenceLayout->addWidget(settingRow(QStringLiteral("文"), QStringLiteral("语言设置"),
+    preferenceLayout->addWidget(settingRow(UiIcon::Message, QStringLiteral("语言设置"),
         QStringLiteral("选择界面显示语言"), languageCombo_, preferenceCard));
     themeCombo_ = new QComboBox(preferenceCard);
     themeCombo_->addItem(QStringLiteral("跟随系统"), QStringLiteral("system"));
     themeCombo_->addItem(QStringLiteral("浅色"), QStringLiteral("light"));
     themeCombo_->addItem(QStringLiteral("深色"), QStringLiteral("dark"));
-    preferenceLayout->addWidget(settingRow(QStringLiteral("◐"), QStringLiteral("主题模式"),
+    preferenceLayout->addWidget(settingRow(UiIcon::Theme, QStringLiteral("主题模式"),
         QStringLiteral("保存界面主题偏好"), themeCombo_, preferenceCard));
     centerLayout->addWidget(preferenceCard);
     centerLayout->addStretch();
@@ -266,11 +273,12 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     securityLayout->setContentsMargins(20, 18, 20, 18);
     securityLayout->setSpacing(13);
     securityLayout->addWidget(headingLabel(QStringLiteral("安全状态"), securityCard));
-    auto* shield = new QLabel(QStringLiteral("✓"), securityCard);
+    auto* shield = new QLabel(securityCard);
     shield->setAlignment(Qt::AlignCenter);
     shield->setFixedSize(96, 96);
     shield->setStyleSheet(QStringLiteral(
-        "font-size:48px;font-weight:700;color:#1769ff;background:#edf5ff;border-radius:46px;"));
+        "font-weight:700;color:#1769ff;background:#edf5ff;border-radius:46px;"));
+    shield->setPixmap(makeUiIcon(UiIcon::Shield, QColor(QStringLiteral("#1769ff"))).pixmap(64, 64));
     auto* safeTitle = new QLabel(QStringLiteral("安全连接"), securityCard);
     safeTitle->setAlignment(Qt::AlignCenter);
     safeTitle->setStyleSheet(QStringLiteral("font-size:20px;font-weight:700;color:#1769ff;"));
@@ -309,6 +317,9 @@ SettingsCenterView::SettingsCenterView(SettingsModel* model, QWidget* parent)
     checkUpdateButton->setObjectName(QStringLiteral("settingsPrimary"));
     auto* exportButton = new QPushButton(QStringLiteral("导出诊断日志"), systemCard);
     resetButton_ = new QPushButton(QStringLiteral("恢复默认设置"), systemCard);
+    applyUiIcon(checkUpdateButton, UiIcon::Refresh, 18);
+    applyUiIcon(exportButton, UiIcon::Export, 18);
+    applyUiIcon(resetButton_, UiIcon::Refresh, 18);
     systemLayout->addWidget(checkUpdateButton);
     systemLayout->addWidget(exportButton);
     systemLayout->addWidget(resetButton_);

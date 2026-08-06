@@ -10,6 +10,8 @@
 #include "model/CalendarModel.h"
 #include "model/OrganizationTreeModel.h"
 #include "view/common/ApplicationShell.h"
+#include "view/common/UiAssets.h"
+#include "view/common/UiTheme.h"
 #include "view/group/GroupCenterView.h"
 #include "view/notification/NotificationCenterView.h"
 #include "view/settings/SettingsCenterView.h"
@@ -82,11 +84,14 @@ QString maskedPhone(const QString& phone)
 }
 
 /** @brief 创建参考图中的轻量工具按钮；按钮仅表达 UI 意图，不在 View 中执行导出等业务。 */
-QPushButton* createToolButton(const QString& text, QWidget* parent)
+QPushButton* createToolButton(const QString& text, QWidget* parent,
+                              std::optional<UiIcon> icon = std::nullopt,
+                              int iconSize = 20)
 {
     auto* button = new QPushButton(text, parent);
     button->setProperty("toolButton", true);
     button->setCursor(Qt::PointingHandCursor);
+    if (icon) applyUiIcon(button, *icon, iconSize);
     return button;
 }
 
@@ -138,17 +143,16 @@ MainWindow::MainWindow(OrganizationTreeModel* organizationModel,
         resize(1200, 760);
     }
     setStyleSheet(QStringLiteral(R"QSS(
-QMainWindow, QWidget#mainSurface { background:#f5f7fb; color:#172033; font-family:"Microsoft YaHei UI"; font-size:15px; }
+QMainWindow, QWidget#mainSurface { background:#f5f7fb; color:#172033; }
 QFrame#topHeader, QFrame#bottomStatus { background:#ffffff; border:0; }
 QLabel#brandLogo { background:#0b63f6; color:white; border-radius:8px; font-weight:700; font-size:18px; }
 QLabel#brandName { font-size:18px; font-weight:700; }
 QLabel#breadcrumb { color:#475569; }
 QFrame#navigationPanel { background:#ffffff; border-radius:12px; }
-QListWidget#primaryNavigation { background:transparent; border:0; outline:0; font-size:16px; font-weight:600; }
+QListWidget#primaryNavigation { background:transparent; border:0; outline:0; font-size:14px; font-weight:600; }
 QListWidget#primaryNavigation::item { height:58px; margin:3px 8px; padding-left:14px; border-radius:10px; }
 QListWidget#primaryNavigation::item:selected { color:#075df5; background:#eaf1ff; border-left:4px solid #1264f6; }
 QFrame#contextPanel, QFrame#peopleCard, QFrame#profileCard, QFrame#chatCard { background:#ffffff; border:1px solid #e6eaf2; border-radius:12px; }
-QLineEdit#directorySearchEdit { min-height:42px; border:1px solid #d8deea; border-radius:8px; padding:0 12px; background:#fff; }
 QTreeView#organizationTree, QListView#conversationList { border:0; background:#fff; outline:0; padding:4px; }
 QTreeView#organizationTree::item, QListView#conversationList::item { min-height:34px; padding:6px 8px; border-radius:7px; }
 QTreeView#organizationTree::item:selected, QListView#conversationList::item:selected { color:#075df5; background:#eaf1ff; }
@@ -156,27 +160,21 @@ QListWidget#recentContacts { border:0; background:#fff; outline:0; }
 QListWidget#recentContacts::item { border-radius:8px; padding:5px; text-align:center; }
 QListWidget#recentContacts::item:selected { color:#075df5; background:#eaf1ff; }
 QLabel#sectionTitle { font-size:18px; font-weight:700; }
-QPushButton[toolButton="true"] { border:0; background:transparent; padding:8px; color:#344054; }
-QPushButton[toolButton="true"]:hover { color:#075df5; background:#edf3ff; border-radius:7px; }
-QTableView#departmentPersonnelTable { border:1px solid #e5e9f1; border-radius:8px; gridline-color:#edf0f5; background:#fff; selection-background-color:#eef4ff; selection-color:#172033; }
-QHeaderView::section { background:#fafbfc; border:0; border-bottom:1px solid #e5e9f1; padding:12px 10px; font-weight:600; }
-QLabel#avatarLabel { background:#dce9ff; color:#075df5; border-radius:44px; font-size:30px; font-weight:700; qproperty-alignment:AlignCenter; }
-QLabel#personNameLabel { font-size:22px; font-weight:700; }
+QTableView#departmentPersonnelTable { border:1px solid #e5e9f1; border-radius:8px; gridline-color:transparent; background:#fff; }
+QLabel#avatarLabel { background:#dce9ff; color:#075df5; border-radius:44px; font-weight:700; qproperty-alignment:AlignCenter; }
+QLabel#personNameLabel { font-size:20px; font-weight:700; }
 QLabel#presenceBadge { background:#e9f9f1; color:#079455; border-radius:7px; padding:4px 9px; }
-QLabel#contactSectionTitle { font-size:15px; font-weight:700; padding-top:8px; }
+QLabel#contactSectionTitle { font-size:14px; font-weight:700; padding-top:8px; }
 QLabel#contactInfo { color:#475467; line-height:1.7; }
 QLabel#contactTags { color:#075df5; background:#eef4ff; border-radius:8px; padding:8px; }
-QPushButton#primaryAction { background:#075df5; color:#fff; border:0; border-radius:7px; min-height:42px; font-weight:600; }
-QPushButton#secondaryAction { background:#fff; color:#075df5; border:1px solid #cbd7ea; border-radius:7px; min-height:42px; }
 QListWidget#chatMessageList { border:0; background:#fff; outline:0; }
-QPlainTextEdit#chatInput { border:1px solid #9eb3d5; border-radius:8px; padding:9px; background:#fff; }
 QLabel#messageBubbleIncoming { background:#f2f4f7; border-radius:10px; padding:9px 12px; }
 QLabel#messageBubbleOutgoing { background:#e4edff; border-radius:10px; padding:9px 12px; }
-QLabel#messageMeta { color:#8490a3; font-size:11px; }
+QLabel#messageMeta { color:#8490a3; font-size:12px; }
 QLabel#statusHealthy { color:#079455; }
 QFrame#modulePlaceholder { background:#ffffff; border:1px solid #e6eaf2; border-radius:12px; }
 QLabel#modulePlaceholderTitle { color:#172033; font-size:24px; font-weight:700; }
-QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
+QLabel#modulePlaceholderDescription { color:#667085; font-size:14px; }
 )QSS"));
 
     shell_ = new ApplicationShell(this);
@@ -199,11 +197,12 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     searchEdit_ = new QLineEdit(directoryPanel);
     searchEdit_->setObjectName(QStringLiteral("directorySearchEdit"));
     searchEdit_->setPlaceholderText(QStringLiteral("搜索人员、部门、岗位"));
+    searchEdit_->addAction(makeUiIcon(UiIcon::Search), QLineEdit::LeadingPosition);
     organizationTree_ = new QTreeView(directoryPanel);
     organizationTree_->setObjectName(QStringLiteral("organizationTree"));
     organizationTree_->setModel(organizationModel_);
     organizationTree_->setHeaderHidden(true);
-    auto* addContactButton = createToolButton(QStringLiteral("＋"), directoryPanel);
+    auto* addContactButton = createToolButton({}, directoryPanel, UiIcon::Add, 20);
     addContactButton->setObjectName(QStringLiteral("addContactButton"));
     addContactButton->setToolTip(QStringLiteral("从组织架构选择联系人后可收藏或发起会话"));
     directorySearchRow->addWidget(searchEdit_, 1);
@@ -234,6 +233,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     conversationHeading->setObjectName(QStringLiteral("sectionTitle"));
     conversationSearchEdit_ = new QLineEdit(conversationPanel);
     conversationSearchEdit_->setPlaceholderText(QStringLiteral("搜索会话、联系人、群组"));
+    conversationSearchEdit_->addAction(makeUiIcon(UiIcon::Search), QLineEdit::LeadingPosition);
     auto* conversationTabs = new QHBoxLayout();
     auto* allConversations = createToolButton(QStringLiteral("全部"), conversationPanel);
     auto* unreadConversations = createToolButton(QStringLiteral("未读"), conversationPanel);
@@ -273,21 +273,18 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     departmentHeading->addWidget(departmentCountLabel_);
     peopleHeader->addLayout(departmentHeading);
     peopleHeader->addStretch();
-    peopleHeader->addWidget(createToolButton(QStringLiteral("↻ 刷新"), peoplePanel));
-    peopleHeader->addWidget(createToolButton(QStringLiteral("▽ 筛选"), peoplePanel));
-    peopleHeader->addWidget(createToolButton(QStringLiteral("⇅ 排序"), peoplePanel));
-    peopleHeader->addWidget(createToolButton(QStringLiteral("⇧ 导出"), peoplePanel));
+    peopleHeader->addWidget(createToolButton(QStringLiteral("刷新"), peoplePanel, UiIcon::Refresh));
+    peopleHeader->addWidget(createToolButton(QStringLiteral("筛选"), peoplePanel, UiIcon::Filter));
+    peopleHeader->addWidget(createToolButton(QStringLiteral("排序"), peoplePanel, UiIcon::Sort));
+    peopleHeader->addWidget(createToolButton(QStringLiteral("导出"), peoplePanel, UiIcon::Export));
     personnelTable_ = new QTableView(peoplePanel);
     personnelTable_->setObjectName(QStringLiteral("departmentPersonnelTable"));
     personnelTable_->setModel(personnelModel_);
-    personnelTable_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    personnelTable_->setSelectionMode(QAbstractItemView::SingleSelection);
-    personnelTable_->setAlternatingRowColors(true);
-    personnelTable_->setShowGrid(false);
-    personnelTable_->setWordWrap(false);
+    personnelTable_->setItemDelegateForColumn(0, new AvatarItemDelegate(
+        DepartmentPersonnelModel::AvatarResourceRole,
+        DepartmentPersonnelModel::DisplayNameRole, personnelTable_));
+    UiTheme::configureRowTable(personnelTable_, 72);
     personnelTable_->setSortingEnabled(false);
-    personnelTable_->verticalHeader()->setDefaultSectionSize(72);
-    personnelTable_->verticalHeader()->hide();
     personnelTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     personnelTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     personnelTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
@@ -312,9 +309,10 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     auto* profileLayout = new QVBoxLayout(profileCard);
     profileLayout->setContentsMargins(20, 18, 20, 18);
     auto* identityRow = new QHBoxLayout();
-    avatarLabel_ = new QLabel(QStringLiteral("人"), profileCard);
+    avatarLabel_ = new QLabel(profileCard);
     avatarLabel_->setObjectName(QStringLiteral("avatarLabel"));
     avatarLabel_->setFixedSize(88, 88);
+    applyAvatar(avatarLabel_, {}, QStringLiteral("人"), 88);
     auto* identityText = new QVBoxLayout();
     auto* nameRow = new QHBoxLayout();
     personNameLabel_ = new QLabel(QStringLiteral("请选择人员"), profileCard);
@@ -324,7 +322,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     nameRow->addWidget(personNameLabel_);
     nameRow->addWidget(presenceBadgeLabel_);
     nameRow->addStretch();
-    favoriteContactButton_ = createToolButton(QStringLiteral("☆"), profileCard);
+    favoriteContactButton_ = createToolButton({}, profileCard, UiIcon::Star, 20);
     favoriteContactButton_->setObjectName(QStringLiteral("favoriteContactButton"));
     favoriteContactButton_->setToolTip(QStringLiteral("收藏联系人"));
     favoriteContactButton_->setEnabled(false);
@@ -337,13 +335,17 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     identityRow->addLayout(identityText, 1);
     profileLayout->addLayout(identityRow);
     auto* actionRow = new QHBoxLayout();
-    messageButton_ = new QPushButton(QStringLiteral("●  发消息"), profileCard);
+    messageButton_ = new QPushButton(QStringLiteral("发消息"), profileCard);
+    applyUiIcon(messageButton_, UiIcon::Message, 20);
     messageButton_->setObjectName(QStringLiteral("primaryAction"));
-    profileVoiceCallButton_ = new QPushButton(QStringLiteral("☎  语音"), profileCard);
+    profileVoiceCallButton_ = new QPushButton(QStringLiteral("语音"), profileCard);
+    applyUiIcon(profileVoiceCallButton_, UiIcon::Phone, 20);
     profileVoiceCallButton_->setObjectName(QStringLiteral("secondaryAction"));
-    profileVideoCallButton_ = new QPushButton(QStringLiteral("▣  视频"), profileCard);
+    profileVideoCallButton_ = new QPushButton(QStringLiteral("视频"), profileCard);
+    applyUiIcon(profileVideoCallButton_, UiIcon::Video, 20);
     profileVideoCallButton_->setObjectName(QStringLiteral("secondaryAction"));
-    fileButton_ = new QPushButton(QStringLiteral("□  发送文件"), profileCard);
+    fileButton_ = new QPushButton(QStringLiteral("发送文件"), profileCard);
+    applyUiIcon(fileButton_, UiIcon::File, 20);
     fileButton_->setObjectName(QStringLiteral("secondaryAction"));
     messageButton_->setEnabled(false);
     fileButton_->setEnabled(false);
@@ -363,7 +365,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     auto* tagHeader = new QHBoxLayout();
     auto* tagsTitle = new QLabel(QStringLiteral("标签"), profileCard);
     tagsTitle->setObjectName(QStringLiteral("contactSectionTitle"));
-    editContactButton_ = createToolButton(QStringLiteral("＋ 编辑"), profileCard);
+    editContactButton_ = createToolButton(QStringLiteral("编辑"), profileCard, UiIcon::Edit, 18);
     editContactButton_->setObjectName(QStringLiteral("editContactButton"));
     editContactButton_->setEnabled(false);
     tagHeader->addWidget(tagsTitle);
@@ -399,9 +401,9 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     auto* chatHeader = new QHBoxLayout();
     chatHeader->addWidget(conversationTitleLabel_);
     chatHeader->addStretch();
-    voiceCallButton_ = createToolButton(QStringLiteral("☎ 语音"), chatCard);
-    videoCallButton_ = createToolButton(QStringLiteral("▣ 视频"), chatCard);
-    pinConversationButton_ = createToolButton(QStringLiteral("☆ 置顶"), chatCard);
+    voiceCallButton_ = createToolButton(QStringLiteral("语音"), chatCard, UiIcon::Phone);
+    videoCallButton_ = createToolButton(QStringLiteral("视频"), chatCard, UiIcon::Video);
+    pinConversationButton_ = createToolButton(QStringLiteral("置顶"), chatCard, UiIcon::Pin);
     voiceCallButton_->setEnabled(false);
     videoCallButton_->setEnabled(false);
     pinConversationButton_->setEnabled(false);
@@ -417,19 +419,17 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
     chatInput_->setMaximumHeight(88);
     chatInput_->setEnabled(false);
     auto* composerActions = new QHBoxLayout();
-    composerActions->addWidget(createToolButton(QStringLiteral("☺"), chatCard));
-    composerActions->addWidget(createToolButton(QStringLiteral("▧"), chatCard));
-    composerActions->addWidget(createToolButton(QStringLiteral("⌕"), chatCard));
-    chatFileButton_ = createToolButton(QStringLiteral("□ 附件"), chatCard);
+    composerActions->addWidget(createToolButton({}, chatCard, UiIcon::Message));
+    composerActions->addWidget(createToolButton({}, chatCard, UiIcon::Grid));
+    composerActions->addWidget(createToolButton({}, chatCard, UiIcon::Share));
+    chatFileButton_ = createToolButton(QStringLiteral("附件"), chatCard, UiIcon::File);
     chatFileButton_->setEnabled(false);
     composerActions->addWidget(chatFileButton_);
     composerActions->addStretch();
-    chatSendButton_ = new QPushButton(QStringLiteral("➤  发送(S)"), chatCard);
+    chatSendButton_ = new QPushButton(QStringLiteral("发送(S)"), chatCard);
+    applyUiIcon(chatSendButton_, UiIcon::Send, 20);
     chatSendButton_->setObjectName(QStringLiteral("chatSendButton"));
     chatSendButton_->setProperty("class", QStringLiteral("primary"));
-    chatSendButton_->setStyleSheet(QStringLiteral(
-        "QPushButton{background:#075df5;color:white;border:0;border-radius:7px;padding:10px 18px;font-weight:600;}"
-        "QPushButton:disabled{background:#aab8d0;}"));
     chatSendButton_->setEnabled(false);
     composerActions->addWidget(chatSendButton_);
     chatLayout->addLayout(chatHeader);
@@ -700,7 +700,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
         if (currentConversationId_ == 0) return;
         currentConversationPinned_ = !currentConversationPinned_;
         pinConversationButton_->setText(currentConversationPinned_
-            ? QStringLiteral("★ 已置顶") : QStringLiteral("☆ 置顶"));
+            ? QStringLiteral("已置顶") : QStringLiteral("置顶"));
         emit conversationPreferenceRequested(currentConversationId_, currentConversationPinned_, false);
     });
     connect(shell_, &ApplicationShell::sectionChanged, this, [this, contextPanel](int row) {
@@ -747,7 +747,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
         {
             currentConversationPinned_ = item->pinned;
             pinConversationButton_->setText(currentConversationPinned_
-                ? QStringLiteral("★ 已置顶") : QStringLiteral("☆ 置顶"));
+                ? QStringLiteral("已置顶") : QStringLiteral("置顶"));
             emit personActivated(item->peerPersonId);
             emit conversationActivated(item->conversationId, item->displayName);
         }
@@ -789,7 +789,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
         const auto& detail = *contactModel_->detail();
         selectedPersonId_ = domain::PersonId{detail.personId};
         const auto isSelf = detail.personId == currentUserPersonId_;
-        avatarLabel_->setText(detail.displayName.left(1));
+        applyAvatar(avatarLabel_, detail.avatarResourceId, detail.displayName, 88);
         personNameLabel_->setText(detail.displayName + (isSelf ? QStringLiteral("（我）") : QString{}));
         presenceBadgeLabel_->setText(QStringLiteral("● %1").arg(contactPresenceText(detail.presenceState)));
         personDetailLabel_->setText(QStringLiteral("%1 · %2").arg(
@@ -810,7 +810,7 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:15px; }
         QStringList groups;
         for (const auto& group : detail.groups) groups.push_back(QStringLiteral("●  %1").arg(group.name));
         contactGroupsLabel_->setText(groups.isEmpty() ? QStringLiteral("暂无共同群组") : groups.join('\n'));
-        favoriteContactButton_->setText(detail.favorite ? QStringLiteral("★") : QStringLiteral("☆"));
+        favoriteContactButton_->setText({});
         favoriteContactButton_->setToolTip(detail.favorite ? QStringLiteral("取消收藏") : QStringLiteral("收藏联系人"));
         favoriteContactButton_->setEnabled(networkConnected_ && !isSelf && !contactModel_->busy());
         editContactButton_->setEnabled(networkConnected_ && !isSelf && !contactModel_->busy());
@@ -837,7 +837,7 @@ void MainWindow::showPersonDetail(const std::optional<domain::Person>& person)
     if (!person)
     {
         personNameLabel_->setText(QStringLiteral("请选择人员"));
-        avatarLabel_->setText(QStringLiteral("人"));
+        applyAvatar(avatarLabel_, {}, QStringLiteral("人"), 88);
         presenceBadgeLabel_->setText(QStringLiteral("● 未选择"));
         personDetailLabel_->setText(QStringLiteral("从部门成员列表选择人员后查看详情。"));
         contactBasicInfoLabel_->setText(QStringLiteral("工号        —\n分机        —\n手机        —\n邮箱        —\n办公地点    —\n直属上级    —"));
@@ -852,7 +852,7 @@ void MainWindow::showPersonDetail(const std::optional<domain::Person>& person)
     }
     const auto displayName = QString::fromStdString(person->displayName);
     personNameLabel_->setText(displayName + (isSelf ? QStringLiteral("（我）") : QString{}));
-    avatarLabel_->setText(displayName.left(1));
+    applyAvatar(avatarLabel_, QString::fromStdString(person->avatarResourceId), displayName, 88);
     presenceBadgeLabel_->setText(QStringLiteral("● 正在加载状态"));
     personDetailLabel_->setText(QStringLiteral("正在读取服务端联系人资料…"));
     chatContactNameLabel_->setText(QStringLiteral("%1  ● 在线").arg(displayName));
@@ -937,6 +937,8 @@ void MainWindow::appendChatMessage(
     auto* messageLabel = new QLabel(text, bubbleContainer);
     messageLabel->setObjectName(outgoing
         ? QStringLiteral("messageBubbleOutgoing") : QStringLiteral("messageBubbleIncoming"));
+    // 字体按内容语义选择：正文使用思源黑体，发送者、时间和状态仍使用更纱黑体 UI。
+    messageLabel->setProperty("chatContent", true);
     messageLabel->setWordWrap(true);
     messageLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     auto* metaLabel = new QLabel(
@@ -979,18 +981,25 @@ void MainWindow::appendFileMessage(
     card->setMaximumWidth(420);
     auto* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(12, 10, 12, 10);
-    auto* title = new QLabel(QStringLiteral("📄  %1").arg(fileName), card);
+    auto* titleRow = new QHBoxLayout();
+    auto* fileIcon = new QLabel(card);
+    applyUiIcon(fileIcon, UiIcon::File, 20, QColor(QStringLiteral("#075df5")));
+    auto* title = new QLabel(fileName, card);
+    // 文件名属于聊天消息正文，使用与文本气泡一致的思源黑体以保持阅读节奏。
+    title->setProperty("chatContent", true);
     title->setWordWrap(true);
+    titleRow->addWidget(fileIcon);
+    titleRow->addWidget(title, 1);
     auto* detail = new QLabel(QStringLiteral("%1 字节 · MinIO 对象存储").arg(sizeBytes), card);
     detail->setObjectName(QStringLiteral("messageMeta"));
     auto* actions = new QHBoxLayout();
-    auto* download = createToolButton(QStringLiteral("下载"), card);
+    auto* download = createToolButton(QStringLiteral("下载"), card, UiIcon::Download, 18);
     actions->addWidget(download);
     actions->addStretch();
     auto* meta = new QLabel(QStringLiteral("%1 · %2").arg(sender, messageStatusText(status)), card);
     meta->setObjectName(QStringLiteral("messageMeta"));
     actions->addWidget(meta);
-    cardLayout->addWidget(title);
+    cardLayout->addLayout(titleRow);
     cardLayout->addWidget(detail);
     cardLayout->addLayout(actions);
     connect(download, &QPushButton::clicked, this, [this, assetUuid]() {

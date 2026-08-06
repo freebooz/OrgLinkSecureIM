@@ -1,4 +1,5 @@
 #include "view/calendar/CalendarCenterView.h"
+#include "view/common/UiAssets.h"
 
 #include <QAction>
 #include <QApplication>
@@ -153,21 +154,15 @@ CalendarCenterView::CalendarCenterView(CalendarModel* model, QWidget* parent)
     setStyleSheet(QStringLiteral(R"(
 QWidget#calendarCenterView, QWidget#calendarContext { background:#f7faff; color:#172033; }
 QFrame#calendarCard, QFrame#calendarDetail { background:#ffffff; border:1px solid #e7edf7; border-radius:12px; }
-QWidget#calendarCenterView, QWidget#calendarContext { font-size:14px; }
-QPushButton { min-height:38px; border:1px solid #d9e2f1; border-radius:7px; background:#ffffff; padding:0 14px; font-size:14px; }
-QPushButton:hover { border-color:#1677ff; color:#075df5; }
-QPushButton#calendarPrimary { background:#0868f7; color:#ffffff; border:none; font-weight:600; }
-QPushButton#calendarDanger { color:#ff4d4f; border-color:#ff7875; background:#ffffff; }
 QPushButton[viewModeButton="true"] { min-width:54px; padding:0 8px; }
 QPushButton[viewModeButton="true"][active="true"] { color:#075df5; background:#eef4ff; border-color:#c9dafb; font-weight:700; }
-QLabel#calendarContextSectionTitle { font-size:15px; font-weight:700; color:#101828; padding-top:6px; }
-QLabel#calendarSectionTitle { font-size:19px; font-weight:700; color:#101828; }
+QLabel#calendarContextSectionTitle { font-size:14px; font-weight:700; color:#101828; padding-top:6px; }
+QLabel#calendarSectionTitle { font-size:18px; font-weight:700; color:#101828; }
 QLabel#calendarDetailTitle { font-size:20px; font-weight:700; color:#101828; }
-QTableWidget { background:#ffffff; border:none; gridline-color:#edf1f7; font-size:13px; }
+QTableWidget { background:#ffffff; border:none; gridline-color:#edf1f7; font-size:14px; }
 QTableWidget::item:selected { background:#eaf2ff; color:#075df5; border:2px solid #1677ff; }
-QHeaderView::section { background:#ffffff; border:none; border-right:1px solid #edf1f7; border-bottom:1px solid #edf1f7; padding:10px 8px; font-size:14px; font-weight:600; }
+QTableWidget QHeaderView::section { background:#ffffff; border:none; border-right:1px solid #edf1f7; border-bottom:1px solid #edf1f7; padding:10px 8px; font-size:14px; font-weight:600; }
 QCalendarWidget { background:#ffffff; border:1px solid #e7edf7; border-radius:9px; font-size:14px; }
-QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
 )"));
 
     contextWidget_ = new QWidget;
@@ -176,9 +171,9 @@ QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
     // 公共上下文卡外层已有 16px 留白，这里不重复占用水平空间，保证窄栏中的月历仍达到设计宽度。
     contextLayout->setContentsMargins(0, 4, 0, 4);
     contextLayout->setSpacing(11);
-    createButton_ = new QPushButton(QStringLiteral("＋  新建日程"), contextWidget_);
+    createButton_ = new QPushButton(QStringLiteral("新建日程"), contextWidget_);
+    applyUiIcon(createButton_, UiIcon::Add, 20);
     createButton_->setObjectName(QStringLiteral("calendarPrimary"));
-    createButton_->setMinimumHeight(42);
     contextLayout->addWidget(createButton_);
     miniCalendar_ = new QCalendarWidget(contextWidget_);
     miniCalendar_->setObjectName(QStringLiteral("miniCalendar"));
@@ -240,8 +235,10 @@ QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
         toolbar->addWidget(button);
     }
     auto* today = new QPushButton(QStringLiteral("今天"), calendarCard);
-    auto* previous = new QPushButton(QStringLiteral("‹"), calendarCard);
-    auto* next = new QPushButton(QStringLiteral("›"), calendarCard);
+    auto* previous = new QPushButton(calendarCard);
+    auto* next = new QPushButton(calendarCard);
+    applyUiIcon(previous, UiIcon::ArrowLeft, 18);
+    applyUiIcon(next, UiIcon::ArrowRight, 18);
     rangeLabel_ = new QLabel(calendarCard);
     rangeLabel_->setAlignment(Qt::AlignCenter);
     rangeLabel_->setStyleSheet(QStringLiteral("font-size:18px;font-weight:700;color:#101828;"));
@@ -249,8 +246,10 @@ QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
     toolbar->addWidget(previous);
     toolbar->addWidget(next);
     toolbar->addWidget(rangeLabel_, 1);
-    filterButton_ = new QPushButton(QStringLiteral("▽ 筛选"), calendarCard);
+    filterButton_ = new QPushButton(QStringLiteral("筛选"), calendarCard);
     moreButton_ = new QPushButton(QStringLiteral("更多…"), calendarCard);
+    applyUiIcon(filterButton_, UiIcon::Filter, 18);
+    applyUiIcon(moreButton_, UiIcon::More, 18);
     filterButton_->setObjectName(QStringLiteral("calendarFilterButton"));
     moreButton_->setObjectName(QStringLiteral("calendarMoreButton"));
     toolbar->addWidget(filterButton_);
@@ -284,10 +283,13 @@ QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
     detailTitle_->setWordWrap(true);
     detailLayout->addWidget(detailTitle_);
     auto* actions = new QHBoxLayout;
-    joinButton_ = new QPushButton(QStringLiteral("▣ 加入会议"), detail);
+    joinButton_ = new QPushButton(QStringLiteral("加入会议"), detail);
+    applyUiIcon(joinButton_, UiIcon::Meeting, 18);
     joinButton_->setObjectName(QStringLiteral("calendarPrimary"));
-    editButton_ = new QPushButton(QStringLiteral("✎ 编辑"), detail);
-    shareButton_ = new QPushButton(QStringLiteral("⌯ 分享"), detail);
+    editButton_ = new QPushButton(QStringLiteral("编辑"), detail);
+    shareButton_ = new QPushButton(QStringLiteral("分享"), detail);
+    applyUiIcon(editButton_, UiIcon::Edit, 18);
+    applyUiIcon(shareButton_, UiIcon::Share, 18);
     actions->addWidget(joinButton_);
     actions->addWidget(editButton_);
     actions->addWidget(shareButton_);
@@ -300,15 +302,30 @@ QCheckBox { spacing:8px; min-height:29px; font-size:14px; }
     detailDescription_ = new QLabel(detail);
     detailReminder_ = new QLabel(detail);
     detailCalendar_ = new QLabel(detail);
-    for (auto* label : {detailTime_, detailLocation_, detailMeeting_, detailOrganizer_,
-                        detailParticipants_, detailDescription_, detailReminder_, detailCalendar_})
-    {
+    const auto addDetailLine = [detail, detailLayout](QLabel* label, UiIcon icon) {
+        auto* row = new QWidget(detail);
+        auto* rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(10);
+        auto* iconLabel = new QLabel(row);
+        applyUiIcon(iconLabel, icon, 18, QColor(QStringLiteral("#344054")));
         label->setWordWrap(true);
         label->setStyleSheet(QStringLiteral("color:#344054;font-size:14px;line-height:1.55;"));
-        detailLayout->addWidget(label);
-    }
+        rowLayout->addWidget(iconLabel, 0, Qt::AlignTop);
+        rowLayout->addWidget(label, 1);
+        detailLayout->addWidget(row);
+    };
+    addDetailLine(detailTime_, UiIcon::Calendar);
+    addDetailLine(detailLocation_, UiIcon::Pin);
+    addDetailLine(detailMeeting_, UiIcon::Meeting);
+    addDetailLine(detailOrganizer_, UiIcon::User);
+    addDetailLine(detailParticipants_, UiIcon::Group);
+    addDetailLine(detailDescription_, UiIcon::File);
+    addDetailLine(detailReminder_, UiIcon::Notification);
+    addDetailLine(detailCalendar_, UiIcon::Calendar);
     detailLayout->addStretch();
-    deleteButton_ = new QPushButton(QStringLiteral("♜  删除日程"), detail);
+    deleteButton_ = new QPushButton(QStringLiteral("删除日程"), detail);
+    applyUiIcon(deleteButton_, UiIcon::Delete, 18);
     deleteButton_->setObjectName(QStringLiteral("calendarDanger"));
     detailLayout->addWidget(deleteButton_);
     splitter->addWidget(calendarCard);
@@ -627,24 +644,24 @@ void CalendarCenterView::showSelectedEvent()
     }
     const auto start = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(event->startsAtUtcMs)).toLocalTime();
     const auto end = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(event->endsAtUtcMs)).toLocalTime();
-    detailTitle_->setText(QStringLiteral("●  %1%2").arg(event->title,
+    detailTitle_->setText(QStringLiteral("%1%2").arg(event->title,
         event->cancelled ? QStringLiteral("（已取消）") : QString{}));
-    detailTime_->setText(QStringLiteral("◷  %1  %2 - %3").arg(
+    detailTime_->setText(QStringLiteral("%1  %2 - %3").arg(
         start.toString(QStringLiteral("yyyy年M月d日（ddd）")),
         start.time().toString(QStringLiteral("HH:mm")), end.time().toString(QStringLiteral("HH:mm"))));
-    detailLocation_->setText(QStringLiteral("⌖  %1").arg(event->location.isEmpty() ? QStringLiteral("未设置地点") : event->location));
-    detailMeeting_->setText(QStringLiteral("▣  会议号  %1").arg(
+    detailLocation_->setText(event->location.isEmpty() ? QStringLiteral("未设置地点") : event->location);
+    detailMeeting_->setText(QStringLiteral("会议号  %1").arg(
         event->meetingNumber.isEmpty() ? QStringLiteral("未启用") : event->meetingNumber));
-    detailOrganizer_->setText(QStringLiteral("♙  发起人  %1").arg(event->organizerDisplayName));
+    detailOrganizer_->setText(QStringLiteral("发起人  %1").arg(event->organizerDisplayName));
     QStringList names;
     for (const auto& participant : event->participants) names.push_back(participant.displayName);
-    detailParticipants_->setText(QStringLiteral("♧  参与人  %1 人\n    %2")
+    detailParticipants_->setText(QStringLiteral("参与人  %1 人\n%2")
         .arg(event->participants.size()).arg(names.join(QStringLiteral("、"))));
-    detailDescription_->setText(QStringLiteral("▤  描述\n    %1").arg(
+    detailDescription_->setText(QStringLiteral("描述\n%1").arg(
         event->description.isEmpty() ? QStringLiteral("暂无描述") : event->description));
-    detailReminder_->setText(event->reminderMinutes == 0 ? QStringLiteral("♧  不提醒")
-        : QStringLiteral("♧  开始前 %1 分钟，应用内提醒").arg(event->reminderMinutes));
-    detailCalendar_->setText(QStringLiteral("▣  所属日历  ● %1").arg(event->calendarName));
+    detailReminder_->setText(event->reminderMinutes == 0 ? QStringLiteral("不提醒")
+        : QStringLiteral("开始前 %1 分钟，应用内提醒").arg(event->reminderMinutes));
+    detailCalendar_->setText(QStringLiteral("所属日历  %1").arg(event->calendarName));
     joinButton_->setEnabled(networkConnected_ && !event->cancelled && !event->meetingNumber.isEmpty());
     editButton_->setEnabled(networkConnected_ && event->editable && !event->cancelled);
     shareButton_->setEnabled(!event->cancelled);

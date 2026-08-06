@@ -1,4 +1,6 @@
 #include "view/group/GroupCenterView.h"
+#include "view/common/UiAssets.h"
+#include "view/common/UiTheme.h"
 
 #include <QAbstractItemView>
 #include <QComboBox>
@@ -23,12 +25,15 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <array>
+#include <optional>
+#include <utility>
 
 namespace orglink::client
 {
 namespace
 {
-QFrame* createStatCard(const QString& title, const QString& icon, QLabel*& value, QWidget* parent)
+QFrame* createStatCard(const QString& title, UiIcon icon, QLabel*& value, QWidget* parent)
 {
     auto* card = new QFrame(parent);
     card->setObjectName(QStringLiteral("groupStatCard"));
@@ -39,8 +44,9 @@ QFrame* createStatCard(const QString& title, const QString& icon, QLabel*& value
     auto* row = new QHBoxLayout();
     value = new QLabel(QStringLiteral("0"), card);
     value->setObjectName(QStringLiteral("groupStatValue"));
-    auto* iconLabel = new QLabel(icon, card);
+    auto* iconLabel = new QLabel(card);
     iconLabel->setObjectName(QStringLiteral("groupStatIcon"));
+    applyUiIcon(iconLabel, icon, 24, QColor(QStringLiteral("#1b6cff")));
     row->addWidget(value);
     row->addStretch();
     row->addWidget(iconLabel);
@@ -52,11 +58,13 @@ QFrame* createStatCard(const QString& title, const QString& icon, QLabel*& value
     return card;
 }
 
-QPushButton* createActionButton(const QString& text, const QString& name, QWidget* parent)
+QPushButton* createActionButton(const QString& text, const QString& name, QWidget* parent,
+                                std::optional<UiIcon> icon = std::nullopt, int iconSize = 20)
 {
     auto* button = new QPushButton(text, parent);
     button->setObjectName(name);
     button->setCursor(Qt::PointingHandCursor);
+    if (icon) applyUiIcon(button, *icon, iconSize);
     return button;
 }
 
@@ -91,18 +99,14 @@ QWidget#groupCenterWorkspace { background:#f5f7fb; }
 QFrame#groupCenterCard, QFrame#groupDetailCard, QFrame#groupStatCard { background:#fff; border:1px solid #e5eaf3; border-radius:11px; }
 QLabel#groupSectionTitle { color:#172033; font-size:18px; font-weight:700; }
 QLabel#groupStatCaption { color:#526078; font-size:12px; }
-QLabel#groupStatValue { color:#101828; font-size:25px; font-weight:700; }
-QLabel#groupStatIcon { color:#1b6cff; font-size:24px; }
-QLabel#groupTrend { color:#10a870; font-size:11px; }
-QLabel#groupAvatar { background:#2878f6; color:#fff; border-radius:27px; font-size:22px; font-weight:700; qproperty-alignment:AlignCenter; }
+QLabel#groupStatValue { color:#101828; font-size:24px; font-weight:700; }
+QLabel#groupStatIcon { color:#1b6cff; }
+QLabel#groupTrend { color:#10a870; font-size:12px; }
+QLabel#groupAvatar { background:#2878f6; color:#fff; border-radius:27px; font-weight:700; qproperty-alignment:AlignCenter; }
 QLabel#groupName { color:#172033; font-size:20px; font-weight:700; }
 QLabel#groupMuted { color:#697586; }
-QPushButton#groupPrimary { background:#1467f7; color:white; border:0; border-radius:7px; padding:9px 16px; font-weight:600; }
-QPushButton#groupSecondary { background:#fff; color:#26344d; border:1px solid #d7deea; border-radius:7px; padding:9px 14px; }
 QPushButton#groupSquare { background:#f7f9fc; color:#075df5; border:1px solid #e4eaf3; border-radius:9px; min-height:56px; }
-QTableView#groupTable { background:#fff; border:0; gridline-color:#edf1f6; selection-background-color:#eaf2ff; selection-color:#172033; }
-QTableView#groupTable::item { padding:8px; border-bottom:1px solid #edf1f6; }
-QHeaderView::section { background:#fff; border:0; border-bottom:1px solid #e6ebf3; padding:10px 8px; color:#43506a; font-weight:600; }
+QTableView#groupTable { background:#fff; border:0; gridline-color:transparent; }
 QListWidget#groupContextList, QListWidget#groupRecentList, QListWidget#groupFiles, QListWidget#groupMembers { border:0; outline:0; background:transparent; }
 QListWidget#groupContextList::item, QListWidget#groupRecentList::item { min-height:34px; padding:5px 8px; border-radius:7px; }
 QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff; }
@@ -115,7 +119,8 @@ QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff;
     auto* headingRow = new QHBoxLayout();
     auto* heading = new QLabel(QStringLiteral("我的群组"), contextWidget_);
     heading->setObjectName(QStringLiteral("groupSectionTitle"));
-    auto* quickCreate = new QPushButton(QStringLiteral("＋"), contextWidget_);
+    auto* quickCreate = new QPushButton(contextWidget_);
+    applyUiIcon(quickCreate, UiIcon::Add, 20);
     quickCreate->setFlat(true);
     quickCreate->setCursor(Qt::PointingHandCursor);
     headingRow->addWidget(heading);
@@ -123,9 +128,15 @@ QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff;
     headingRow->addWidget(quickCreate);
     filterList_ = new QListWidget(contextWidget_);
     filterList_->setObjectName(QStringLiteral("groupContextList"));
-    filterList_->addItems({QStringLiteral("▣  全部群组          0"), QStringLiteral("♙  我创建的          0"),
-                           QStringLiteral("♧  我管理的          0"), QStringLiteral("♧  我加入的          0"),
-                           QStringLiteral("☆  我收藏的          0")});
+    const std::array contextFilters{
+        std::pair{UiIcon::Group, QStringLiteral("全部群组          0")},
+        std::pair{UiIcon::User, QStringLiteral("我创建的          0")},
+        std::pair{UiIcon::Shield, QStringLiteral("我管理的          0")},
+        std::pair{UiIcon::Group, QStringLiteral("我加入的          0")},
+        std::pair{UiIcon::Star, QStringLiteral("我收藏的          0")}};
+    filterList_->setIconSize(QSize(20, 20));
+    for (const auto& [icon, text] : contextFilters)
+        filterList_->addItem(new QListWidgetItem(makeUiIcon(icon), text));
     filterList_->setCurrentRow(0);
     auto* categoryTitle = new QLabel(QStringLiteral("分类"), contextWidget_);
     categoryTitle->setObjectName(QStringLiteral("groupSectionTitle"));
@@ -158,27 +169,26 @@ QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff;
     auto* centerLayout = new QVBoxLayout(center);
     centerLayout->setContentsMargins(16, 16, 16, 12);
     auto* toolbar = new QHBoxLayout();
-    createButton_ = createActionButton(QStringLiteral("＋ 新建群组"), QStringLiteral("groupPrimary"), center);
-    joinButton_ = createActionButton(QStringLiteral("◉ 加入群组"), QStringLiteral("groupSecondary"), center);
-    auto* filterButton = createActionButton(QStringLiteral("▽ 筛选"), QStringLiteral("groupSecondary"), center);
+    createButton_ = createActionButton(QStringLiteral("新建群组"), QStringLiteral("groupPrimary"), center, UiIcon::Add);
+    joinButton_ = createActionButton(QStringLiteral("加入群组"), QStringLiteral("groupSecondary"), center, UiIcon::Group);
+    auto* filterButton = createActionButton(QStringLiteral("筛选"), QStringLiteral("groupSecondary"), center, UiIcon::Filter);
     toolbar->addWidget(createButton_);
     toolbar->addWidget(joinButton_);
     toolbar->addWidget(filterButton);
     toolbar->addStretch();
     auto* stats = new QHBoxLayout();
-    stats->addWidget(createStatCard(QStringLiteral("全部群组"), QStringLiteral("♟"), totalValue_, center));
-    stats->addWidget(createStatCard(QStringLiteral("我管理的群组"), QStringLiteral("◆"), managedValue_, center));
-    stats->addWidget(createStatCard(QStringLiteral("今日活跃群组"), QStringLiteral("⌁"), activeValue_, center));
-    stats->addWidget(createStatCard(QStringLiteral("未读消息数"), QStringLiteral("▣"), unreadValue_, center));
+    stats->addWidget(createStatCard(QStringLiteral("全部群组"), UiIcon::Group, totalValue_, center));
+    stats->addWidget(createStatCard(QStringLiteral("我管理的群组"), UiIcon::Shield, managedValue_, center));
+    stats->addWidget(createStatCard(QStringLiteral("今日活跃群组"), UiIcon::Refresh, activeValue_, center));
+    stats->addWidget(createStatCard(QStringLiteral("未读消息数"), UiIcon::Message, unreadValue_, center));
     table_ = new QTableView(center);
     table_->setObjectName(QStringLiteral("groupTable"));
     table_->setModel(model_);
-    table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table_->setSelectionMode(QAbstractItemView::SingleSelection);
-    table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table_->setShowGrid(false);
-    table_->verticalHeader()->hide();
-    table_->verticalHeader()->setDefaultSectionSize(54);
+    table_->setItemDelegateForColumn(GroupListModel::NameColumn,
+        new UiIconItemDelegate(UiIcon::Group, table_));
+    table_->setItemDelegateForColumn(GroupListModel::ActionColumn,
+        new UiIconItemDelegate(UiIcon::More, table_));
+    UiTheme::configureRowTable(table_, 54);
     table_->horizontalHeader()->setSectionResizeMode(GroupListModel::NameColumn, QHeaderView::Stretch);
     table_->horizontalHeader()->setSectionResizeMode(GroupListModel::LastMessageColumn, QHeaderView::Stretch);
     for (int column : {GroupListModel::TypeColumn, GroupListModel::MemberCountColumn,
@@ -201,9 +211,10 @@ QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff;
     auto* detailLayout = new QVBoxLayout(detail);
     detailLayout->setContentsMargins(18, 18, 18, 14);
     auto* identity = new QHBoxLayout();
-    groupIcon_ = new QLabel(QStringLiteral("</>"), detail);
+    groupIcon_ = new QLabel(detail);
     groupIcon_->setObjectName(QStringLiteral("groupAvatar"));
     groupIcon_->setFixedSize(54, 54);
+    applyUiIcon(groupIcon_, UiIcon::Group, 30, QColor(Qt::white));
     auto* identityText = new QVBoxLayout();
     groupName_ = new QLabel(QStringLiteral("请选择群组"), detail);
     groupName_->setObjectName(QStringLiteral("groupName"));
@@ -213,12 +224,14 @@ QListWidget#groupContextList::item:selected { color:#075df5; background:#eaf2ff;
     identityText->addWidget(groupKind_);
     identity->addWidget(groupIcon_);
     identity->addLayout(identityText, 1);
-    identity->addWidget(new QLabel(QStringLiteral("★"), detail));
+    auto* favoriteIcon = new QLabel(detail);
+    applyUiIcon(favoriteIcon, UiIcon::Star, 20, QColor(QStringLiteral("#f5a300")));
+    identity->addWidget(favoriteIcon);
     auto* actions = new QHBoxLayout();
-    chatButton_ = createActionButton(QStringLiteral("●\n进入群聊"), QStringLiteral("groupSquare"), detail);
-    conferenceButton_ = createActionButton(QStringLiteral("▣\n群视频会议"), QStringLiteral("groupSquare"), detail);
-    manageButton_ = createActionButton(QStringLiteral("♟\n管理成员"), QStringLiteral("groupSquare"), detail);
-    auto* more = createActionButton(QStringLiteral("•••\n更多"), QStringLiteral("groupSquare"), detail);
+    chatButton_ = createActionButton(QStringLiteral("进入群聊"), QStringLiteral("groupSquare"), detail, UiIcon::Message);
+    conferenceButton_ = createActionButton(QStringLiteral("群视频会议"), QStringLiteral("groupSquare"), detail, UiIcon::Video);
+    manageButton_ = createActionButton(QStringLiteral("管理成员"), QStringLiteral("groupSquare"), detail, UiIcon::Group);
+    auto* more = createActionButton(QStringLiteral("更多"), QStringLiteral("groupSquare"), detail, UiIcon::More);
     actions->addWidget(chatButton_);
     actions->addWidget(conferenceButton_);
     actions->addWidget(manageButton_);
@@ -325,11 +338,11 @@ void GroupCenterView::showStatistics(const GroupStatistics& statistics)
             [](const auto& group) { return !group.owner; });
         const auto favoriteCount = std::count_if(groups.begin(), groups.end(),
             [](const auto& group) { return group.favorite; });
-        filterList_->item(0)->setText(QStringLiteral("▣  全部群组          %1").arg(statistics.totalCount));
-        filterList_->item(1)->setText(QStringLiteral("♙  我创建的          %1").arg(ownerCount));
-        filterList_->item(2)->setText(QStringLiteral("♧  我管理的          %1").arg(statistics.managedCount));
-        filterList_->item(3)->setText(QStringLiteral("♧  我加入的          %1").arg(joinedCount));
-        filterList_->item(4)->setText(QStringLiteral("☆  我收藏的          %1").arg(favoriteCount));
+        filterList_->item(0)->setText(QStringLiteral("全部群组          %1").arg(statistics.totalCount));
+        filterList_->item(1)->setText(QStringLiteral("我创建的          %1").arg(ownerCount));
+        filterList_->item(2)->setText(QStringLiteral("我管理的          %1").arg(statistics.managedCount));
+        filterList_->item(3)->setText(QStringLiteral("我加入的          %1").arg(joinedCount));
+        filterList_->item(4)->setText(QStringLiteral("我收藏的          %1").arg(favoriteCount));
     }
     const auto& groups = model_->items();
     const auto countType = [&](int type) {
@@ -356,15 +369,16 @@ void GroupCenterView::showGroupDetail(const GroupDetailItem& detail)
     files_->clear();
     for (const auto& file : detail.files)
     {
-        auto* item = new QListWidgetItem(QStringLiteral("▣  %1\n     %2 · %3")
-            .arg(file.fileName, file.ownerDisplayName, bytesText(file.sizeBytes)), files_);
+        auto* item = new QListWidgetItem(makeUiIcon(UiIcon::File),
+            QStringLiteral("%1\n%2 · %3").arg(file.fileName, file.ownerDisplayName, bytesText(file.sizeBytes)), files_);
         item->setData(Qt::UserRole, file.assetUuid);
     }
     if (detail.files.isEmpty()) files_->addItem(QStringLiteral("暂无共享文件"));
     members_->clear();
     for (const auto& member : detail.members.mid(0, 8))
     {
-        auto* item = new QListWidgetItem(QStringLiteral("● %1").arg(member.displayName), members_);
+        auto* item = new QListWidgetItem(QIcon(makeAvatarPixmap(
+            member.avatarResourceId, member.displayName, 32)), member.displayName, members_);
         item->setToolTip(QStringLiteral("%1 · %2").arg(member.departmentName, member.positionName));
     }
     // 详情到达后才能取得真实会话号；此处同步恢复群聊和会议入口，避免初次加载后按钮仍保持禁用。
@@ -458,8 +472,9 @@ void GroupCenterView::rebuildRecentGroups()
     for (std::size_t index = 0; index < std::min<std::size_t>(groups.size(), 6); ++index)
     {
         const auto& group = groups.at(index);
-        recentList_->addItem(QStringLiteral("◈  %1\n     %2").arg(group.name,
-            group.lastMessagePreview.isEmpty() ? QStringLiteral("暂无消息") : group.lastMessagePreview));
+        recentList_->addItem(new QListWidgetItem(makeUiIcon(UiIcon::Group),
+            QStringLiteral("%1\n%2").arg(group.name,
+                group.lastMessagePreview.isEmpty() ? QStringLiteral("暂无消息") : group.lastMessagePreview)));
     }
 }
 

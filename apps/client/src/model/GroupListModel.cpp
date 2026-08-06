@@ -59,14 +59,15 @@ QVariant GroupListModel::data(const QModelIndex& index, int role) const
     if (role != Qt::DisplayRole) return {};
     switch (index.column())
     {
-    case NameColumn: return QStringLiteral("◈  %1").arg(group.name);
+    // 图标由 View 委托绘制，业务 Model 不依赖任何平台图标或字体资源。
+    case NameColumn: return group.name;
     case TypeColumn: return groupTypeText(group.type);
     case MemberCountColumn: return group.memberCount;
     case LastMessageColumn:
         return group.lastMessagePreview.isEmpty() ? QStringLiteral("暂无消息") : group.lastMessagePreview;
     case ActivityColumn: return activityText(group.activityScore);
     case TagsColumn: return group.tags.isEmpty() ? QStringLiteral("内部") : group.tags.constFirst();
-    case ActionColumn: return QStringLiteral("•••");
+    case ActionColumn: return QStringLiteral("更多");
     default: return {};
     }
 }

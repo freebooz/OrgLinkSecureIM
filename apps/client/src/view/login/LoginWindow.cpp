@@ -1,5 +1,7 @@
 #include "view/login/LoginWindow.h"
+#include "view/common/UiAssets.h"
 
+#include <QAction>
 #include <QCheckBox>
 #include <QFrame>
 #include <QGuiApplication>
@@ -43,26 +45,20 @@ LoginWindow::LoginWindow(QWidget* parent) : QWidget(parent)
         resize(1000, 680);
     }
     setStyleSheet(QStringLiteral(R"QSS(
-LoginWindow { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #ffffff,stop:.55 #f2f7ff,stop:1 #ffffff); color:#15213a; font-family:"Microsoft YaHei UI"; font-size:15px; }
+LoginWindow { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #ffffff,stop:.55 #f2f7ff,stop:1 #ffffff); color:#15213a; }
 QFrame#loginHeader, QFrame#loginFooter { background:rgba(255,255,255,220); border:0; }
-QLabel#loginBrandText { font-size:13px; font-weight:700; }
+QLabel#loginBrandText { font-size:14px; font-weight:700; }
 QFrame#heroPanel { background:transparent; border:0; }
-QLabel#heroTagline { font-size:17px; color:#344054; }
+QLabel#heroTagline { font-size:18px; color:#344054; }
 QFrame#featureIcon { background:rgba(255,255,255,210); border:1px solid #e3ecfb; border-radius:14px; }
-QLabel#featureGlyph { background:#0b63f6; color:#fff; border-radius:8px; font-size:15px; font-weight:700; qproperty-alignment:AlignCenter; }
+QLabel#featureGlyph { background:#0b63f6; color:#fff; border-radius:8px; font-weight:700; qproperty-alignment:AlignCenter; }
 QLabel#featureTitle { font-size:14px; font-weight:700; color:#10204a; }
 QLabel#featureDescription { color:#667085; }
 QFrame#loginCard { background:rgba(255,255,255,245); border:1px solid #e4e8f0; border-radius:18px; }
-QLabel#loginTitle { font-size:22px; font-weight:700; color:#101828; }
+QLabel#loginTitle { font-size:24px; font-weight:700; color:#101828; }
 QLabel#loginSubtitle { color:#667085; font-size:12px; }
 QLabel#fieldLabel { color:#344054; font-weight:600; }
-QLineEdit { min-height:32px; border:1px solid #cbd5e1; border-radius:7px; padding:0 10px; background:#fff; font-size:12px; }
-QLineEdit:focus { border:1px solid #1264f6; }
-QPushButton#loginButton { min-height:36px; background:#075df5; color:white; border:0; border-radius:8px; font-size:14px; font-weight:700; }
-QPushButton#loginButton:hover { background:#0053df; }
-QPushButton#loginButton:disabled { background:#9eb5df; }
-QPushButton[flatAction="true"] { border:0; background:transparent; color:#075df5; padding:8px 12px; }
-QLabel#connectionBanner { background:#f6f8fc; border:1px solid #dde4ef; border-radius:9px; padding:8px; color:#344054; font-size:11px; }
+QLabel#connectionBanner { background:#f6f8fc; border:1px solid #dde4ef; border-radius:9px; padding:8px; color:#344054; font-size:12px; }
 QLabel#authenticationErrorLabel { color:#c62828; }
 QLabel#footerText { color:#475569; }
 )QSS"));
@@ -105,7 +101,7 @@ QLabel#footerText { color:#475569; }
     heroLayout->addWidget(tagline);
     heroLayout->addSpacing(12);
 
-    const auto addFeature = [heroPanel, heroLayout](const QString& glyph, const QString& title,
+    const auto addFeature = [heroPanel, heroLayout](UiIcon featureIcon, const QString& title,
                                                      const QString& description) {
         auto* row = new QWidget(heroPanel);
         auto* rowLayout = new QHBoxLayout(row);
@@ -115,9 +111,10 @@ QLabel#footerText { color:#475569; }
         iconFrame->setObjectName(QStringLiteral("featureIcon"));
         iconFrame->setFixedSize(46, 46);
         auto* iconLayout = new QVBoxLayout(iconFrame);
-        auto* icon = new QLabel(glyph, iconFrame);
+        auto* icon = new QLabel(iconFrame);
         icon->setObjectName(QStringLiteral("featureGlyph"));
         icon->setFixedSize(30, 30);
+        applyUiIcon(icon, featureIcon, 20, QColor(Qt::white));
         iconLayout->addWidget(icon, 0, Qt::AlignCenter);
         auto* textLayout = new QVBoxLayout();
         auto* titleLabel = new QLabel(title, row);
@@ -130,11 +127,11 @@ QLabel#footerText { color:#475569; }
         rowLayout->addLayout(textLayout, 1);
         heroLayout->addWidget(row);
     };
-    addFeature(QStringLiteral("▣"), QStringLiteral("组织通讯录"),
+    addFeature(UiIcon::Contacts, QStringLiteral("组织通讯录"),
                QStringLiteral("清晰组织架构，快速找人"));
-    addFeature(QStringLiteral("•••"), QStringLiteral("安全即时消息"),
+    addFeature(UiIcon::Message, QStringLiteral("安全即时消息"),
                QStringLiteral("端到端传输保护，消息安全可靠"));
-    addFeature(QStringLiteral("◆"), QStringLiteral("国密加密与内网模式"),
+    addFeature(UiIcon::Shield, QStringLiteral("国密加密与内网模式"),
                QStringLiteral("国产算法能力预留，数据安全可控"));
     heroLayout->addStretch();
     bodyLayout->addWidget(heroPanel);
@@ -161,11 +158,13 @@ QLabel#footerText { color:#475569; }
     serverEdit_ = new QLineEdit(QStringLiteral("127.0.0.1:7443"), formFrame);
     serverEdit_->setObjectName(QStringLiteral("serverAddressEdit"));
     serverEdit_->setPlaceholderText(QStringLiteral("请选择组织/租户或输入服务器地址"));
+    serverEdit_->addAction(makeUiIcon(UiIcon::Building), QLineEdit::LeadingPosition);
     auto* loginLabel = new QLabel(QStringLiteral("账号"), formFrame);
     loginLabel->setObjectName(QStringLiteral("fieldLabel"));
     loginEdit_ = new QLineEdit(formFrame);
     loginEdit_->setObjectName(QStringLiteral("loginNameEdit"));
     loginEdit_->setPlaceholderText(QStringLiteral("请输入账号"));
+    loginEdit_->addAction(makeUiIcon(UiIcon::User), QLineEdit::LeadingPosition);
     auto* passwordLabel = new QLabel(QStringLiteral("密码"), formFrame);
     passwordLabel->setObjectName(QStringLiteral("fieldLabel"));
     passwordEdit_ = new QLineEdit(formFrame);
@@ -173,6 +172,14 @@ QLabel#footerText { color:#475569; }
     passwordEdit_->setPlaceholderText(QStringLiteral("请输入密码"));
     passwordEdit_->setEchoMode(QLineEdit::Password);
     passwordEdit_->setContextMenuPolicy(Qt::NoContextMenu);
+    passwordEdit_->addAction(makeUiIcon(UiIcon::Lock), QLineEdit::LeadingPosition);
+    auto* passwordVisibility = passwordEdit_->addAction(
+        makeUiIcon(UiIcon::Eye), QLineEdit::TrailingPosition);
+    passwordVisibility->setToolTip(QStringLiteral("显示或隐藏密码"));
+    connect(passwordVisibility, &QAction::triggered, passwordEdit_, [this]() {
+        passwordEdit_->setEchoMode(passwordEdit_->echoMode() == QLineEdit::Password
+            ? QLineEdit::Normal : QLineEdit::Password);
+    });
     formLayout->addWidget(serverLabel);
     formLayout->addWidget(serverEdit_);
     formLayout->addWidget(loginLabel);
@@ -206,8 +213,10 @@ QLabel#footerText { color:#475569; }
     alternative->setStyleSheet(QStringLiteral("color:#7b8798;"));
     formLayout->addWidget(alternative);
     auto* alternativeActions = new QHBoxLayout();
-    auto* smsLogin = new QPushButton(QStringLiteral("▣  短信验证码登录"), formFrame);
-    auto* qrLogin = new QPushButton(QStringLiteral("▦  扫码登录"), formFrame);
+    auto* smsLogin = new QPushButton(QStringLiteral("短信验证码登录"), formFrame);
+    auto* qrLogin = new QPushButton(QStringLiteral("扫码登录"), formFrame);
+    applyUiIcon(smsLogin, UiIcon::Sms, 18);
+    applyUiIcon(qrLogin, UiIcon::QrCode, 18);
     smsLogin->setProperty("flatAction", true);
     qrLogin->setProperty("flatAction", true);
     smsLogin->setEnabled(false);
@@ -217,7 +226,7 @@ QLabel#footerText { color:#475569; }
     formLayout->addLayout(alternativeActions);
     formLayout->addStretch();
     auto* connectionBanner = new QLabel(
-        QStringLiteral("◆  当前连接：   ● 安全连接   │   ● 内网模式   │   ◇ 国密能力预留"), formFrame);
+        QStringLiteral("当前连接：安全连接   │   内网模式   │   国密能力预留"), formFrame);
     connectionBanner->setObjectName(QStringLiteral("connectionBanner"));
     formLayout->addWidget(connectionBanner);
     bodyLayout->addWidget(formFrame);
@@ -229,12 +238,18 @@ QLabel#footerText { color:#475569; }
     footer->setFixedHeight(38);
     auto* footerLayout = new QHBoxLayout(footer);
     footerLayout->setContentsMargins(38, 8, 38, 8);
-    auto* footerLeft = new QLabel(QStringLiteral("ⓘ  帮助中心       ⓘ  关于我们"), footer);
+    auto* helpIcon = new QLabel(footer);
+    applyUiIcon(helpIcon, UiIcon::Help, 18, QColor(QStringLiteral("#475569")));
+    auto* footerLeft = new QLabel(QStringLiteral("帮助中心       关于我们"), footer);
     footerLeft->setObjectName(QStringLiteral("footerText"));
-    auto* footerRight = new QLabel(QStringLiteral("版本 0.2.0   │   ↻ 检查更新"), footer);
+    auto* refreshIcon = new QLabel(footer);
+    applyUiIcon(refreshIcon, UiIcon::Refresh, 18, QColor(QStringLiteral("#475569")));
+    auto* footerRight = new QLabel(QStringLiteral("版本 0.2.0   │   检查更新"), footer);
     footerRight->setObjectName(QStringLiteral("footerText"));
+    footerLayout->addWidget(helpIcon);
     footerLayout->addWidget(footerLeft);
     footerLayout->addStretch();
+    footerLayout->addWidget(refreshIcon);
     footerLayout->addWidget(footerRight);
     rootLayout->addWidget(footer);
 

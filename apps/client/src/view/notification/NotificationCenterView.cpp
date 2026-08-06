@@ -1,4 +1,6 @@
 #include "view/notification/NotificationCenterView.h"
+#include "view/common/UiAssets.h"
+#include "view/common/UiTheme.h"
 
 #include <QAbstractItemView>
 #include <QDateTime>
@@ -22,7 +24,7 @@ namespace
 QLabel* makeSectionTitle(const QString& text)
 {
     auto* label = new QLabel(text);
-    label->setStyleSheet(QStringLiteral("font-size:15px;font-weight:700;color:#17213a;margin-top:8px;"));
+    label->setStyleSheet(QStringLiteral("font-size:14px;font-weight:700;color:#17213a;margin-top:8px;"));
     return label;
 }
 
@@ -42,25 +44,25 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     setObjectName(QStringLiteral("notificationCenterView"));
     setStyleSheet(QStringLiteral(
         "QWidget#notificationCenterView{background:#f7faff;}"
-        "QPushButton{min-height:34px;border:1px solid #dbe4f2;border-radius:7px;background:white;padding:0 14px;}"
-        "QPushButton:hover{border-color:#1769ff;color:#1769ff;}"
-        "QPushButton#notificationPrimaryAction{background-color:#1769ff;color:#ffffff;border:1px solid #1769ff;font-weight:600;}"
-        "QTableView{background:white;border:0;gridline-color:#e8edf5;selection-background-color:#edf5ff;selection-color:#17213a;}"));
+        "QTableView#notificationTable{background:white;border:0;gridline-color:transparent;}"));
 
     auto* contextLayout = new QVBoxLayout(contextWidget_);
     contextLayout->setContentsMargins(14, 16, 14, 16);
     contextLayout->setSpacing(10);
     searchEdit_ = new QLineEdit;
-    searchEdit_->setPlaceholderText(QStringLiteral("🔍  搜索通知标题/摘要/来源"));
-    searchEdit_->setMinimumHeight(40);
+    searchEdit_->setPlaceholderText(QStringLiteral("搜索通知标题/摘要/来源"));
+    searchEdit_->addAction(makeUiIcon(UiIcon::Search), QLineEdit::LeadingPosition);
     contextLayout->addWidget(searchEdit_);
     categoryList_ = new QListWidget;
     categoryList_->setObjectName(QStringLiteral("notificationCategoryList"));
     categoryList_->setFrameShape(QFrame::NoFrame);
     categoryList_->setSpacing(5);
+    static constexpr UiIcon categoryIcons[]{UiIcon::Grid, UiIcon::Approval, UiIcon::Settings,
+        UiIcon::Alert, UiIcon::Mention, UiIcon::File, UiIcon::Task, UiIcon::More};
+    categoryList_->setIconSize(QSize(20, 20));
     for (int category = 0; category <= 7; ++category)
     {
-        auto* item = new QListWidgetItem(categoryText(category));
+        auto* item = new QListWidgetItem(makeUiIcon(categoryIcons[category]), categoryText(category));
         item->setData(Qt::UserRole, category);
         item->setSizeHint(QSize(220, 48));
         categoryList_->addItem(item);
@@ -82,8 +84,11 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     toolbar->addWidget(heading);
     toolbar->addStretch();
     auto* markAllButton = new QPushButton(QStringLiteral("全部已读"));
-    auto* filterButton = new QPushButton(QStringLiteral("▽  筛选"));
-    auto* exportButton = new QPushButton(QStringLiteral("⇩  导出"));
+    auto* filterButton = new QPushButton(QStringLiteral("筛选"));
+    auto* exportButton = new QPushButton(QStringLiteral("导出"));
+    applyUiIcon(markAllButton, UiIcon::Check, 18);
+    applyUiIcon(filterButton, UiIcon::Filter, 18);
+    applyUiIcon(exportButton, UiIcon::Export, 18);
     toolbar->addWidget(markAllButton);
     toolbar->addWidget(filterButton);
     toolbar->addWidget(exportButton);
@@ -91,11 +96,9 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     table_ = new QTableView;
     table_->setObjectName(QStringLiteral("notificationTable"));
     table_->setModel(model_);
-    table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table_->setSelectionMode(QAbstractItemView::SingleSelection);
-    table_->setAlternatingRowColors(false);
-    table_->verticalHeader()->hide();
-    table_->verticalHeader()->setDefaultSectionSize(72);
+    UiTheme::configureRowTable(table_, 72);
+    table_->setItemDelegateForColumn(NotificationListModel::ActionColumn,
+        new UiIconItemDelegate(UiIcon::More, table_));
     table_->horizontalHeader()->setStretchLastSection(false);
     table_->horizontalHeader()->setSectionResizeMode(NotificationListModel::TitleColumn, QHeaderView::Stretch);
     table_->horizontalHeader()->setSectionResizeMode(NotificationListModel::SourceColumn, QHeaderView::ResizeToContents);
@@ -105,8 +108,10 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     centerLayout->addWidget(table_, 1);
     auto* pagination = new QHBoxLayout;
     paginationLabel_ = new QLabel(QStringLiteral("共 0 条"));
-    previousButton_ = new QPushButton(QStringLiteral("‹"));
-    nextButton_ = new QPushButton(QStringLiteral("›"));
+    previousButton_ = new QPushButton;
+    nextButton_ = new QPushButton;
+    applyUiIcon(previousButton_, UiIcon::ArrowLeft, 18);
+    applyUiIcon(nextButton_, UiIcon::ArrowRight, 18);
     pagination->addWidget(paginationLabel_);
     pagination->addStretch();
     pagination->addWidget(previousButton_);
@@ -154,15 +159,15 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     detailLayout->addStretch();
     auto* actions = new QHBoxLayout;
     processButton_ = new QPushButton(QStringLiteral("去处理"));
-    // 使用通知模块唯一对象名，避免公共 MainWindow 的同名按钮样式覆盖背景而保留白色文字。
+    applyUiIcon(processButton_, UiIcon::Approval, 18);
+    // 公共主题通过唯一对象名应用主按钮的完整状态样式，业务 View 不再维护重复 QSS。
     processButton_->setObjectName(QStringLiteral("notificationPrimaryAction"));
-    processButton_->setStyleSheet(QStringLiteral(
-        "QPushButton{background-color:#1769ff;color:#ffffff;border:1px solid #1769ff;"
-        "border-radius:7px;font-weight:600;padding:0 12px;}"
-        "QPushButton:hover{background-color:#0758e8;color:#ffffff;}"));
     readButton_ = new QPushButton(QStringLiteral("标记已读"));
     ignoreButton_ = new QPushButton(QStringLiteral("忽略"));
     detailButton_ = new QPushButton(QStringLiteral("查看详情"));
+    applyUiIcon(readButton_, UiIcon::Check, 18);
+    applyUiIcon(ignoreButton_, UiIcon::Delete, 18);
+    applyUiIcon(detailButton_, UiIcon::Info, 18);
     actions->addWidget(processButton_);
     actions->addWidget(readButton_);
     actions->addWidget(ignoreButton_);
@@ -181,7 +186,7 @@ NotificationCenterView::NotificationCenterView(NotificationListModel* model, QWi
     });
     connect(filterButton, &QPushButton::clicked, this, [this, filterButton] {
         unreadOnly_ = !unreadOnly_;
-        filterButton->setText(unreadOnly_ ? QStringLiteral("✓ 仅未读") : QStringLiteral("▽ 筛选"));
+        filterButton->setText(unreadOnly_ ? QStringLiteral("仅未读") : QStringLiteral("筛选"));
         currentPage_ = 0;
         requestCurrentPage();
     });
@@ -245,15 +250,16 @@ void NotificationCenterView::showNotificationDetail(const NotificationDetailItem
     attachmentList_->clear();
     for (const auto& attachment : detail.attachments)
     {
-        auto* item = new QListWidgetItem(QStringLiteral("📎 %1\n     %2 KB · 双击下载")
-            .arg(attachment.fileName).arg((attachment.sizeBytes + 1023) / 1024));
+        auto* item = new QListWidgetItem(makeUiIcon(UiIcon::File),
+            QStringLiteral("%1\n%2 KB · 双击下载")
+                .arg(attachment.fileName).arg((attachment.sizeBytes + 1023) / 1024));
         item->setData(Qt::UserRole, attachment.assetUuid);
         attachmentList_->addItem(item);
     }
     attachmentTitle_->setText(QStringLiteral("附件 (%1)").arg(detail.attachments.size()));
     attachmentList_->setVisible(!detail.attachments.isEmpty());
     explanationLabel_->setText(detail.explanation.isEmpty()
-        ? QStringLiteral("ⓘ 该通知暂无补充说明。") : QStringLiteral("ⓘ 审批说明\n%1").arg(detail.explanation));
+        ? QStringLiteral("该通知暂无补充说明。") : QStringLiteral("审批说明\n%1").arg(detail.explanation));
     setNetworkConnected(networkConnected_);
 }
 

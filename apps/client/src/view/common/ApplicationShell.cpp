@@ -1,13 +1,17 @@
 #include "view/common/ApplicationShell.h"
+#include "view/common/UiAssets.h"
 
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QPixmap>
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <array>
+#include <utility>
 
 namespace orglink::client
 {
@@ -58,17 +62,35 @@ ApplicationShell::ApplicationShell(QWidget* parent) : QWidget(parent)
     navigationLayout->setContentsMargins(0, 14, 0, 14);
     navigation_ = new QListWidget(navigationPanel);
     navigation_->setObjectName(QStringLiteral("primaryNavigation"));
-    navigation_->addItems({QStringLiteral("  ●  消息"), QStringLiteral("  ▣  通讯录"),
-                           QStringLiteral("  ♧  群组"), QStringLiteral("  □  文件"),
-                           QStringLiteral("  ♢  通知"), QStringLiteral("  ▦  日程"),
-                           QStringLiteral("  ⚙  设置")});
+    navigation_->setIconSize(QSize(24, 24));
+    const std::array navigationItems{
+        std::pair{UiIcon::Message, QStringLiteral("消息")},
+        std::pair{UiIcon::Contacts, QStringLiteral("通讯录")},
+        std::pair{UiIcon::Group, QStringLiteral("群组")},
+        std::pair{UiIcon::Folder, QStringLiteral("文件")},
+        std::pair{UiIcon::Notification, QStringLiteral("通知")},
+        std::pair{UiIcon::Calendar, QStringLiteral("日程")},
+        std::pair{UiIcon::Settings, QStringLiteral("设置")}};
+    for (const auto& [icon, text] : navigationItems)
+    {
+        navigation_->addItem(new QListWidgetItem(makeUiIcon(icon), text));
+    }
     navigation_->setCurrentRow(1);
-    currentUserLabel_ = new QLabel(QStringLiteral("○  尚未登录\n    离线"), navigationPanel);
+    auto* currentUserCard = new QWidget(navigationPanel);
+    auto* currentUserLayout = new QHBoxLayout(currentUserCard);
+    currentUserLayout->setContentsMargins(14, 8, 10, 8);
+    currentUserLayout->setSpacing(10);
+    currentUserAvatar_ = new QLabel(currentUserCard);
+    currentUserAvatar_->setObjectName(QStringLiteral("currentUserAvatar"));
+    applyAvatar(currentUserAvatar_, {}, QStringLiteral("尚未登录"), 44);
+    currentUserLabel_ = new QLabel(QStringLiteral("尚未登录\n● 离线"), currentUserCard);
     currentUserLabel_->setObjectName(QStringLiteral("currentUserLabel"));
     currentUserLabel_->setTextFormat(Qt::PlainText);
-    currentUserLabel_->setStyleSheet(QStringLiteral("padding:12px 18px;color:#344054;"));
+    currentUserLabel_->setStyleSheet(QStringLiteral("color:#344054;line-height:1.5;"));
+    currentUserLayout->addWidget(currentUserAvatar_);
+    currentUserLayout->addWidget(currentUserLabel_, 1);
     navigationLayout->addWidget(navigation_, 1);
-    navigationLayout->addWidget(currentUserLabel_);
+    navigationLayout->addWidget(currentUserCard);
     contentLayout_->addWidget(navigationPanel);
     root->addWidget(body, 1);
 
@@ -77,21 +99,33 @@ ApplicationShell::ApplicationShell(QWidget* parent) : QWidget(parent)
     status->setFixedHeight(46);
     auto* statusLayout = new QHBoxLayout(status);
     statusLayout->setContentsMargins(24, 4, 24, 4);
-    auto* directoryStatus = new QLabel(QStringLiteral("●  组织目录已同步"), status);
+    auto* directoryIcon = new QLabel(status);
+    applyUiIcon(directoryIcon, UiIcon::Check, 16, QColor(QStringLiteral("#079455")));
+    auto* directoryStatus = new QLabel(QStringLiteral("组织目录已同步"), status);
     directoryStatus->setObjectName(QStringLiteral("statusHealthy"));
-    connectionLabel_ = new QLabel(QStringLiteral("🔒  安全连接：待连接"), status);
+    auto* connectionIcon = new QLabel(status);
+    applyUiIcon(connectionIcon, UiIcon::Lock, 16, QColor(QStringLiteral("#079455")));
+    connectionLabel_ = new QLabel(QStringLiteral("安全连接：待连接"), status);
     connectionLabel_->setObjectName(QStringLiteral("statusHealthy"));
-    auto* intranetStatus = new QLabel(QStringLiteral("⌘  内网模式：已启用"), status);
+    auto* intranetIcon = new QLabel(status);
+    applyUiIcon(intranetIcon, UiIcon::Group, 16, QColor(QStringLiteral("#079455")));
+    auto* intranetStatus = new QLabel(QStringLiteral("内网模式：已启用"), status);
     intranetStatus->setObjectName(QStringLiteral("statusHealthy"));
-    auto* cryptoStatus = new QLabel(QStringLiteral("◇  国密加密：协议预留"), status);
+    auto* cryptoIcon = new QLabel(status);
+    applyUiIcon(cryptoIcon, UiIcon::Shield, 16, QColor(QStringLiteral("#079455")));
+    auto* cryptoStatus = new QLabel(QStringLiteral("国密加密：协议预留"), status);
     cryptoStatus->setObjectName(QStringLiteral("statusHealthy"));
     activityLabel_ = new QLabel(QStringLiteral("就绪"), status);
+    statusLayout->addWidget(directoryIcon);
     statusLayout->addWidget(directoryStatus);
     statusLayout->addSpacing(24);
+    statusLayout->addWidget(connectionIcon);
     statusLayout->addWidget(connectionLabel_);
     statusLayout->addSpacing(24);
+    statusLayout->addWidget(intranetIcon);
     statusLayout->addWidget(intranetStatus);
     statusLayout->addSpacing(24);
+    statusLayout->addWidget(cryptoIcon);
     statusLayout->addWidget(cryptoStatus);
     statusLayout->addStretch();
     statusLayout->addWidget(activityLabel_);
@@ -117,14 +151,15 @@ ApplicationShell::ApplicationShell(QWidget* parent) : QWidget(parent)
 void ApplicationShell::setCurrentUser(const QString& displayName)
 {
     const auto normalized = displayName.trimmed().isEmpty() ? QStringLiteral("当前用户") : displayName.trimmed();
-    currentUserLabel_->setText(QStringLiteral("●  %1\n    在线").arg(normalized));
+    applyAvatar(currentUserAvatar_, {}, normalized, 44);
+    currentUserLabel_->setText(QStringLiteral("%1\n● 在线").arg(normalized));
     currentUserLabel_->setAccessibleName(QStringLiteral("当前登录用户：%1，在线").arg(normalized));
 }
 
 void ApplicationShell::setConnectionState(const QString& stateText, bool connected)
 {
     connectionLabel_->setText(connected
-        ? QStringLiteral("🔒  安全连接：已连接") : QStringLiteral("🔒  安全连接：待连接"));
+        ? QStringLiteral("安全连接：已连接") : QStringLiteral("安全连接：待连接"));
     activityLabel_->setText(stateText);
 }
 
@@ -142,14 +177,14 @@ void ApplicationShell::setUnreadCount(int unreadCount)
 {
     unreadCount_ = std::max(0, unreadCount);
     navigation_->item(0)->setText(unreadCount_ > 0
-        ? QStringLiteral("  ●  消息  %1").arg(unreadCount_) : QStringLiteral("  ●  消息"));
+        ? QStringLiteral("消息  %1").arg(unreadCount_) : QStringLiteral("消息"));
 }
 
 void ApplicationShell::setNotificationUnreadCount(int unreadCount)
 {
     notificationUnreadCount_ = std::max(0, unreadCount);
     navigation_->item(4)->setText(notificationUnreadCount_ > 0
-        ? QStringLiteral("  ◉  通知  %1").arg(notificationUnreadCount_) : QStringLiteral("  ◉  通知"));
+        ? QStringLiteral("通知  %1").arg(notificationUnreadCount_) : QStringLiteral("通知"));
 }
 
 } // namespace orglink::client

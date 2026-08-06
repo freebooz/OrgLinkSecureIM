@@ -1,6 +1,6 @@
-find_package(Qt6 6.2 QUIET COMPONENTS Widgets Test Network Sql)
+find_package(Qt6 6.2 QUIET COMPONENTS Widgets Test Network Sql Multimedia MultimediaWidgets)
 if(NOT Qt6_FOUND)
-    message(WARNING "Qt 6 Widgets/Test 未找到：跳过 orglink-client 和 Qt 冒烟测试；核心目标仍可构建。")
+    message(WARNING "Qt 6 Widgets/Test/Multimedia 未找到：跳过 orglink-client 和 Qt 冒烟测试；核心目标仍可构建。")
     return()
 endif()
 
@@ -22,6 +22,8 @@ add_library(orglink-client-ui STATIC
     src/controller/SettingsController.cpp
     src/controller/ContactController.cpp
     src/controller/FileCenterController.cpp
+    src/controller/FileTransferController.cpp
+    src/controller/FileTransferController.h
     src/controller/CalendarController.cpp
     src/controller/AuthenticationController.cpp
     src/controller/MainWindowController.cpp
@@ -39,6 +41,10 @@ add_library(orglink-client-ui STATIC
     src/view/login/LoginWindow.cpp
     src/view/common/ApplicationShell.cpp
     src/view/common/ApplicationShell.h
+    src/view/common/UiAssets.cpp
+    src/view/common/UiAssets.h
+    src/view/common/UiTheme.cpp
+    src/view/common/UiTheme.h
     src/view/group/GroupCenterView.cpp
     src/view/group/GroupCenterView.h
     src/view/notification/NotificationCenterView.cpp
@@ -47,6 +53,8 @@ add_library(orglink-client-ui STATIC
     src/view/settings/SettingsCenterView.h
     src/view/file/FileCenterView.cpp
     src/view/file/FileCenterView.h
+    src/view/file/FilePreviewDialog.cpp
+    src/view/file/FilePreviewDialog.h
     src/view/calendar/CalendarCenterView.cpp
     src/view/calendar/CalendarCenterView.h
     src/view/main/MainWindow.cpp
@@ -56,7 +64,8 @@ add_library(orglink-client-ui STATIC
 
 target_include_directories(orglink-client-ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(orglink-client-ui
-    PUBLIC Qt6::Widgets Qt6::Network Qt6::Sql orglink::application orglink::domain orglink::protocol
+    PUBLIC Qt6::Widgets Qt6::Network Qt6::Sql Qt6::Multimedia Qt6::MultimediaWidgets
+           orglink::application orglink::domain orglink::protocol
 )
 target_compile_features(orglink-client-ui PUBLIC cxx_std_20)
 
@@ -71,6 +80,20 @@ endif()
 
 add_executable(orglink-client WIN32 src/main.cpp)
 target_link_libraries(orglink-client PRIVATE orglink-client-ui)
+
+# 内置字体采用 OFL-1.1；许可证必须与可执行文件一同发布，便于离线安装包审计和再分发。
+add_custom_command(TARGET orglink-client POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_FILE_DIR:orglink-client>/licenses/fonts"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/LICENSE-Sarasa-Gothic.txt"
+            "$<TARGET_FILE_DIR:orglink-client>/licenses/fonts/LICENSE-Sarasa-Gothic.txt"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/LICENSE-Source-Han-Sans.txt"
+            "$<TARGET_FILE_DIR:orglink-client>/licenses/fonts/LICENSE-Source-Han-Sans.txt"
+    COMMENT "部署客户端内置字体许可证"
+    VERBATIM
+)
 
 if(WIN32 AND NOT ORGLINK_ENABLE_MOCK_MODE)
     # 生产客户端必须随 EXE 部署 Qt 运行库和平台插件；否则脱离 Qt SDK 双击会在加载 Qt6Gui.dll 前失败。

@@ -27,6 +27,7 @@
 #include "tray/QtTrayAdapter.h"
 #include "view/login/LoginWindow.h"
 #include "view/main/MainWindow.h"
+#include "view/common/UiTheme.h"
 
 #include <orglink/application/ConversationService.h>
 #include <orglink/application/InMemoryOrganizationRepository.h>
@@ -50,6 +51,8 @@ int ClientApplication::run(int argc, char* argv[])
     // 客户端 UI 位于静态库，显式引用资源初始化函数以防链接器裁剪 Logo 的 RCC 对象。
     Q_INIT_RESOURCE(client_assets);
     QApplication qtApplication(argc, argv);
+    // 应用级主题必须在创建任何窗口前生效，确保登录页、主界面和后续对话框使用同一控件规范。
+    UiTheme::apply(qtApplication);
     QApplication::setApplicationName(QStringLiteral("信创通"));
     QApplication::setApplicationDisplayName(QStringLiteral("OrgLink Secure IM"));
     QApplication::setOrganizationName(QStringLiteral("OrgLink"));

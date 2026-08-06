@@ -1,4 +1,5 @@
 #include "controller/MainWindowController.h"
+#include "controller/MessageController.h"
 #include "controller/OrganizationController.h"
 #include "controller/PersonnelController.h"
 #include "controller/TrayController.h"
@@ -11,16 +12,21 @@
 #include "tray/FakeTrayAdapter.h"
 #include "view/login/LoginWindow.h"
 #include "view/main/MainWindow.h"
+#include "view/common/UiTheme.h"
 
 #include <orglink/application/InMemoryOrganizationRepository.h>
 #include <orglink/application/ConversationService.h>
 #include <orglink/application/OrganizationService.h>
 
+#include <QApplication>
+#include <QHeaderView>
 #include <QSignalSpy>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
+#include <QResource>
 #include <QTableWidget>
+#include <QTableView>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -42,6 +48,41 @@ class ClientSmokeTests final : public QObject
     Q_OBJECT
 
 private slots:
+    /** @brief 在创建窗口前装载生产应用同一份主题，保证控件样式测试不依赖测试进程默认外观。 */
+    void initTestCase()
+    {
+        // 测试目标链接的是静态 UI 库，必须显式保留并初始化 RCC，才能验证发布版相同的内置字体。
+        Q_INIT_RESOURCE(client_assets);
+        auto* application = qobject_cast<QApplication*>(QCoreApplication::instance());
+        QVERIFY(application != nullptr);
+        UiTheme::apply(*application);
+    }
+
+    /** @brief 验证统一字号以及行列表无垂直网格的公共配置不会在后续页面重构中丢失。 */
+    void commonControlThemeTest()
+    {
+        QCOMPARE(qApp->font().pixelSize(), UiTheme::BodyFontPixels);
+        QVERIFY(UiTheme::uiFontFamily().contains(QStringLiteral("Sarasa"), Qt::CaseInsensitive));
+        QVERIFY(UiTheme::chatFontFamily().contains(QStringLiteral("Source Han Sans SC"), Qt::CaseInsensitive));
+        QCOMPARE(qApp->font().family(), UiTheme::uiFontFamily());
+        QVERIFY(qApp->styleSheet().contains(UiTheme::uiFontFamily()));
+        QVERIFY(qApp->styleSheet().contains(UiTheme::chatFontFamily()));
+        QVERIFY(qApp->styleSheet().contains(QStringLiteral("QPushButton")));
+        QVERIFY(qApp->styleSheet().contains(QStringLiteral("QLineEdit")));
+        QVERIFY(qApp->styleSheet().contains(QStringLiteral("QTableView[rowList=\"true\"]")));
+        QVERIFY(qApp->styleSheet().contains(QStringLiteral("border-right:0")));
+
+        QTableView table;
+        UiTheme::configureRowTable(&table, 56);
+        QCOMPARE(table.property("rowList").toBool(), true);
+        QCOMPARE(table.showGrid(), false);
+        QCOMPARE(table.alternatingRowColors(), false);
+        QCOMPARE(table.verticalHeader()->defaultSectionSize(), 56);
+        QCOMPARE(table.selectionBehavior(), QAbstractItemView::SelectRows);
+        QCOMPARE(table.selectionMode(), QAbstractItemView::SingleSelection);
+        QCOMPARE(table.horizontalHeader()->highlightSections(), false);
+    }
+
     void loginWindowSmokeTest()
     {
         LoginWindow window;
@@ -71,6 +112,15 @@ private slots:
         // 设置中心必须替换导航索引 6 的占位页，并保留独立上下文分类列表。
         QVERIFY(window.findChild<QObject*>(QStringLiteral("settingsCenterView")) != nullptr);
         QVERIFY(window.findChild<QObject*>(QStringLiteral("settingsCategoryList")) != nullptr);
+        // 所有业务行表必须走公共配置，只保留横向行分隔；日历二维网格不属于行列表。
+        for (const auto* objectName : {"departmentPersonnelTable", "groupTable",
+                                       "notificationTable", "fileTable"})
+        {
+            auto* rowTable = window.findChild<QTableView*>(QString::fromLatin1(objectName));
+            QVERIFY(rowTable != nullptr);
+            QCOMPARE(rowTable->property("rowList").toBool(), true);
+            QCOMPARE(rowTable->showGrid(), false);
+        }
         // 日程中心必须替换导航索引 5 的占位页，并提供可交互的小月历及日/周/月网格。
         QVERIFY(window.findChild<QObject*>(QStringLiteral("calendarCenterView")) != nullptr);
         QVERIFY(window.findChild<QObject*>(QStringLiteral("miniCalendar")) != nullptr);
@@ -101,7 +151,23 @@ private slots:
         auto* currentUser = window.findChild<QLabel*>(QStringLiteral("currentUserLabel"));
         QVERIFY(currentUser != nullptr);
         window.showCurrentUser(QStringLiteral("test1"));
-        QCOMPARE(currentUser->text(), QStringLiteral("●  test1\n    在线"));
+        QCOMPARE(currentUser->text(), QStringLiteral("test1\n● 在线"));
+
+        // 真实消息气泡必须携带正文语义并解析为思源黑体，避免只在样式表字符串中声明却未命中控件。
+        window.appendChatMessage(QStringLiteral("font-smoke-message"), QStringLiteral("test1"),
+                                 QStringLiteral("字体加载验证"), 1, true);
+        QLabel* chatContentLabel = nullptr;
+        for (auto* label : window.findChildren<QLabel*>())
+        {
+            if (label->property("chatContent").toBool())
+            {
+                chatContentLabel = label;
+                break;
+            }
+        }
+        QVERIFY(chatContentLabel != nullptr);
+        chatContentLabel->ensurePolished();
+        QCOMPARE(chatContentLabel->font().family(), UiTheme::chatFontFamily());
     }
 
     /** @brief 验证 SQLite 状态更新、DPAPI 正文往返和最近消息分页投影。 */
@@ -163,6 +229,43 @@ private slots:
         const auto readIds = repository.markOutgoingStatusThrough(
             77, 1, LocalMessageStatus::Read, diagnostic);
         QCOMPARE(readIds.size(), 1U);
+    }
+
+    /**
+     * @brief 验证接收端窗口失去焦点时，已打开会话仍会实时追加消息但不会误标为已读。
+     *
+     * 该场景覆盖双客户端联调中的常见状态：发送端处于前台、接收端窗口仍打开但未激活。
+     */
+    void backgroundOpenConversationRealtimeUpdateTest()
+    {
+        QTemporaryDir temporaryDirectory;
+        QVERIFY(temporaryDirectory.isValid());
+        LocalMessageRepository repository(temporaryDirectory.path());
+        OrganizationTreeModel treeModel;
+        DepartmentPersonnelModel personnelModel;
+        ConversationListModel conversationModel;
+        MainWindow window(&treeModel, &personnelModel, &conversationModel);
+        MessageController controller(nullptr, &repository, &conversationModel, &window);
+
+        controller.initializeForUser(9001, QStringLiteral("test1"));
+        controller.openConversation(77, QStringLiteral("test2"));
+        QVERIFY(!window.isConversationVisible(77));
+        auto* messages = window.findChild<QListWidget*>(QStringLiteral("chatMessageList"));
+        QVERIFY(messages != nullptr);
+        QCOMPARE(messages->count(), 0);
+
+        const bool invoked = QMetaObject::invokeMethod(&controller, "handleIncoming", Qt::DirectConnection,
+            Q_ARG(QString, QStringLiteral("5f566f09-f1e5-4d53-977c-bc8dd5345914")),
+            Q_ARG(QString, QStringLiteral("bb7f2187-4335-4fcf-b421-f3b95cf66198")),
+            Q_ARG(qulonglong, 77), Q_ARG(qulonglong, 1), Q_ARG(qulonglong, 9002),
+            Q_ARG(QString, QStringLiteral("后台窗口也应实时显示")),
+            Q_ARG(qulonglong, 1'725'000'000'100ULL));
+        QVERIFY(invoked);
+        QCOMPARE(messages->count(), 1);
+
+        QString diagnostic;
+        QCOMPARE(repository.totalUnreadCount(diagnostic), 1);
+        QVERIFY2(diagnostic.isEmpty(), qPrintable(diagnostic));
     }
 
     /** @brief 验证目录全量事务、DPAPI 联系方式和失败不覆盖旧缓存。 */

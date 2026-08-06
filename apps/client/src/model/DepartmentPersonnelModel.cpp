@@ -59,6 +59,14 @@ QVariant DepartmentPersonnelModel::data(const QModelIndex& index, int role) cons
     {
         return QVariant::fromValue<qulonglong>(person.primaryDepartmentId->value());
     }
+    if (role == AvatarResourceRole)
+    {
+        return QString::fromStdString(person.avatarResourceId);
+    }
+    if (role == DisplayNameRole)
+    {
+        return QString::fromStdString(person.displayName);
+    }
     if (role == Qt::TextAlignmentRole && index.column() >= 2)
     {
         return Qt::AlignCenter;
@@ -77,7 +85,7 @@ QVariant DepartmentPersonnelModel::data(const QModelIndex& index, int role) cons
     switch (index.column())
     {
     case 0:
-        return QStringLiteral("●  %1%2").arg(QString::fromStdString(person.displayName),
+        return QStringLiteral("%1%2").arg(QString::fromStdString(person.displayName),
             person.id.value() == currentUserPersonId_ ? QStringLiteral("（我）") : QString{});
     case 1:
         return person.primaryPositionId && positionNames_.contains(person.primaryPositionId->value())
@@ -104,7 +112,9 @@ QVariant DepartmentPersonnelModel::headerData(int section, Qt::Orientation orien
 
 QHash<int, QByteArray> DepartmentPersonnelModel::roleNames() const
 {
-    return {{PersonIdRole, "personId"}, {PresenceRole, "presence"}, {DepartmentIdRole, "departmentId"}};
+    return {{PersonIdRole, "personId"}, {PresenceRole, "presence"},
+            {DepartmentIdRole, "departmentId"}, {AvatarResourceRole, "avatarResourceId"},
+            {DisplayNameRole, "displayName"}};
 }
 
 void DepartmentPersonnelModel::setPeople(

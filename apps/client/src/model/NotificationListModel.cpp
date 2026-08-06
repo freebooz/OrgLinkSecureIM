@@ -56,7 +56,8 @@ QVariant NotificationListModel::data(const QModelIndex& index, int role) const
     case TimeColumn: return QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(item.occurredAtUtcMs))
         .toLocalTime().toString(QStringLiteral("MM/dd HH:mm"));
     case PriorityColumn: return priorityText(item.priority);
-    case ActionColumn: return QStringLiteral("•••");
+    // “更多”图标由 View 委托统一绘制，这里保留可访问文本供读屏和自动化测试使用。
+    case ActionColumn: return QStringLiteral("更多");
     default: return {};
     }
 }

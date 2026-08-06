@@ -1,4 +1,6 @@
 #include "view/file/FileCenterView.h"
+#include "view/common/UiAssets.h"
+#include "view/common/UiTheme.h"
 
 #include <QAbstractItemView>
 #include <QFileDialog>
@@ -16,6 +18,9 @@
 #include <QTableView>
 #include <QVBoxLayout>
 
+#include <optional>
+#include <utility>
+
 namespace orglink::client
 {
 namespace
@@ -29,12 +34,13 @@ QString sizeText(qulonglong bytes)
     return QStringLiteral("%1 KB").arg(bytes / 1024.0, 0, 'f', 1);
 }
 
-QPushButton* toolButton(const QString& text, const QString& objectName, QWidget* parent)
+QPushButton* toolButton(const QString& text, const QString& objectName, QWidget* parent,
+                        std::optional<UiIcon> icon = std::nullopt, int iconSize = 18)
 {
     auto* button = new QPushButton(text, parent);
     button->setObjectName(objectName);
     button->setCursor(Qt::PointingHandCursor);
-    button->setMinimumHeight(38);
+    if (icon) applyUiIcon(button, *icon, iconSize);
     return button;
 }
 }
@@ -47,20 +53,13 @@ FileCenterView::FileCenterView(FileCenterModel* model, QWidget* parent)
     setStyleSheet(QStringLiteral(R"QSS(
 QWidget#fileCenterView, QWidget#fileCenterContext { background:#ffffff; color:#172033; }
 QFrame#fileToolbar, QFrame#fileDetailPanel, QFrame#storageCard { background:#ffffff; border:1px solid #e5eaf2; border-radius:10px; }
-QLineEdit#fileSearch { min-height:36px; border:1px solid #d9e1ef; border-radius:8px; padding:0 10px; }
 QListWidget#fileCategoryList { border:0; background:transparent; outline:0; }
 QListWidget#fileCategoryList::item { height:35px; padding-left:9px; border-radius:7px; }
 QListWidget#fileCategoryList::item:selected { background:#eaf2ff; color:#075df5; font-weight:600; }
-QPushButton { border:1px solid #d9e1ef; border-radius:7px; padding:0 13px; background:#fff; }
-QPushButton#fileUploadButton { background:#1268f3; color:white; border-color:#1268f3; font-weight:600; }
-QPushButton:disabled { color:#98a2b3; background:#f5f7fa; }
-QTableView#fileTable { border:0; gridline-color:#edf0f5; background:#fff; alternate-background-color:#fbfcfe; }
-QTableView#fileTable::item { padding:9px; border-bottom:1px solid #edf0f5; }
-QTableView#fileTable::item:selected { background:#eaf2ff; color:#172033; }
-QHeaderView::section { background:#fff; border:0; border-bottom:1px solid #e5eaf2; padding:11px 7px; color:#667085; }
-QLabel#fileSectionTitle { font-size:20px; font-weight:700; }
-QLabel#fileDetailName { font-size:16px; font-weight:700; }
-QLabel#filePreview { background:#f3f6fb; border:1px solid #e4e9f1; border-radius:8px; color:#1268f3; font-size:30px; }
+QTableView#fileTable { border:0; gridline-color:transparent; background:#fff; }
+QLabel#fileSectionTitle { font-size:18px; font-weight:700; }
+QLabel#fileDetailName { font-size:18px; font-weight:700; }
+QLabel#filePreview { background:#f3f6fb; border:1px solid #e4e9f1; border-radius:8px; color:#1268f3; }
 QLabel#securityCard { background:#ecfdf3; color:#087f5b; border:1px solid #b7ebcf; border-radius:8px; padding:12px; }
 )QSS"));
 
@@ -74,13 +73,24 @@ QLabel#securityCard { background:#ecfdf3; color:#087f5b; border:1px solid #b7ebc
     searchEdit_ = new QLineEdit(contextWidget_);
     searchEdit_->setObjectName(QStringLiteral("fileSearch"));
     searchEdit_->setPlaceholderText(QStringLiteral("搜索文件名/类型/共享人"));
+    searchEdit_->addAction(makeUiIcon(UiIcon::Search), QLineEdit::LeadingPosition);
     scopeList_ = new QListWidget(contextWidget_);
     scopeList_->setObjectName(QStringLiteral("fileCategoryList"));
-    scopeList_->addItems({QStringLiteral("▣  我的文件"), QStringLiteral("◷  最近文件"),
-        QStringLiteral("⇩  已接收"), QStringLiteral("♧  团队共享"), QStringLiteral("☆  收藏"),
-        QStringLiteral("♲  回收站"), QStringLiteral("—  快速筛选 —"), QStringLiteral("全部文件"),
-        QStringLiteral("文档"), QStringLiteral("表格"), QStringLiteral("演示文稿"),
-        QStringLiteral("图片"), QStringLiteral("视频"), QStringLiteral("压缩包"), QStringLiteral("其他")});
+    const QList<std::pair<UiIcon, QString>> scopes{{UiIcon::Folder, QStringLiteral("我的文件")},
+        {UiIcon::Calendar, QStringLiteral("最近文件")}, {UiIcon::Download, QStringLiteral("已接收")},
+        {UiIcon::Group, QStringLiteral("团队共享")}, {UiIcon::Star, QStringLiteral("收藏")},
+        {UiIcon::Delete, QStringLiteral("回收站")}};
+    scopeList_->setIconSize(QSize(18, 18));
+    for (const auto& [icon, text] : scopes)
+        scopeList_->addItem(new QListWidgetItem(makeUiIcon(icon), text));
+    scopeList_->addItem(QStringLiteral("—  快速筛选  —"));
+    const QList<std::pair<UiIcon, QString>> categories{{UiIcon::Grid, QStringLiteral("全部文件")},
+        {UiIcon::File, QStringLiteral("文档")}, {UiIcon::List, QStringLiteral("表格")},
+        {UiIcon::File, QStringLiteral("演示文稿")}, {UiIcon::Grid, QStringLiteral("图片")},
+        {UiIcon::Video, QStringLiteral("视频")}, {UiIcon::Folder, QStringLiteral("压缩包")},
+        {UiIcon::More, QStringLiteral("其他")}};
+    for (const auto& [icon, text] : categories)
+        scopeList_->addItem(new QListWidgetItem(makeUiIcon(icon), text));
     scopeList_->item(6)->setFlags(Qt::NoItemFlags);
     scopeList_->setCurrentRow(0);
     auto* storageCard = new QFrame(contextWidget_);
@@ -107,20 +117,26 @@ QLabel#securityCard { background:#ecfdf3; color:#087f5b; border:1px solid #b7ebc
     title->setObjectName(QStringLiteral("fileSectionTitle"));
     auto* toolbar = new QFrame(center); toolbar->setObjectName(QStringLiteral("fileToolbar"));
     auto* toolbarLayout = new QHBoxLayout(toolbar); toolbarLayout->setContentsMargins(8, 7, 8, 7);
-    uploadButton_ = toolButton(QStringLiteral("⇧  上传文件"), QStringLiteral("fileUploadButton"), toolbar);
-    newFolderButton_ = toolButton(QStringLiteral("▣  新建文件夹"), QStringLiteral("fileFolderButton"), toolbar);
-    downloadButton_ = toolButton(QStringLiteral("⇩  下载"), QStringLiteral("fileDownloadButton"), toolbar);
-    shareButton_ = toolButton(QStringLiteral("⌯  分享"), QStringLiteral("fileShareButton"), toolbar);
-    auto* filterButton = toolButton(QStringLiteral("▽  筛选"), QStringLiteral("fileFilterButton"), toolbar);
-    auto* sortButton = toolButton(QStringLiteral("⇅  排序"), QStringLiteral("fileSortButton"), toolbar);
+    uploadButton_ = toolButton(QStringLiteral("上传文件"), QStringLiteral("fileUploadButton"), toolbar, UiIcon::Upload);
+    newFolderButton_ = toolButton(QStringLiteral("新建文件夹"), QStringLiteral("fileFolderButton"), toolbar, UiIcon::Folder);
+    downloadButton_ = toolButton(QStringLiteral("下载"), QStringLiteral("fileDownloadButton"), toolbar, UiIcon::Download);
+    shareButton_ = toolButton(QStringLiteral("分享"), QStringLiteral("fileShareButton"), toolbar, UiIcon::Share);
+    auto* filterButton = toolButton(QStringLiteral("筛选"), QStringLiteral("fileFilterButton"), toolbar, UiIcon::Filter);
+    auto* sortButton = toolButton(QStringLiteral("排序"), QStringLiteral("fileSortButton"), toolbar, UiIcon::Sort);
     toolbarLayout->addWidget(uploadButton_); toolbarLayout->addWidget(newFolderButton_);
     toolbarLayout->addWidget(downloadButton_); toolbarLayout->addWidget(shareButton_);
     toolbarLayout->addWidget(filterButton); toolbarLayout->addWidget(sortButton); toolbarLayout->addStretch();
-    toolbarLayout->addWidget(new QLabel(QStringLiteral("☰   ▦"), toolbar));
+    auto* listIcon = new QLabel(toolbar);
+    auto* gridIcon = new QLabel(toolbar);
+    applyUiIcon(listIcon, UiIcon::List, 20, QColor(QStringLiteral("#075df5")));
+    applyUiIcon(gridIcon, UiIcon::Grid, 20, QColor(QStringLiteral("#667085")));
+    toolbarLayout->addWidget(listIcon);
+    toolbarLayout->addWidget(gridIcon);
     table_ = new QTableView(center); table_->setObjectName(QStringLiteral("fileTable"));
-    table_->setModel(model_); table_->setAlternatingRowColors(true); table_->setShowGrid(false);
-    table_->setSelectionBehavior(QAbstractItemView::SelectRows); table_->setSelectionMode(QAbstractItemView::SingleSelection);
-    table_->verticalHeader()->hide(); table_->verticalHeader()->setDefaultSectionSize(52);
+    table_->setModel(model_);
+    UiTheme::configureRowTable(table_, 52);
+    table_->setItemDelegateForColumn(FileCenterModel::NameColumn,
+        new UiIconItemDelegate(UiIcon::File, UiIcon::Folder, FileCenterModel::KindRole, 1, table_));
     table_->horizontalHeader()->setStretchLastSection(true);
     table_->horizontalHeader()->setSectionResizeMode(FileCenterModel::NameColumn, QHeaderView::Stretch);
     table_->horizontalHeader()->setSectionResizeMode(FileCenterModel::LocationColumn, QHeaderView::Stretch);
@@ -133,16 +149,17 @@ QLabel#securityCard { background:#ecfdf3; color:#087f5b; border:1px solid #b7ebc
     auto* detailLayout = new QVBoxLayout(detailPanel); detailLayout->setContentsMargins(16, 14, 16, 14);
     detailName_ = new QLabel(QStringLiteral("选择文件查看详情"), detailPanel);
     detailName_->setObjectName(QStringLiteral("fileDetailName")); detailName_->setWordWrap(true);
-    previewLabel_ = new QLabel(QStringLiteral("▤"), detailPanel); previewLabel_->setObjectName(QStringLiteral("filePreview"));
+    previewLabel_ = new QLabel(detailPanel); previewLabel_->setObjectName(QStringLiteral("filePreview"));
+    previewLabel_->setPixmap(makeUiIcon(UiIcon::File, QColor(QStringLiteral("#1268f3"))).pixmap(64, 64));
     previewLabel_->setFixedHeight(155); previewLabel_->setAlignment(Qt::AlignCenter);
     auto* detailActions = new QHBoxLayout;
-    favoriteButton_ = toolButton(QStringLiteral("☆ 收藏"), QStringLiteral("fileFavoriteButton"), detailPanel);
-    recycleButton_ = toolButton(QStringLiteral("回收站"), QStringLiteral("fileRecycleButton"), detailPanel);
+    favoriteButton_ = toolButton(QStringLiteral("收藏"), QStringLiteral("fileFavoriteButton"), detailPanel, UiIcon::Star);
+    recycleButton_ = toolButton(QStringLiteral("回收站"), QStringLiteral("fileRecycleButton"), detailPanel, UiIcon::Delete);
     detailActions->addWidget(favoriteButton_); detailActions->addWidget(recycleButton_);
     detailInfo_ = new QLabel(QStringLiteral("基础信息\n请选择列表中的文件。"), detailPanel); detailInfo_->setWordWrap(true);
     versionInfo_ = new QLabel(QStringLiteral("版本历史\n—"), detailPanel); versionInfo_->setWordWrap(true);
     permissionInfo_ = new QLabel(QStringLiteral("权限概览\n—"), detailPanel); permissionInfo_->setWordWrap(true);
-    securityInfo_ = new QLabel(QStringLiteral("✓ 安全状态\n私有对象访问 · TLS 传输 · 完整性校验"), detailPanel);
+    securityInfo_ = new QLabel(QStringLiteral("安全状态\n私有对象访问 · TLS 传输 · 完整性校验"), detailPanel);
     securityInfo_->setObjectName(QStringLiteral("securityCard")); securityInfo_->setWordWrap(true);
     detailLayout->addWidget(detailName_); detailLayout->addWidget(previewLabel_); detailLayout->addLayout(detailActions);
     detailLayout->addWidget(detailInfo_); detailLayout->addWidget(versionInfo_); detailLayout->addWidget(permissionInfo_);
@@ -229,7 +246,8 @@ void FileCenterView::showFileDetail(const FileCenterDetailItem& detail)
     currentDetail_ = detail;
     detailName_->setText(detail.item.name);
     // 文件名已在面板标题完整展示，预览区只保留类型图标，避免长名称越过面板边界。
-    previewLabel_->setText(detail.item.kind == 1 ? QStringLiteral("▣") : QStringLiteral("▤"));
+    previewLabel_->setPixmap(makeUiIcon(detail.item.kind == 1 ? UiIcon::Folder : UiIcon::File,
+        QColor(QStringLiteral("#1268f3"))).pixmap(64, 64));
     detailInfo_->setText(QStringLiteral("基础信息\n文件类型：%1\n所在位置：%2\n创建者：%3\n文件大小：%4\n修订版本：%5")
         .arg(detail.item.kind == 1 ? QStringLiteral("文件夹") : detail.item.mediaType,
              detail.item.location, detail.item.ownerDisplayName, sizeText(detail.item.sizeBytes))
@@ -246,7 +264,7 @@ void FileCenterView::showFileDetail(const FileCenterDetailItem& detail)
             permission.permission == 2 ? QStringLiteral("可编辑") : QStringLiteral("可查看"));
     permissionInfo_->setText(QStringLiteral("权限概览（%1）\n%2")
         .arg(detail.permissions.size()).arg(permissions.isEmpty() ? QStringLiteral("仅所有者") : permissions.join('\n')));
-    favoriteButton_->setText(detail.item.favorite ? QStringLiteral("★ 已收藏") : QStringLiteral("☆ 收藏"));
+    favoriteButton_->setText(detail.item.favorite ? QStringLiteral("已收藏") : QStringLiteral("收藏"));
     recycleButton_->setText(detail.item.deleted ? QStringLiteral("恢复") : QStringLiteral("回收站"));
 }
 

@@ -45,6 +45,8 @@ private:
     QListWidget* navigation_{nullptr};
     QHBoxLayout* contentLayout_{nullptr};
     QLabel* breadcrumbLabel_{nullptr};
+    /** @brief 当前登录用户的圆形头像；仅消费内置资源或首字母回退，不访问网络和磁盘。 */
+    QLabel* currentUserAvatar_{nullptr};
     QLabel* currentUserLabel_{nullptr};
     QLabel* connectionLabel_{nullptr};
     QLabel* activityLabel_{nullptr};

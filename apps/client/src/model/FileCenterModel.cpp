@@ -56,7 +56,8 @@ QVariant FileCenterModel::data(const QModelIndex& index, int role) const
     if (role != Qt::DisplayRole) return {};
     switch (index.column())
     {
-    case NameColumn: return QStringLiteral("%1  %2").arg(item.kind == 1 ? QStringLiteral("▣") : QStringLiteral("▤"), item.name);
+    // 图形语义由 View 委托绘制，Model 仅提供文件名，避免字体缺失造成伪图标乱码。
+    case NameColumn: return item.name;
     case TypeColumn: return categoryText(item);
     case SharedColumn: return item.sharedCount > 0 ? QStringLiteral("%1 人").arg(item.sharedCount)
                                                    : QStringLiteral("仅自己");

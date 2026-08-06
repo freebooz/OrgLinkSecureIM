@@ -267,16 +267,19 @@ void MessageController::handleIncoming(
     message.text = text;
     message.createdAtUtcMs = createdAtUtcMs;
     QString diagnostic;
-    const bool activeConversation = conversationId == currentConversationId_
+    // “会话已打开”和“窗口正在前台”承担不同职责：前者决定是否立即更新已经物化的聊天控件，
+    // 后者只决定是否清零未读并发送已读回执。不能因接收端窗口失焦而停止界面实时追加。
+    const bool openConversation = conversationId == currentConversationId_;
+    const bool foregroundConversation = openConversation
         && view_->isConversationVisible(conversationId);
     bool inserted = false;
-    if (!repository_->storeIncoming(message, diagnostic, activeConversation, &inserted))
+    if (!repository_->storeIncoming(message, diagnostic, foregroundConversation, &inserted))
     {
         // 只有本地提交成功才确认送达，否则服务端保留水位并在重连时再次补偿。
         view_->showTransientError(diagnostic);
         return;
     }
-    if (activeConversation && inserted)
+    if (openConversation && inserted)
     {
         view_->appendChatMessage(clientMessageId, QStringLiteral("对方"), text,
                                  static_cast<int>(message.status), false);
@@ -288,7 +291,7 @@ void MessageController::handleIncoming(
     if (networkClient_ != nullptr)
     {
         networkClient_->acknowledgeDelivery(serverMessageId, conversationId, sequence);
-        if (activeConversation)
+        if (foregroundConversation)
         {
             // 送达与已读按同一 TCP 连接顺序发送，服务端会先推进送达再校验已读上界。
             networkClient_->acknowledgeRead(serverMessageId, conversationId, sequence);
@@ -323,22 +326,25 @@ void MessageController::handleIncomingFile(
     message.text = descriptorJson;
     message.createdAtUtcMs = createdAtUtcMs;
     QString diagnostic;
-    const bool activeConversation = conversationId == currentConversationId_
+    // 文件消息与文本消息遵循同一实时更新规则；窗口失焦时仍更新已打开会话，
+    // 但只有前台阅读状态才能推进已读水位。
+    const bool openConversation = conversationId == currentConversationId_;
+    const bool foregroundConversation = openConversation
         && view_->isConversationVisible(conversationId);
     bool inserted = false;
-    if (!repository_->storeIncoming(message, diagnostic, activeConversation, &inserted))
+    if (!repository_->storeIncoming(message, diagnostic, foregroundConversation, &inserted))
     {
         view_->showTransientError(diagnostic);
         return;
     }
-    if (activeConversation && inserted)
+    if (openConversation && inserted)
     {
         view_->appendFileMessage(clientMessageId, QStringLiteral("对方"), assetUuid,
             fileName, sizeBytes, static_cast<int>(message.status), false);
     }
     if (inserted) emit incomingMessagePersisted(conversationId);
     networkClient_->acknowledgeDelivery(serverMessageId, conversationId, sequence);
-    if (activeConversation)
+    if (foregroundConversation)
         networkClient_->acknowledgeRead(serverMessageId, conversationId, sequence);
     refreshConversationState();
     networkClient_->requestConversationList();

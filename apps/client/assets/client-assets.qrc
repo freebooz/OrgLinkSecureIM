@@ -1,5 +1,14 @@
 <RCC>
     <qresource prefix="/orglink/assets">
         <file alias="orglink-logo.png">orglink-logo.png</file>
+        <file alias="avatars/test1.png">avatars/test1.png</file>
+        <file alias="avatars/test2.png">avatars/test2.png</file>
+        <file alias="avatars/test3.png">avatars/test3.png</file>
+        <file alias="avatars/test4.png">avatars/test4.png</file>
+        <file alias="avatars/test5.png">avatars/test5.png</file>
+        <file alias="fonts/SarasaUiSC-Regular.ttf">fonts/SarasaUiSC-Regular.ttf</file>
+        <file alias="fonts/SarasaUiSC-SemiBold.ttf">fonts/SarasaUiSC-SemiBold.ttf</file>
+        <file alias="fonts/SarasaUiSC-Bold.ttf">fonts/SarasaUiSC-Bold.ttf</file>
+        <file alias="fonts/SourceHanSansSC-Regular.otf">fonts/SourceHanSansSC-Regular.otf</file>
     </qresource>
 </RCC>
