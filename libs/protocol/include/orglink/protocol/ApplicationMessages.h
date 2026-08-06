@@ -579,6 +579,93 @@ struct UserSettingsProfile
     std::string downloadPath;
     std::string language;
     std::string theme;
+    /** @brief 手机、邮箱和资料搜索的可见范围：0=全体同事，1=本部门，2=仅自己。 */
+    std::uint32_t phoneVisibility{0};
+    std::uint32_t emailVisibility{0};
+    std::uint32_t searchVisibility{0};
+    /**
+     * @brief 是否允许同组织人员通过手机号检索本人；关闭后服务端必须拒绝该检索入口。
+     *
+     * 协议结构默认值必须为 false：当前紧凑编码会省略零值布尔字段，解码端依赖默认值还原 false；
+     * 产品的默认开启策略由数据库迁移和默认设置工厂显式赋值，不能混入线协议语义。
+     */
+    bool phoneSearchEnabled{false};
+    /** @brief 用户维护的个性签名，UTF-8 最多 160 字节；不承载组织职务或审批信息。 */
+    std::string profileSignature;
+    /** @brief 新消息、声音、桌面弹窗、未读角标及 @ 提醒的独立用户偏好。 */
+    bool newMessageNotificationEnabled{false};
+    bool notificationSoundEnabled{false};
+    /** @brief 提示音逻辑名称，最多 64 字节；服务端不接受客户端文件路径。 */
+    std::string notificationSoundName;
+    bool desktopPopupEnabled{false};
+    bool unreadBadgeEnabled{false};
+    bool mentionNotificationEnabled{false};
+    /** @brief 群消息提醒级别：0=所有消息，1=仅 @ 与特别关注，2=不提醒。 */
+    std::uint32_t groupNotificationLevel{0};
+    /** @brief 系统、审批、文件与日程各业务来源的提醒开关。 */
+    bool systemNotificationEnabled{false};
+    bool approvalNotificationEnabled{false};
+    bool fileNotificationEnabled{false};
+    bool calendarNotificationEnabled{false};
+    /** @brief 日程提前提醒分钟数，0 表示开始时提醒，上限为 7 天。 */
+    std::uint32_t calendarReminderMinutes{0};
+    /** @brief 免打扰开关及本地日历日内起止分钟；结束小于开始表示跨日。 */
+    bool doNotDisturbEnabled{false};
+    std::uint32_t doNotDisturbStartMinutes{0};
+    std::uint32_t doNotDisturbEndMinutes{0};
+    /** @brief 通知预览模式：0=发送人和内容，1=仅发送人，2=隐藏内容。 */
+    std::uint32_t notificationPreviewMode{0};
+    bool readReceiptEnabled{false};
+    bool enterToSendEnabled{false};
+    /** @brief 消息气泡密度：0=宽松，1=标准，2=紧凑。 */
+    std::uint32_t messageBubbleDensity{0};
+    /** @brief 外观主色和强调色，必须是 #RRGGBB 或 #RRGGBBAA，不接受任意样式表内容。 */
+    std::string primaryColor;
+    std::string accentColor;
+    /** @brief 公共侧栏样式：0=图标与文字，1=仅图标，2=仅文字，3=紧凑。 */
+    std::uint32_t sidebarStyle{0};
+    /** @brief 卡片圆角、界面密度和字号档位；枚举含义由迁移 016 固定。 */
+    std::uint32_t cardRadiusMode{0};
+    std::uint32_t uiDensity{0};
+    std::uint32_t fontSizeMode{0};
+    /** @brief 聊天背景是内置资源逻辑名，最多 64 字节，不允许服务端读取客户端路径。 */
+    std::string chatBackground;
+    std::uint32_t messageBubbleStyle{0};
+    std::uint32_t contentViewMode{0};
+    /** @brief 桌面窗口透明度百分比，范围 0..40，移动端忽略此字段。 */
+    std::uint32_t windowTransparency{0};
+    bool animationEnabled{false};
+    /** @brief 动画强度：0=弱，1=中，2=强。 */
+    std::uint32_t animationIntensity{0};
+    /** @brief 接收文件与本地缓存策略；容量单位为 MiB，服务端仅持久化偏好而不操作客户端缓存。 */
+    bool autoSaveReceivedFiles{false};
+    std::uint32_t recentFileRetentionDays{0};
+    bool autoCacheCleanupEnabled{false};
+    std::uint32_t cacheSizeLimitMb{0};
+    /** @brief 文件预览、视频转码、加密、水印和共享枚举；有效范围由迁移 017 固定。 */
+    std::uint32_t filePreviewMode{0};
+    bool imageAutoCompressEnabled{false};
+    std::uint32_t videoTranscodeMode{0};
+    std::uint32_t fileEncryptionMode{0};
+    std::uint32_t externalWatermarkMode{0};
+    std::uint32_t defaultSharePermission{0};
+    /** @brief 客户端本地同步目录偏好；服务端不得根据该文本访问文件系统。 */
+    std::string syncFolderPath;
+    /** @brief 通话音频处理开关；表达用户偏好，不代表终端或媒体插件已经提供对应能力。 */
+    bool echoCancellationEnabled{false};
+    bool noiseSuppressionEnabled{false};
+    bool autoGainControlEnabled{false};
+    /** @brief 视频镜像、分辨率和弱网优化偏好；分辨率枚举由迁移 018 固定。 */
+    bool cameraMirrorEnabled{false};
+    std::uint32_t videoResolutionMode{0};
+    bool bandwidthOptimizationEnabled{false};
+    /** @brief 录音许可仅允许客户端发起请求，实际录音仍需参与方同意和组织策略授权。 */
+    bool recordingPermissionEnabled{false};
+    /** @brief 来电窗口位置：0=右下角，1=左下角，2=居中，3=跟随系统。 */
+    std::uint32_t incomingCallWindowPosition{0};
+    bool bluetoothPreferred{false};
+    /** @brief 通话快捷键逻辑文本，UTF-8 最多 64 字节；不得承载脚本或系统命令。 */
+    std::string callShortcut;
 };
 
 /**
@@ -600,6 +687,25 @@ struct SettingsSystemInfo
     std::string productName;
     std::string currentVersion;
     std::string updateDate;
+    /** @brief 当前账号所属组织和登录名；仅返回当前认证人员自己的数据。 */
+    std::string organizationName;
+    std::string loginName;
+    std::string accountStatusText;
+    /** @brief 最近成功登录的 UTC 毫秒时间、设备摘要与来源地址；不下发设备 UUID。 */
+    std::uint64_t lastLoginAtUtcMs{0};
+    std::string lastLoginDeviceName;
+    std::string lastLoginPlatform;
+    std::string lastLoginSource;
+    /** @brief 当前主部门启用人员数，用于账号资料页组织信息摘要。 */
+    std::uint32_t teamMemberCount{0};
+    /** @brief 当前人员对象存储的分类占用量；四类之和应等于 storageUsedBytes。 */
+    std::uint64_t storageDocumentBytes{0};
+    std::uint64_t storageImageBytes{0};
+    std::uint64_t storageVideoBytes{0};
+    std::uint64_t storageOtherBytes{0};
+    /** @brief 已同步对象数和最近一次对象入库 UTC 毫秒时间；不暴露对象键。 */
+    std::uint64_t syncedFileCount{0};
+    std::uint64_t lastFileSyncAtUtcMs{0};
 };
 
 /** @brief 请求当前认证人员的设置与安全状态；请求体为空，身份只取连接会话。 */

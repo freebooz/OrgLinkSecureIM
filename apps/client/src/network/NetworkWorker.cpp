@@ -387,19 +387,12 @@ void NetworkWorker::requestSettings()
         static_cast<std::uint16_t>(protocol::MessageType::SettingsGetRequest), body));
 }
 
-void NetworkWorker::updateSettings(
-    qulonglong expectedRevision, bool twoFactorEnabled, bool startupEnabled,
-    bool autoLoginEnabled, int autoLockMinutes, bool chatWatermarkEnabled,
-    bool screenshotProtectionEnabled, const QString& downloadPath,
-    const QString& language, const QString& theme)
+void NetworkWorker::updateSettings(const protocol::UserSettingsProfile& settings)
 {
-    if (!authenticated_ || expectedRevision == 0) return;
+    if (!authenticated_ || settings.revision == 0) return;
     protocol::SettingsUpdateRequest request;
-    request.expectedRevision = expectedRevision;
-    request.settings = {expectedRevision, twoFactorEnabled, startupEnabled, autoLoginEnabled,
-        static_cast<std::uint32_t>(std::clamp(autoLockMinutes, 1, 1440)),
-        chatWatermarkEnabled, screenshotProtectionEnabled,
-        downloadPath.toUtf8().toStdString(), language.toStdString(), theme.toStdString()};
+    request.expectedRevision = settings.revision;
+    request.settings = settings;
     const auto body = protocol::encodeMessage(request);
     static_cast<void>(writeMessage(
         static_cast<std::uint16_t>(protocol::MessageType::SettingsUpdateRequest), body));

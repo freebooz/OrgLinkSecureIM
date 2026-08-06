@@ -426,11 +426,70 @@ void SettingsCenterView::setInteractionState(bool networkConnected, bool busy)
 
 SettingsProfileItem SettingsCenterView::profileFromControls() const
 {
-    return {confirmedProfile_.revision, twoFactorCheck_->isChecked(), startupCheck_->isChecked(),
+    SettingsProfileItem profile{confirmedProfile_.revision, twoFactorCheck_->isChecked(), startupCheck_->isChecked(),
         autoLoginCheck_->isChecked(), autoLockCombo_->currentData().toInt(),
         watermarkCheck_->isChecked(), screenshotProtectionCheck_->isChecked(),
         downloadPathEdit_->text().trimmed(), languageCombo_->currentData().toString(),
-        themeCombo_->currentData().toString()};
+        themeCombo_->currentData().toString(), confirmedProfile_.phoneVisibility,
+        confirmedProfile_.emailVisibility, confirmedProfile_.searchVisibility,
+        confirmedProfile_.phoneSearchEnabled, confirmedProfile_.profileSignature};
+    // 旧 Widgets 回归夹具没有消息通知控件，提交安全设置时必须原样保留服务端确认的新增字段。
+    profile.newMessageNotificationEnabled = confirmedProfile_.newMessageNotificationEnabled;
+    profile.notificationSoundEnabled = confirmedProfile_.notificationSoundEnabled;
+    profile.notificationSoundName = confirmedProfile_.notificationSoundName;
+    profile.desktopPopupEnabled = confirmedProfile_.desktopPopupEnabled;
+    profile.unreadBadgeEnabled = confirmedProfile_.unreadBadgeEnabled;
+    profile.mentionNotificationEnabled = confirmedProfile_.mentionNotificationEnabled;
+    profile.groupNotificationLevel = confirmedProfile_.groupNotificationLevel;
+    profile.systemNotificationEnabled = confirmedProfile_.systemNotificationEnabled;
+    profile.approvalNotificationEnabled = confirmedProfile_.approvalNotificationEnabled;
+    profile.fileNotificationEnabled = confirmedProfile_.fileNotificationEnabled;
+    profile.calendarNotificationEnabled = confirmedProfile_.calendarNotificationEnabled;
+    profile.calendarReminderMinutes = confirmedProfile_.calendarReminderMinutes;
+    profile.doNotDisturbEnabled = confirmedProfile_.doNotDisturbEnabled;
+    profile.doNotDisturbStartMinutes = confirmedProfile_.doNotDisturbStartMinutes;
+    profile.doNotDisturbEndMinutes = confirmedProfile_.doNotDisturbEndMinutes;
+    profile.notificationPreviewMode = confirmedProfile_.notificationPreviewMode;
+    profile.readReceiptEnabled = confirmedProfile_.readReceiptEnabled;
+    profile.enterToSendEnabled = confirmedProfile_.enterToSendEnabled;
+    profile.messageBubbleDensity = confirmedProfile_.messageBubbleDensity;
+    // 旧页面同样不拥有外观控件，必须保留完整外观快照，避免修改安全项时把主题恢复成默认值。
+    profile.primaryColor = confirmedProfile_.primaryColor;
+    profile.accentColor = confirmedProfile_.accentColor;
+    profile.sidebarStyle = confirmedProfile_.sidebarStyle;
+    profile.cardRadiusMode = confirmedProfile_.cardRadiusMode;
+    profile.uiDensity = confirmedProfile_.uiDensity;
+    profile.fontSizeMode = confirmedProfile_.fontSizeMode;
+    profile.chatBackground = confirmedProfile_.chatBackground;
+    profile.messageBubbleStyle = confirmedProfile_.messageBubbleStyle;
+    profile.contentViewMode = confirmedProfile_.contentViewMode;
+    profile.windowTransparency = confirmedProfile_.windowTransparency;
+    profile.animationEnabled = confirmedProfile_.animationEnabled;
+    profile.animationIntensity = confirmedProfile_.animationIntensity;
+    // Widgets 兼容页不拥有文件存储控件，必须原样保留迁移 017 的完整设置快照。
+    profile.autoSaveReceivedFiles = confirmedProfile_.autoSaveReceivedFiles;
+    profile.recentFileRetentionDays = confirmedProfile_.recentFileRetentionDays;
+    profile.autoCacheCleanupEnabled = confirmedProfile_.autoCacheCleanupEnabled;
+    profile.cacheSizeLimitMb = confirmedProfile_.cacheSizeLimitMb;
+    profile.filePreviewMode = confirmedProfile_.filePreviewMode;
+    profile.imageAutoCompressEnabled = confirmedProfile_.imageAutoCompressEnabled;
+    profile.videoTranscodeMode = confirmedProfile_.videoTranscodeMode;
+    profile.fileEncryptionMode = confirmedProfile_.fileEncryptionMode;
+    profile.externalWatermarkMode = confirmedProfile_.externalWatermarkMode;
+    profile.defaultSharePermission = confirmedProfile_.defaultSharePermission;
+    profile.syncFolderPath = confirmedProfile_.syncFolderPath;
+    // Widgets 兼容页没有通话设备控件；原样保留迁移 018 偏好，防止旧界面覆盖 QML 设置。
+    profile.echoCancellationEnabled = confirmedProfile_.echoCancellationEnabled;
+    profile.noiseSuppressionEnabled = confirmedProfile_.noiseSuppressionEnabled;
+    profile.autoGainControlEnabled = confirmedProfile_.autoGainControlEnabled;
+    profile.cameraMirrorEnabled = confirmedProfile_.cameraMirrorEnabled;
+    profile.videoResolutionMode = confirmedProfile_.videoResolutionMode;
+    profile.bandwidthOptimizationEnabled = confirmedProfile_.bandwidthOptimizationEnabled;
+    profile.recordingPermissionEnabled = confirmedProfile_.recordingPermissionEnabled;
+    profile.incomingCallWindowPosition = confirmedProfile_.incomingCallWindowPosition;
+    profile.bluetoothPreferred = confirmedProfile_.bluetoothPreferred;
+    profile.callShortcut = confirmedProfile_.callShortcut;
+    return profile;
 }
 
 void SettingsCenterView::submitControls()

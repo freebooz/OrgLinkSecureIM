@@ -3,6 +3,7 @@
 #include <orglink/domain/DomainTypes.h>
 
 #include <QMainWindow>
+#include <QSet>
 #include <QStringList>
 
 #include <optional>
@@ -184,6 +185,8 @@ private:
     QLabel* chatContactNameLabel_{nullptr};
     QLabel* chatContactDetailLabel_{nullptr};
     QLabel* sharedFilesLabel_{nullptr};
+    /** @brief 当前会话已展示的共享资产键；会话切换时清空，防止历史刷新重复追加同名文件。 */
+    QSet<QString> sharedFileKeys_;
     QListWidget* chatMessages_{nullptr};
     QPlainTextEdit* chatInput_{nullptr};
     QPushButton* chatSendButton_{nullptr};

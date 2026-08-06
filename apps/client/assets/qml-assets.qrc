@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/orglink/qml">
+        <file alias="Main.qml">../qml/Main.qml</file>
+        <file alias="Theme.qml">../qml/Theme.qml</file>
+        <file alias="IconCanvas.qml">../qml/IconCanvas.qml</file>
+        <file alias="WindowTitleBar.qml">../qml/WindowTitleBar.qml</file>
+        <file alias="NavButton.qml">../qml/NavButton.qml</file>
+        <file alias="LoginPage.qml">../qml/LoginPage.qml</file>
+        <file alias="ApplicationShell.qml">../qml/ApplicationShell.qml</file>
+        <file alias="PreviewOverlay.qml">../qml/PreviewOverlay.qml</file>
+        <file alias="MessagePage.qml">../qml/MessagePage.qml</file>
+        <file alias="DirectoryPage.qml">../qml/DirectoryPage.qml</file>
+        <file alias="GroupPage.qml">../qml/GroupPage.qml</file>
+        <file alias="FileCenterPage.qml">../qml/FileCenterPage.qml</file>
+        <file alias="NotificationPage.qml">../qml/NotificationPage.qml</file>
+        <file alias="CalendarPage.qml">../qml/CalendarPage.qml</file>
+        <file alias="SettingsPage.qml">../qml/SettingsPage.qml</file>
+        <file alias="SecurityLoginPage.qml">../qml/SecurityLoginPage.qml</file>
+        <file alias="FileStorageSettingsPage.qml">../qml/FileStorageSettingsPage.qml</file>
+        <file alias="CallDeviceSettingsPage.qml">../qml/CallDeviceSettingsPage.qml</file>
+        <file alias="AboutSystemPage.qml">../qml/AboutSystemPage.qml</file>
+    </qresource>
+</RCC>

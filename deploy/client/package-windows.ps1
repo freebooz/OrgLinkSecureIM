@@ -41,8 +41,9 @@ if (-not [string]::IsNullOrWhiteSpace($VcInstallDirectory)) {
     $env:VCINSTALLDIR = $VcInstallDirectory
 }
 
-# windeployqt 根据 EXE 的真实导入表部署 Qt DLL、平台、TLS、SQL 和图像插件，避免人工漏拷依赖。.
-& $deployTool --release --compiler-runtime --no-translations $clientExecutable
+# 扫描 QML 源目录才能部署 Qt Quick Controls 与 Multimedia 的动态插件；仅扫描 EXE 无法发现声明式导入。
+$qmlSourceDirectory = Join-Path $workspaceRoot 'apps\client\qml'
+& $deployTool --release --compiler-runtime --no-translations --qmldir $qmlSourceDirectory $clientExecutable
 if ($LASTEXITCODE -ne 0) {
     throw "windeployqt failed with exit code $LASTEXITCODE"
 }

@@ -44,15 +44,15 @@ QtTrayAdapter::QtTrayAdapter(QObject* parent) : ITrayAdapter(parent)
     }
 
     menu_ = std::make_unique<QMenu>();
-    auto* openAction = menu_->addAction(QStringLiteral("打开信创通"));
+    auto* openAction = menu_->addAction(QStringLiteral("打开安域通"));
     menu_->addSeparator();
     unreadAction_ = menu_->addAction(QStringLiteral("未读消息（0）"));
     transferAction_ = menu_->addAction(QStringLiteral("文件传输（0）"));
     menu_->addSeparator();
-    auto* quitAction = menu_->addAction(QStringLiteral("退出信创通"));
+    auto* quitAction = menu_->addAction(QStringLiteral("退出安域通"));
 
     trayIcon_ = std::make_unique<QSystemTrayIcon>();
-    trayIcon_->setToolTip(QStringLiteral("OrgLink 信创通"));
+    trayIcon_->setToolTip(QStringLiteral("OrgLink 安域通"));
     trayIcon_->setContextMenu(menu_.get());
     trayIcon_->setIcon(createIcon(TrayState::Offline, 0));
 

@@ -2,13 +2,23 @@
 
 #include <QHash>
 #include <QObject>
+#include <QUrl>
 
 namespace orglink::client
 {
 
-class MainWindow;
 class NetworkClient;
 class SettingsModel;
+
+/** @brief QML 文件预览类型；数值作为稳定属性暴露给 Image/MediaPlayer 组件。 */
+enum class FilePreviewKind
+{
+    Image = 1,
+    Audio = 2,
+    Video = 3,
+    External = 4,
+    Blocked = 5
+};
 
 /**
  * @brief 客户端文件下载、原子落盘、本地缓存和安全打开用例 Controller。
@@ -23,7 +33,7 @@ class FileTransferController final : public QObject
 
 public:
     FileTransferController(NetworkClient* networkClient, SettingsModel* settingsModel,
-                           MainWindow* mainWindow, QObject* parent = nullptr);
+                           QObject* parent = nullptr);
 
     /**
      * @brief 清理前一账号待处理状态并切换本地映射命名空间。
@@ -37,6 +47,13 @@ public:
      */
     [[nodiscard]] static QString sanitizedFileName(const QString& fileName);
 
+    /**
+     * @brief 结合危险扩展名、本地内容 MIME、服务端 MIME 和扩展名确定打开策略。
+     * @details 内容探测优先；可执行文件和脚本无条件返回 Blocked，防止 MIME 伪装绕过。
+     */
+    [[nodiscard]] static FilePreviewKind previewKind(
+        const QString& localPath, const QString& mediaType = {});
+
 public slots:
     /** @brief 双击打开意图；已有本地副本时立即打开，否则先请求鉴权下载再预览。 */
     void requestOpen(const QString& assetUuid);
@@ -49,6 +66,9 @@ signals:
     /** @brief 文件已安全落盘；文件中心可据此刷新当前详情缩略图。 */
     void fileAvailable(const QString& assetUuid, const QString& localPath,
                        const QString& mediaType);
+    /** @brief 请求 QML 打开应用内预览；URL 只指向已原子保存的本地文件。 */
+    void previewRequested(const QUrl& localUrl, const QString& displayName,
+                          const QString& mediaType, int previewKind);
 
 private slots:
     /** @brief 处理 Gateway 已鉴权且已校验摘要的正文；写入失败不会保留部分文件。 */
@@ -76,10 +96,9 @@ private:
     /** @brief 生成不暴露资产标识的本地 QSettings 键。 */
     [[nodiscard]] QString settingsKey(const QString& assetUuid) const;
 
-    /** @brief 网络门面、设置快照和主窗口均由组合根持有，生命周期长于本 Controller。 */
+    /** @brief 网络门面和设置快照均由组合根持有，生命周期长于本 Controller。 */
     NetworkClient* networkClient_{nullptr};
     SettingsModel* settingsModel_{nullptr};
-    MainWindow* mainWindow_{nullptr};
     /** @brief 当前认证人员编号；0 表示尚未绑定账号。 */
     qulonglong currentPersonId_{0};
     /** @brief 资产到未完成操作的进程内映射；重复双击不会重复下载。 */

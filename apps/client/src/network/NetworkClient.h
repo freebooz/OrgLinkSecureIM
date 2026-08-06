@@ -151,6 +151,72 @@ struct RemoteUserSettings
     QString downloadPath;
     QString language;
     QString theme;
+    /** @brief 敏感资料可见范围：0=全体同事，1=本部门，2=仅自己。 */
+    int phoneVisibility{0};
+    int emailVisibility{0};
+    int searchVisibility{0};
+    /** @brief 手机号检索开关和用户签名均由服务端修订号保护。 */
+    bool phoneSearchEnabled{true};
+    QString profileSignature;
+    /** @brief 消息与通知页所有偏好；枚举值与协议/数据库约束保持一致。 */
+    bool newMessageNotificationEnabled{true};
+    bool notificationSoundEnabled{true};
+    QString notificationSoundName{QStringLiteral("default")};
+    bool desktopPopupEnabled{true};
+    bool unreadBadgeEnabled{true};
+    bool mentionNotificationEnabled{true};
+    int groupNotificationLevel{0};
+    bool systemNotificationEnabled{true};
+    bool approvalNotificationEnabled{true};
+    bool fileNotificationEnabled{true};
+    bool calendarNotificationEnabled{true};
+    int calendarReminderMinutes{15};
+    bool doNotDisturbEnabled{false};
+    int doNotDisturbStartMinutes{1320};
+    int doNotDisturbEndMinutes{480};
+    int notificationPreviewMode{0};
+    bool readReceiptEnabled{true};
+    bool enterToSendEnabled{false};
+    int messageBubbleDensity{1};
+    /** @brief 界面主题与布局偏好；颜色仅允许服务端校验后的十六进制值。 */
+    QString primaryColor{QStringLiteral("#1677FF")};
+    QString accentColor{QStringLiteral("#13C2C2")};
+    int sidebarStyle{0};
+    int cardRadiusMode{1};
+    int uiDensity{1};
+    int fontSizeMode{1};
+    QString chatBackground{QStringLiteral("default")};
+    int messageBubbleStyle{0};
+    int contentViewMode{0};
+    int windowTransparency{30};
+    bool animationEnabled{true};
+    int animationIntensity{1};
+    /** @brief 文件接收、缓存和保留策略；缓存容量单位为 MiB。 */
+    bool autoSaveReceivedFiles{true};
+    int recentFileRetentionDays{30};
+    bool autoCacheCleanupEnabled{true};
+    int cacheSizeLimitMb{2048};
+    /** @brief 文件预览与处理策略枚举；具体含义由迁移 017 和 QML 展示模型共同约束。 */
+    int filePreviewMode{0};
+    bool imageAutoCompressEnabled{true};
+    int videoTranscodeMode{0};
+    int fileEncryptionMode{0};
+    int externalWatermarkMode{0};
+    int defaultSharePermission{0};
+    /** @brief 当前设备本地同步目录偏好；远端只保存文本，不能访问该路径。 */
+    QString syncFolderPath;
+    /** @brief 通话处理与视频策略；设备硬件标识不进入网络 DTO。 */
+    bool echoCancellationEnabled{true};
+    bool noiseSuppressionEnabled{true};
+    bool autoGainControlEnabled{true};
+    bool cameraMirrorEnabled{false};
+    int videoResolutionMode{1};
+    bool bandwidthOptimizationEnabled{true};
+    /** @brief 录音开关只允许发起许可请求，不能绕过参与方同意和组织策略。 */
+    bool recordingPermissionEnabled{false};
+    int incomingCallWindowPosition{0};
+    bool bluetoothPreferred{true};
+    QString callShortcut{QStringLiteral("Alt+C")};
 };
 
 /** @brief 设置页右栏的聚合状态 DTO；不包含设备标识、对象键或证书正文。 */
@@ -168,6 +234,22 @@ struct RemoteSettingsSystemInfo
     QString productName;
     QString currentVersion;
     QString updateDate;
+    /** @brief 当前认证账号的只读组织与登录摘要，不包含设备 UUID 或认证凭据。 */
+    QString organizationName;
+    QString loginName;
+    QString accountStatusText;
+    qulonglong lastLoginAtUtcMs{0};
+    QString lastLoginDeviceName;
+    QString lastLoginPlatform;
+    QString lastLoginSource;
+    int teamMemberCount{0};
+    /** @brief 服务端按媒体类型聚合的存储占用量以及同步摘要，不包含对象存储键。 */
+    qulonglong storageDocumentBytes{0};
+    qulonglong storageImageBytes{0};
+    qulonglong storageVideoBytes{0};
+    qulonglong storageOtherBytes{0};
+    qulonglong syncedFileCount{0};
+    qulonglong lastFileSyncAtUtcMs{0};
 };
 
 /** @brief 最近/收藏联系人列表 DTO；联系方式只在详情请求成功后进入 UI。 */

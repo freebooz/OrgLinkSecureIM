@@ -48,3 +48,24 @@ if(TARGET orglink-server-postgres-store)
     target_link_libraries(orglink-server PRIVATE orglink-server-postgres-store)
     target_compile_definitions(orglink-server PRIVATE ORGLINK_HAS_POSTGRES_RUNTIME_STORE=1)
 endif()
+
+if(COMMAND orglink_deploy_postgresql_runtime AND PostgreSQL_FOUND)
+    orglink_deploy_postgresql_runtime(orglink-server "${PostgreSQL_LIBRARY_RELEASE}")
+endif()
+
+if(WIN32 AND Qt6_FOUND AND NOT ORGLINK_ENABLE_MOCK_MODE)
+    # Windows 原生服务端同时依赖 Qt Core/Network 与 TLS 后端；发布目录必须能脱离 Qt SDK 启动。
+    get_target_property(_orglink_server_qmake Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(_orglink_server_qt_bin "${_orglink_server_qmake}" DIRECTORY)
+    find_program(ORGLINK_SERVER_WINDEPLOYQT_EXECUTABLE NAMES windeployqt
+        HINTS "${_orglink_server_qt_bin}" NO_DEFAULT_PATH)
+    if(NOT ORGLINK_SERVER_WINDEPLOYQT_EXECUTABLE)
+        message(FATAL_ERROR "生产服务端缺少 windeployqt，无法生成可独立运行的 Windows 发布目录。")
+    endif()
+    add_custom_command(TARGET orglink-server POST_BUILD
+        COMMAND "${ORGLINK_SERVER_WINDEPLOYQT_EXECUTABLE}"
+                --release --compiler-runtime --no-translations
+                "$<TARGET_FILE:orglink-server>"
+        COMMENT "部署 OrgLink 服务端 Qt Network 与 TLS 运行库"
+        VERBATIM)
+endif()

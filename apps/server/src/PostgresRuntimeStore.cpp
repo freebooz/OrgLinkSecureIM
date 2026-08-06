@@ -257,6 +257,63 @@ protocol::UserSettingsProfile userSettingsFromRow(PGresult* rows, int row, int f
     value.downloadPath = stringColumn(rows, row, firstColumn + 7);
     value.language = stringColumn(rows, row, firstColumn + 8);
     value.theme = stringColumn(rows, row, firstColumn + 9);
+    value.phoneVisibility = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 10));
+    value.emailVisibility = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 11));
+    value.searchVisibility = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 12));
+    value.phoneSearchEnabled = stringColumn(rows, row, firstColumn + 13) == "true";
+    value.profileSignature = stringColumn(rows, row, firstColumn + 14);
+    value.newMessageNotificationEnabled = stringColumn(rows, row, firstColumn + 15) == "true";
+    value.notificationSoundEnabled = stringColumn(rows, row, firstColumn + 16) == "true";
+    value.notificationSoundName = stringColumn(rows, row, firstColumn + 17);
+    value.desktopPopupEnabled = stringColumn(rows, row, firstColumn + 18) == "true";
+    value.unreadBadgeEnabled = stringColumn(rows, row, firstColumn + 19) == "true";
+    value.mentionNotificationEnabled = stringColumn(rows, row, firstColumn + 20) == "true";
+    value.groupNotificationLevel = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 21));
+    value.systemNotificationEnabled = stringColumn(rows, row, firstColumn + 22) == "true";
+    value.approvalNotificationEnabled = stringColumn(rows, row, firstColumn + 23) == "true";
+    value.fileNotificationEnabled = stringColumn(rows, row, firstColumn + 24) == "true";
+    value.calendarNotificationEnabled = stringColumn(rows, row, firstColumn + 25) == "true";
+    value.calendarReminderMinutes = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 26));
+    value.doNotDisturbEnabled = stringColumn(rows, row, firstColumn + 27) == "true";
+    value.doNotDisturbStartMinutes = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 28));
+    value.doNotDisturbEndMinutes = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 29));
+    value.notificationPreviewMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 30));
+    value.readReceiptEnabled = stringColumn(rows, row, firstColumn + 31) == "true";
+    value.enterToSendEnabled = stringColumn(rows, row, firstColumn + 32) == "true";
+    value.messageBubbleDensity = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 33));
+    value.primaryColor = stringColumn(rows, row, firstColumn + 34);
+    value.accentColor = stringColumn(rows, row, firstColumn + 35);
+    value.sidebarStyle = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 36));
+    value.cardRadiusMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 37));
+    value.uiDensity = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 38));
+    value.fontSizeMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 39));
+    value.chatBackground = stringColumn(rows, row, firstColumn + 40);
+    value.messageBubbleStyle = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 41));
+    value.contentViewMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 42));
+    value.windowTransparency = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 43));
+    value.animationEnabled = stringColumn(rows, row, firstColumn + 44) == "true";
+    value.animationIntensity = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 45));
+    value.autoSaveReceivedFiles = stringColumn(rows, row, firstColumn + 46) == "true";
+    value.recentFileRetentionDays = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 47));
+    value.autoCacheCleanupEnabled = stringColumn(rows, row, firstColumn + 48) == "true";
+    value.cacheSizeLimitMb = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 49));
+    value.filePreviewMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 50));
+    value.imageAutoCompressEnabled = stringColumn(rows, row, firstColumn + 51) == "true";
+    value.videoTranscodeMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 52));
+    value.fileEncryptionMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 53));
+    value.externalWatermarkMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 54));
+    value.defaultSharePermission = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 55));
+    value.syncFolderPath = stringColumn(rows, row, firstColumn + 56);
+    value.echoCancellationEnabled = stringColumn(rows, row, firstColumn + 57) == "true";
+    value.noiseSuppressionEnabled = stringColumn(rows, row, firstColumn + 58) == "true";
+    value.autoGainControlEnabled = stringColumn(rows, row, firstColumn + 59) == "true";
+    value.cameraMirrorEnabled = stringColumn(rows, row, firstColumn + 60) == "true";
+    value.videoResolutionMode = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 61));
+    value.bandwidthOptimizationEnabled = stringColumn(rows, row, firstColumn + 62) == "true";
+    value.recordingPermissionEnabled = stringColumn(rows, row, firstColumn + 63) == "true";
+    value.incomingCallWindowPosition = static_cast<std::uint32_t>(unsignedColumn(rows, row, firstColumn + 64));
+    value.bluetoothPreferred = stringColumn(rows, row, firstColumn + 65) == "true";
+    value.callShortcut = stringColumn(rows, row, firstColumn + 66);
     return value;
 }
 
@@ -268,9 +325,42 @@ bool validUserSettings(const protocol::UserSettingsProfile& value)
     };
     const auto languageValid = value.language == "zh-CN" || value.language == "en-US";
     const auto themeValid = value.theme == "system" || value.theme == "light" || value.theme == "dark";
+    const auto visibilityValid = value.phoneVisibility <= 2 && value.emailVisibility <= 2
+        && value.searchVisibility <= 2;
+    const auto notificationValid = !value.notificationSoundName.empty()
+        && value.notificationSoundName.size() <= 64 && value.groupNotificationLevel <= 2
+        && value.calendarReminderMinutes <= 10'080
+        && value.doNotDisturbStartMinutes <= 1'439
+        && value.doNotDisturbEndMinutes <= 1'439
+        && value.notificationPreviewMode <= 2 && value.messageBubbleDensity <= 2;
+    const auto colorValid = [](const std::string& color) {
+        return (color.size() == 7 || color.size() == 9) && color.front() == '#'
+            && std::all_of(color.begin() + 1, color.end(), [](unsigned char character) {
+                   return std::isxdigit(character) != 0;
+               });
+    };
+    const auto appearanceValid = colorValid(value.primaryColor) && colorValid(value.accentColor)
+        && value.sidebarStyle <= 3 && value.cardRadiusMode <= 3 && value.uiDensity <= 2
+        && value.fontSizeMode <= 3 && !value.chatBackground.empty()
+        && value.chatBackground.size() <= 64 && value.messageBubbleStyle <= 2
+        && value.contentViewMode <= 1 && value.windowTransparency <= 40
+        && value.animationIntensity <= 2 && !containsNul(value.chatBackground);
+    const auto fileStorageValid = value.recentFileRetentionDays >= 1
+        && value.recentFileRetentionDays <= 3'650
+        && value.cacheSizeLimitMb >= 256 && value.cacheSizeLimitMb <= 102'400
+        && value.filePreviewMode <= 1 && value.videoTranscodeMode <= 1
+        && value.fileEncryptionMode <= 1 && value.externalWatermarkMode <= 1
+        && value.defaultSharePermission <= 2 && value.syncFolderPath.size() <= 1024
+        && !containsNul(value.syncFolderPath);
+    const auto callDeviceValid = value.videoResolutionMode <= 2
+        && value.incomingCallWindowPosition <= 3 && !value.callShortcut.empty()
+        && value.callShortcut.size() <= 64 && !containsNul(value.callShortcut);
     return value.autoLockMinutes >= 1 && value.autoLockMinutes <= 1440
         && !value.downloadPath.empty() && value.downloadPath.size() <= 1024
-        && !containsNul(value.downloadPath) && languageValid && themeValid;
+        && !containsNul(value.downloadPath) && languageValid && themeValid
+        && visibilityValid && value.profileSignature.size() <= 160 && notificationValid
+        && appearanceValid && fileStorageValid && callDeviceValid
+        && !containsNul(value.profileSignature) && !containsNul(value.notificationSoundName);
 }
 
 /** @brief 将联系人摘要查询的固定列恢复为协议对象；列顺序由最近/收藏两个查询共享。 */
@@ -3119,14 +3209,82 @@ ON CONFLICT (person_id) DO NOTHING
 SELECT s.revision::text, s.two_factor_enabled::text, s.startup_enabled::text,
        s.auto_login_enabled::text, s.auto_lock_minutes::text,
        s.chat_watermark_enabled::text, s.screenshot_protection_enabled::text,
-       s.download_path, s.language, s.theme, s.storage_quota_bytes::text,
+       s.download_path, s.language, s.theme, s.phone_visibility::text,
+       s.email_visibility::text, s.search_visibility::text,
+       s.phone_search_enabled::text, s.profile_signature,
+       s.new_message_notification_enabled::text, s.notification_sound_enabled::text,
+       s.notification_sound_name, s.desktop_popup_enabled::text,
+       s.unread_badge_enabled::text, s.mention_notification_enabled::text,
+       s.group_notification_level::text, s.system_notification_enabled::text,
+       s.approval_notification_enabled::text, s.file_notification_enabled::text,
+       s.calendar_notification_enabled::text, s.calendar_reminder_minutes::text,
+       s.do_not_disturb_enabled::text, s.do_not_disturb_start_minutes::text,
+       s.do_not_disturb_end_minutes::text, s.notification_preview_mode::text,
+       s.read_receipt_enabled::text, s.enter_to_send_enabled::text,
+       s.message_bubble_density::text,
+       s.primary_color, s.accent_color, s.sidebar_style::text,
+       s.card_radius_mode::text, s.ui_density::text, s.font_size_mode::text,
+       s.chat_background, s.message_bubble_style::text, s.content_view_mode::text,
+       s.window_transparency::text, s.animation_enabled::text,
+       s.animation_intensity::text,
+       s.auto_save_received_files::text, s.recent_file_retention_days::text,
+       s.auto_cache_cleanup_enabled::text, s.cache_size_limit_mb::text,
+       s.file_preview_mode::text, s.image_auto_compress_enabled::text,
+       s.video_transcode_mode::text, s.file_encryption_mode::text,
+       s.external_watermark_mode::text, s.default_share_permission::text,
+       s.sync_folder_path,
+       s.echo_cancellation_enabled::text, s.noise_suppression_enabled::text,
+       s.auto_gain_control_enabled::text, s.camera_mirror_enabled::text,
+       s.video_resolution_mode::text, s.bandwidth_optimization_enabled::text,
+       s.recording_permission_enabled::text, s.incoming_call_window_position::text,
+       s.bluetooth_preferred::text, s.call_shortcut,
+       s.storage_quota_bytes::text,
        (SELECT COUNT(DISTINCT d.id)::text FROM user_devices d
         JOIN user_accounts a ON a.id=d.account_id WHERE a.person_id=s.person_id),
        (SELECT COUNT(DISTINCT d.id) FILTER (WHERE d.trusted)::text FROM user_devices d
         JOIN user_accounts a ON a.id=d.account_id WHERE a.person_id=s.person_id),
        (SELECT COALESCE(SUM(f.size_bytes), 0)::text FROM file_assets f
-        WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL)
-FROM user_settings s WHERE s.person_id=$1
+        WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COALESCE(SUM(f.size_bytes) FILTER (WHERE f.media_type LIKE 'text/%'
+            OR f.media_type='application/pdf' OR f.media_type='application/msword'
+            OR f.media_type LIKE 'application/vnd.%'), 0)::text FROM file_assets f
+        WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COALESCE(SUM(f.size_bytes) FILTER (WHERE f.media_type LIKE 'image/%'), 0)::text
+        FROM file_assets f WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COALESCE(SUM(f.size_bytes) FILTER (WHERE f.media_type LIKE 'video/%'), 0)::text
+        FROM file_assets f WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COALESCE(SUM(f.size_bytes) FILTER (WHERE NOT (f.media_type LIKE 'text/%'
+            OR f.media_type='application/pdf' OR f.media_type='application/msword'
+            OR f.media_type LIKE 'application/vnd.%' OR f.media_type LIKE 'image/%'
+            OR f.media_type LIKE 'video/%')), 0)::text FROM file_assets f
+        WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COUNT(*)::text FROM file_assets f
+        WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       (SELECT COALESCE((EXTRACT(EPOCH FROM MAX(f.created_at_utc))*1000)::bigint, 0)::text
+        FROM file_assets f WHERE f.owner_person_id=s.person_id AND f.deleted_at_utc IS NULL),
+       o.name,
+       COALESCE(account.login_name, ''), COALESCE(account.status::text, ''),
+       COALESCE((EXTRACT(EPOCH FROM account.last_login_at_utc)*1000)::bigint::text, '0'),
+       COALESCE(last_device.device_name, ''), COALESCE(last_device.platform, ''),
+       COALESCE(last_device.source_address, ''),
+       (SELECT COUNT(*)::text FROM persons member
+        WHERE member.organization_id=p.organization_id AND member.enabled
+          AND member.primary_department_id IS NOT DISTINCT FROM p.primary_department_id)
+FROM user_settings s
+JOIN persons p ON p.id=s.person_id
+JOIN organizations o ON o.id=p.organization_id
+LEFT JOIN LATERAL (
+    SELECT a.login_name, a.status, a.last_login_at_utc
+    FROM user_accounts a WHERE a.person_id=p.id
+    ORDER BY a.last_login_at_utc DESC NULLS LAST, a.id LIMIT 1
+) account ON true
+LEFT JOIN LATERAL (
+    SELECT d.device_name, d.platform, COALESCE(lr.source_address::text, '') AS source_address
+    FROM login_records lr LEFT JOIN user_devices d ON d.id=lr.device_id
+    WHERE lr.account_id IN (SELECT id FROM user_accounts WHERE person_id=p.id) AND lr.succeeded
+    ORDER BY lr.occurred_at_utc DESC, lr.id DESC LIMIT 1
+) last_device ON true
+WHERE s.person_id=$1
 )SQL", {std::to_string(requesterPersonId)});
     if (!tuplesOk(row) || PQntuples(row.get()) != 1)
     {
@@ -3135,18 +3293,34 @@ FROM user_settings s WHERE s.person_id=$1
         return response;
     }
     response.settings = userSettingsFromRow(row.get(), 0);
-    response.systemInfo.deviceCount = static_cast<std::uint32_t>(unsignedColumn(row.get(), 0, 11));
-    response.systemInfo.trustedDeviceCount = static_cast<std::uint32_t>(unsignedColumn(row.get(), 0, 12));
-    response.systemInfo.storageUsedBytes = unsignedColumn(row.get(), 0, 13);
-    response.systemInfo.storageQuotaBytes = unsignedColumn(row.get(), 0, 10);
+    // 设置快照固定占用前 67 列；其后的聚合信息索引必须随协议投影同步维护。
+    response.systemInfo.deviceCount = static_cast<std::uint32_t>(unsignedColumn(row.get(), 0, 68));
+    response.systemInfo.trustedDeviceCount = static_cast<std::uint32_t>(unsignedColumn(row.get(), 0, 69));
+    response.systemInfo.storageUsedBytes = unsignedColumn(row.get(), 0, 70);
+    response.systemInfo.storageQuotaBytes = unsignedColumn(row.get(), 0, 67);
+    response.systemInfo.storageDocumentBytes = unsignedColumn(row.get(), 0, 71);
+    response.systemInfo.storageImageBytes = unsignedColumn(row.get(), 0, 72);
+    response.systemInfo.storageVideoBytes = unsignedColumn(row.get(), 0, 73);
+    response.systemInfo.storageOtherBytes = unsignedColumn(row.get(), 0, 74);
+    response.systemInfo.syncedFileCount = unsignedColumn(row.get(), 0, 75);
+    response.systemInfo.lastFileSyncAtUtcMs = unsignedColumn(row.get(), 0, 76);
     response.systemInfo.intranetMode = true;
     response.systemInfo.endToEndEncryptionAvailable = false;
     response.systemInfo.certificateStatus = "已配置";
     response.systemInfo.transportEncryption = "TLS";
     response.systemInfo.cryptoStatus = "协议预留";
-    response.systemInfo.productName = "OrgLink Secure IM";
+    response.systemInfo.productName = "安域通";
     response.systemInfo.currentVersion = "1.0.0";
     response.systemInfo.updateDate = "2026-08-05";
+    response.systemInfo.organizationName = stringColumn(row.get(), 0, 77);
+    response.systemInfo.loginName = stringColumn(row.get(), 0, 78);
+    // 现行认证策略中状态 0 表示可登录；对 UI 返回语义文本，避免客户端复制数据库枚举。
+    response.systemInfo.accountStatusText = stringColumn(row.get(), 0, 79) == "0" ? "正常" : "受限";
+    response.systemInfo.lastLoginAtUtcMs = unsignedColumn(row.get(), 0, 80);
+    response.systemInfo.lastLoginDeviceName = stringColumn(row.get(), 0, 81);
+    response.systemInfo.lastLoginPlatform = stringColumn(row.get(), 0, 82);
+    response.systemInfo.lastLoginSource = stringColumn(row.get(), 0, 83);
+    response.systemInfo.teamMemberCount = static_cast<std::uint32_t>(unsignedColumn(row.get(), 0, 84));
     response.success = true;
     return response;
 }
@@ -3197,6 +3371,63 @@ WITH previous AS MATERIALIZED (
         download_path=$9,
         language=$10,
         theme=$11,
+        phone_visibility=$12,
+        email_visibility=$13,
+        search_visibility=$14,
+        phone_search_enabled=$15,
+        profile_signature=$16,
+        new_message_notification_enabled=$17,
+        notification_sound_enabled=$18,
+        notification_sound_name=$19,
+        desktop_popup_enabled=$20,
+        unread_badge_enabled=$21,
+        mention_notification_enabled=$22,
+        group_notification_level=$23,
+        system_notification_enabled=$24,
+        approval_notification_enabled=$25,
+        file_notification_enabled=$26,
+        calendar_notification_enabled=$27,
+        calendar_reminder_minutes=$28,
+        do_not_disturb_enabled=$29,
+        do_not_disturb_start_minutes=$30,
+        do_not_disturb_end_minutes=$31,
+        notification_preview_mode=$32,
+        read_receipt_enabled=$33,
+        enter_to_send_enabled=$34,
+        message_bubble_density=$35,
+        primary_color=$36,
+        accent_color=$37,
+        sidebar_style=$38,
+        card_radius_mode=$39,
+        ui_density=$40,
+        font_size_mode=$41,
+        chat_background=$42,
+        message_bubble_style=$43,
+        content_view_mode=$44,
+        window_transparency=$45,
+        animation_enabled=$46,
+        animation_intensity=$47,
+        auto_save_received_files=$48,
+        recent_file_retention_days=$49,
+        auto_cache_cleanup_enabled=$50,
+        cache_size_limit_mb=$51,
+        file_preview_mode=$52,
+        image_auto_compress_enabled=$53,
+        video_transcode_mode=$54,
+        file_encryption_mode=$55,
+        external_watermark_mode=$56,
+        default_share_permission=$57,
+        sync_folder_path=$58,
+        echo_cancellation_enabled=$59,
+        noise_suppression_enabled=$60,
+        auto_gain_control_enabled=$61,
+        camera_mirror_enabled=$62,
+        video_resolution_mode=$63,
+        bandwidth_optimization_enabled=$64,
+        recording_permission_enabled=$65,
+        incoming_call_window_position=$66,
+        bluetooth_preferred=$67,
+        call_shortcut=$68,
         updated_at_utc=CURRENT_TIMESTAMP
     FROM previous p WHERE s.person_id=p.person_id
     RETURNING s.*
@@ -3208,7 +3439,35 @@ WITH previous AS MATERIALIZED (
 SELECT c.revision::text, c.two_factor_enabled::text, c.startup_enabled::text,
        c.auto_login_enabled::text, c.auto_lock_minutes::text,
        c.chat_watermark_enabled::text, c.screenshot_protection_enabled::text,
-       c.download_path, c.language, c.theme
+       c.download_path, c.language, c.theme, c.phone_visibility::text,
+       c.email_visibility::text, c.search_visibility::text,
+       c.phone_search_enabled::text, c.profile_signature,
+       c.new_message_notification_enabled::text, c.notification_sound_enabled::text,
+       c.notification_sound_name, c.desktop_popup_enabled::text,
+       c.unread_badge_enabled::text, c.mention_notification_enabled::text,
+       c.group_notification_level::text, c.system_notification_enabled::text,
+       c.approval_notification_enabled::text, c.file_notification_enabled::text,
+       c.calendar_notification_enabled::text, c.calendar_reminder_minutes::text,
+       c.do_not_disturb_enabled::text, c.do_not_disturb_start_minutes::text,
+       c.do_not_disturb_end_minutes::text, c.notification_preview_mode::text,
+       c.read_receipt_enabled::text, c.enter_to_send_enabled::text,
+       c.message_bubble_density::text,
+       c.primary_color, c.accent_color, c.sidebar_style::text,
+       c.card_radius_mode::text, c.ui_density::text, c.font_size_mode::text,
+       c.chat_background, c.message_bubble_style::text, c.content_view_mode::text,
+       c.window_transparency::text, c.animation_enabled::text,
+       c.animation_intensity::text,
+       c.auto_save_received_files::text, c.recent_file_retention_days::text,
+       c.auto_cache_cleanup_enabled::text, c.cache_size_limit_mb::text,
+       c.file_preview_mode::text, c.image_auto_compress_enabled::text,
+       c.video_transcode_mode::text, c.file_encryption_mode::text,
+       c.external_watermark_mode::text, c.default_share_permission::text,
+       c.sync_folder_path,
+       c.echo_cancellation_enabled::text, c.noise_suppression_enabled::text,
+       c.auto_gain_control_enabled::text, c.camera_mirror_enabled::text,
+       c.video_resolution_mode::text, c.bandwidth_optimization_enabled::text,
+       c.recording_permission_enabled::text, c.incoming_call_window_position::text,
+       c.bluetooth_preferred::text, c.call_shortcut
 FROM changed c CROSS JOIN audited
 )SQL", {std::to_string(requesterPersonId), std::to_string(request.expectedRevision),
         request.settings.twoFactorEnabled ? "true" : "false",
@@ -3217,7 +3476,63 @@ FROM changed c CROSS JOIN audited
         std::to_string(request.settings.autoLockMinutes),
         request.settings.chatWatermarkEnabled ? "true" : "false",
         request.settings.screenshotProtectionEnabled ? "true" : "false",
-        request.settings.downloadPath, request.settings.language, request.settings.theme});
+        request.settings.downloadPath, request.settings.language, request.settings.theme,
+        std::to_string(request.settings.phoneVisibility),
+        std::to_string(request.settings.emailVisibility),
+        std::to_string(request.settings.searchVisibility),
+        request.settings.phoneSearchEnabled ? "true" : "false",
+        request.settings.profileSignature,
+        request.settings.newMessageNotificationEnabled ? "true" : "false",
+        request.settings.notificationSoundEnabled ? "true" : "false",
+        request.settings.notificationSoundName,
+        request.settings.desktopPopupEnabled ? "true" : "false",
+        request.settings.unreadBadgeEnabled ? "true" : "false",
+        request.settings.mentionNotificationEnabled ? "true" : "false",
+        std::to_string(request.settings.groupNotificationLevel),
+        request.settings.systemNotificationEnabled ? "true" : "false",
+        request.settings.approvalNotificationEnabled ? "true" : "false",
+        request.settings.fileNotificationEnabled ? "true" : "false",
+        request.settings.calendarNotificationEnabled ? "true" : "false",
+        std::to_string(request.settings.calendarReminderMinutes),
+        request.settings.doNotDisturbEnabled ? "true" : "false",
+        std::to_string(request.settings.doNotDisturbStartMinutes),
+        std::to_string(request.settings.doNotDisturbEndMinutes),
+        std::to_string(request.settings.notificationPreviewMode),
+        request.settings.readReceiptEnabled ? "true" : "false",
+        request.settings.enterToSendEnabled ? "true" : "false",
+        std::to_string(request.settings.messageBubbleDensity),
+        request.settings.primaryColor, request.settings.accentColor,
+        std::to_string(request.settings.sidebarStyle),
+        std::to_string(request.settings.cardRadiusMode),
+        std::to_string(request.settings.uiDensity),
+        std::to_string(request.settings.fontSizeMode),
+        request.settings.chatBackground,
+        std::to_string(request.settings.messageBubbleStyle),
+        std::to_string(request.settings.contentViewMode),
+        std::to_string(request.settings.windowTransparency),
+        request.settings.animationEnabled ? "true" : "false",
+        std::to_string(request.settings.animationIntensity),
+        request.settings.autoSaveReceivedFiles ? "true" : "false",
+        std::to_string(request.settings.recentFileRetentionDays),
+        request.settings.autoCacheCleanupEnabled ? "true" : "false",
+        std::to_string(request.settings.cacheSizeLimitMb),
+        std::to_string(request.settings.filePreviewMode),
+        request.settings.imageAutoCompressEnabled ? "true" : "false",
+        std::to_string(request.settings.videoTranscodeMode),
+        std::to_string(request.settings.fileEncryptionMode),
+        std::to_string(request.settings.externalWatermarkMode),
+        std::to_string(request.settings.defaultSharePermission),
+        request.settings.syncFolderPath,
+        request.settings.echoCancellationEnabled ? "true" : "false",
+        request.settings.noiseSuppressionEnabled ? "true" : "false",
+        request.settings.autoGainControlEnabled ? "true" : "false",
+        request.settings.cameraMirrorEnabled ? "true" : "false",
+        std::to_string(request.settings.videoResolutionMode),
+        request.settings.bandwidthOptimizationEnabled ? "true" : "false",
+        request.settings.recordingPermissionEnabled ? "true" : "false",
+        std::to_string(request.settings.incomingCallWindowPosition),
+        request.settings.bluetoothPreferred ? "true" : "false",
+        request.settings.callShortcut});
     if (!tuplesOk(updated))
     {
         rollback(connection.get());
@@ -3280,6 +3595,63 @@ WITH previous AS MATERIALIZED (
         download_path='Downloads',
         language='zh-CN',
         theme='system',
+        phone_visibility=0,
+        email_visibility=0,
+        search_visibility=0,
+        phone_search_enabled=true,
+        profile_signature='',
+        new_message_notification_enabled=true,
+        notification_sound_enabled=true,
+        notification_sound_name='default',
+        desktop_popup_enabled=true,
+        unread_badge_enabled=true,
+        mention_notification_enabled=true,
+        group_notification_level=0,
+        system_notification_enabled=true,
+        approval_notification_enabled=true,
+        file_notification_enabled=true,
+        calendar_notification_enabled=true,
+        calendar_reminder_minutes=15,
+        do_not_disturb_enabled=false,
+        do_not_disturb_start_minutes=1320,
+        do_not_disturb_end_minutes=480,
+        notification_preview_mode=0,
+        read_receipt_enabled=true,
+        enter_to_send_enabled=false,
+        message_bubble_density=1,
+        primary_color='#1677FF',
+        accent_color='#13C2C2',
+        sidebar_style=0,
+        card_radius_mode=1,
+        ui_density=1,
+        font_size_mode=1,
+        chat_background='default',
+        message_bubble_style=0,
+        content_view_mode=0,
+        window_transparency=30,
+        animation_enabled=true,
+        animation_intensity=1,
+        auto_save_received_files=true,
+        recent_file_retention_days=30,
+        auto_cache_cleanup_enabled=true,
+        cache_size_limit_mb=2048,
+        file_preview_mode=0,
+        image_auto_compress_enabled=true,
+        video_transcode_mode=0,
+        file_encryption_mode=0,
+        external_watermark_mode=0,
+        default_share_permission=0,
+        sync_folder_path='',
+        echo_cancellation_enabled=true,
+        noise_suppression_enabled=true,
+        auto_gain_control_enabled=true,
+        camera_mirror_enabled=false,
+        video_resolution_mode=1,
+        bandwidth_optimization_enabled=true,
+        recording_permission_enabled=false,
+        incoming_call_window_position=0,
+        bluetooth_preferred=true,
+        call_shortcut='Alt+C',
         updated_at_utc=CURRENT_TIMESTAMP
     FROM previous p WHERE s.person_id=p.person_id
     RETURNING s.*
@@ -3291,7 +3663,35 @@ WITH previous AS MATERIALIZED (
 SELECT c.revision::text, c.two_factor_enabled::text, c.startup_enabled::text,
        c.auto_login_enabled::text, c.auto_lock_minutes::text,
        c.chat_watermark_enabled::text, c.screenshot_protection_enabled::text,
-       c.download_path, c.language, c.theme
+       c.download_path, c.language, c.theme, c.phone_visibility::text,
+       c.email_visibility::text, c.search_visibility::text,
+       c.phone_search_enabled::text, c.profile_signature,
+       c.new_message_notification_enabled::text, c.notification_sound_enabled::text,
+       c.notification_sound_name, c.desktop_popup_enabled::text,
+       c.unread_badge_enabled::text, c.mention_notification_enabled::text,
+       c.group_notification_level::text, c.system_notification_enabled::text,
+       c.approval_notification_enabled::text, c.file_notification_enabled::text,
+       c.calendar_notification_enabled::text, c.calendar_reminder_minutes::text,
+       c.do_not_disturb_enabled::text, c.do_not_disturb_start_minutes::text,
+       c.do_not_disturb_end_minutes::text, c.notification_preview_mode::text,
+       c.read_receipt_enabled::text, c.enter_to_send_enabled::text,
+       c.message_bubble_density::text,
+       c.primary_color, c.accent_color, c.sidebar_style::text,
+       c.card_radius_mode::text, c.ui_density::text, c.font_size_mode::text,
+       c.chat_background, c.message_bubble_style::text, c.content_view_mode::text,
+       c.window_transparency::text, c.animation_enabled::text,
+       c.animation_intensity::text,
+       c.auto_save_received_files::text, c.recent_file_retention_days::text,
+       c.auto_cache_cleanup_enabled::text, c.cache_size_limit_mb::text,
+       c.file_preview_mode::text, c.image_auto_compress_enabled::text,
+       c.video_transcode_mode::text, c.file_encryption_mode::text,
+       c.external_watermark_mode::text, c.default_share_permission::text,
+       c.sync_folder_path,
+       c.echo_cancellation_enabled::text, c.noise_suppression_enabled::text,
+       c.auto_gain_control_enabled::text, c.camera_mirror_enabled::text,
+       c.video_resolution_mode::text, c.bandwidth_optimization_enabled::text,
+       c.recording_permission_enabled::text, c.incoming_call_window_position::text,
+       c.bluetooth_preferred::text, c.call_shortcut
 FROM changed c CROSS JOIN audited
 )SQL", {std::to_string(requesterPersonId), std::to_string(request.expectedRevision)});
     if (!tuplesOk(reset))

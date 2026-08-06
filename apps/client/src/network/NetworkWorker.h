@@ -76,11 +76,11 @@ public slots:
     void markAllNotificationsRead(int category);
     /** @brief 请求当前认证用户设置和聚合安全状态。 */
     void requestSettings();
-    /** @brief 提交完整设置快照；人员身份由当前会话决定。 */
-    void updateSettings(qulonglong expectedRevision, bool twoFactorEnabled,
-                        bool startupEnabled, bool autoLoginEnabled, int autoLockMinutes,
-                        bool chatWatermarkEnabled, bool screenshotProtectionEnabled,
-                        const QString& downloadPath, const QString& language, const QString& theme);
+    /**
+     * @brief 提交完整协议设置快照；人员身份由当前会话决定。
+     * @details 使用值对象避免设置项增长后出现长参数错位；调用方必须完成范围裁剪和 UTF-8 转换。
+     */
+    void updateSettings(const protocol::UserSettingsProfile& settings);
     /** @brief 使用最后确认修订号恢复服务器默认设置。 */
     void resetSettings(qulonglong expectedRevision);
     /** @brief 请求当前认证人员的最近联系人与收藏摘要。 */

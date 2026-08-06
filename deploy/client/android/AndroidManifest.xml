@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.orglink.secureim"
+    android:versionCode="1"
+    android:versionName="0.2.0">
+
+    <!-- 局域网即时通信、通知与音视频会议所需的最小权限集合。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:label="安域通"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Qt Android 部署工具据此加载 CMake 生成的原生入口库。 -->
+            <meta-data android:name="android.app.lib_name" android:value="orglink-client" />
+        </activity>
+    </application>
+</manifest>

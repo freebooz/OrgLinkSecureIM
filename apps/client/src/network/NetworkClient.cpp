@@ -15,6 +15,7 @@
 #include <QUrlQuery>
 #include <QUuid>
 
+#include <algorithm>
 #include <span>
 
 namespace orglink::client
@@ -245,11 +246,143 @@ RemoteNotificationDetail toRemoteNotificationDetail(const protocol::Notification
 /** @brief 将协议设置快照转换为 UI 线程 DTO；所有字符串按 UTF-8 解码。 */
 RemoteUserSettings toRemoteUserSettings(const protocol::UserSettingsProfile& value)
 {
-    return {value.revision, value.twoFactorEnabled, value.startupEnabled,
+    RemoteUserSettings remote{value.revision, value.twoFactorEnabled, value.startupEnabled,
         value.autoLoginEnabled, static_cast<int>(value.autoLockMinutes),
         value.chatWatermarkEnabled, value.screenshotProtectionEnabled,
         QString::fromUtf8(value.downloadPath), QString::fromUtf8(value.language),
-        QString::fromUtf8(value.theme)};
+        QString::fromUtf8(value.theme), static_cast<int>(value.phoneVisibility),
+        static_cast<int>(value.emailVisibility), static_cast<int>(value.searchVisibility),
+        value.phoneSearchEnabled, QString::fromUtf8(value.profileSignature)};
+    remote.newMessageNotificationEnabled = value.newMessageNotificationEnabled;
+    remote.notificationSoundEnabled = value.notificationSoundEnabled;
+    remote.notificationSoundName = QString::fromUtf8(value.notificationSoundName);
+    remote.desktopPopupEnabled = value.desktopPopupEnabled;
+    remote.unreadBadgeEnabled = value.unreadBadgeEnabled;
+    remote.mentionNotificationEnabled = value.mentionNotificationEnabled;
+    remote.groupNotificationLevel = static_cast<int>(value.groupNotificationLevel);
+    remote.systemNotificationEnabled = value.systemNotificationEnabled;
+    remote.approvalNotificationEnabled = value.approvalNotificationEnabled;
+    remote.fileNotificationEnabled = value.fileNotificationEnabled;
+    remote.calendarNotificationEnabled = value.calendarNotificationEnabled;
+    remote.calendarReminderMinutes = static_cast<int>(value.calendarReminderMinutes);
+    remote.doNotDisturbEnabled = value.doNotDisturbEnabled;
+    remote.doNotDisturbStartMinutes = static_cast<int>(value.doNotDisturbStartMinutes);
+    remote.doNotDisturbEndMinutes = static_cast<int>(value.doNotDisturbEndMinutes);
+    remote.notificationPreviewMode = static_cast<int>(value.notificationPreviewMode);
+    remote.readReceiptEnabled = value.readReceiptEnabled;
+    remote.enterToSendEnabled = value.enterToSendEnabled;
+    remote.messageBubbleDensity = static_cast<int>(value.messageBubbleDensity);
+    remote.primaryColor = QString::fromUtf8(value.primaryColor);
+    remote.accentColor = QString::fromUtf8(value.accentColor);
+    remote.sidebarStyle = static_cast<int>(value.sidebarStyle);
+    remote.cardRadiusMode = static_cast<int>(value.cardRadiusMode);
+    remote.uiDensity = static_cast<int>(value.uiDensity);
+    remote.fontSizeMode = static_cast<int>(value.fontSizeMode);
+    remote.chatBackground = QString::fromUtf8(value.chatBackground);
+    remote.messageBubbleStyle = static_cast<int>(value.messageBubbleStyle);
+    remote.contentViewMode = static_cast<int>(value.contentViewMode);
+    remote.windowTransparency = static_cast<int>(value.windowTransparency);
+    remote.animationEnabled = value.animationEnabled;
+    remote.animationIntensity = static_cast<int>(value.animationIntensity);
+    remote.autoSaveReceivedFiles = value.autoSaveReceivedFiles;
+    remote.recentFileRetentionDays = static_cast<int>(value.recentFileRetentionDays);
+    remote.autoCacheCleanupEnabled = value.autoCacheCleanupEnabled;
+    remote.cacheSizeLimitMb = static_cast<int>(value.cacheSizeLimitMb);
+    remote.filePreviewMode = static_cast<int>(value.filePreviewMode);
+    remote.imageAutoCompressEnabled = value.imageAutoCompressEnabled;
+    remote.videoTranscodeMode = static_cast<int>(value.videoTranscodeMode);
+    remote.fileEncryptionMode = static_cast<int>(value.fileEncryptionMode);
+    remote.externalWatermarkMode = static_cast<int>(value.externalWatermarkMode);
+    remote.defaultSharePermission = static_cast<int>(value.defaultSharePermission);
+    remote.syncFolderPath = QString::fromUtf8(value.syncFolderPath);
+    remote.echoCancellationEnabled = value.echoCancellationEnabled;
+    remote.noiseSuppressionEnabled = value.noiseSuppressionEnabled;
+    remote.autoGainControlEnabled = value.autoGainControlEnabled;
+    remote.cameraMirrorEnabled = value.cameraMirrorEnabled;
+    remote.videoResolutionMode = static_cast<int>(value.videoResolutionMode);
+    remote.bandwidthOptimizationEnabled = value.bandwidthOptimizationEnabled;
+    remote.recordingPermissionEnabled = value.recordingPermissionEnabled;
+    remote.incomingCallWindowPosition = static_cast<int>(value.incomingCallWindowPosition);
+    remote.bluetoothPreferred = value.bluetoothPreferred;
+    remote.callShortcut = QString::fromUtf8(value.callShortcut);
+    return remote;
+}
+
+/** @brief 将 UI 设置 DTO 转换为可在线程间复制的协议值对象，并在网络边界再次裁剪数值范围。 */
+protocol::UserSettingsProfile toProtocolUserSettings(const RemoteUserSettings& value)
+{
+    protocol::UserSettingsProfile settings;
+    settings.revision = value.revision;
+    settings.twoFactorEnabled = value.twoFactorEnabled;
+    settings.startupEnabled = value.startupEnabled;
+    settings.autoLoginEnabled = value.autoLoginEnabled;
+    settings.autoLockMinutes = static_cast<std::uint32_t>(std::clamp(value.autoLockMinutes, 1, 1440));
+    settings.chatWatermarkEnabled = value.chatWatermarkEnabled;
+    settings.screenshotProtectionEnabled = value.screenshotProtectionEnabled;
+    settings.downloadPath = value.downloadPath.toUtf8().toStdString();
+    settings.language = value.language.toUtf8().toStdString();
+    settings.theme = value.theme.toUtf8().toStdString();
+    settings.phoneVisibility = static_cast<std::uint32_t>(std::clamp(value.phoneVisibility, 0, 2));
+    settings.emailVisibility = static_cast<std::uint32_t>(std::clamp(value.emailVisibility, 0, 2));
+    settings.searchVisibility = static_cast<std::uint32_t>(std::clamp(value.searchVisibility, 0, 2));
+    settings.phoneSearchEnabled = value.phoneSearchEnabled;
+    settings.profileSignature = value.profileSignature.toUtf8().toStdString();
+    settings.newMessageNotificationEnabled = value.newMessageNotificationEnabled;
+    settings.notificationSoundEnabled = value.notificationSoundEnabled;
+    settings.notificationSoundName = value.notificationSoundName.toUtf8().toStdString();
+    settings.desktopPopupEnabled = value.desktopPopupEnabled;
+    settings.unreadBadgeEnabled = value.unreadBadgeEnabled;
+    settings.mentionNotificationEnabled = value.mentionNotificationEnabled;
+    settings.groupNotificationLevel = static_cast<std::uint32_t>(std::clamp(value.groupNotificationLevel, 0, 2));
+    settings.systemNotificationEnabled = value.systemNotificationEnabled;
+    settings.approvalNotificationEnabled = value.approvalNotificationEnabled;
+    settings.fileNotificationEnabled = value.fileNotificationEnabled;
+    settings.calendarNotificationEnabled = value.calendarNotificationEnabled;
+    settings.calendarReminderMinutes = static_cast<std::uint32_t>(std::clamp(value.calendarReminderMinutes, 0, 10'080));
+    settings.doNotDisturbEnabled = value.doNotDisturbEnabled;
+    settings.doNotDisturbStartMinutes = static_cast<std::uint32_t>(std::clamp(value.doNotDisturbStartMinutes, 0, 1'439));
+    settings.doNotDisturbEndMinutes = static_cast<std::uint32_t>(std::clamp(value.doNotDisturbEndMinutes, 0, 1'439));
+    settings.notificationPreviewMode = static_cast<std::uint32_t>(std::clamp(value.notificationPreviewMode, 0, 2));
+    settings.readReceiptEnabled = value.readReceiptEnabled;
+    settings.enterToSendEnabled = value.enterToSendEnabled;
+    settings.messageBubbleDensity = static_cast<std::uint32_t>(std::clamp(value.messageBubbleDensity, 0, 2));
+    settings.primaryColor = value.primaryColor.toUtf8().toStdString();
+    settings.accentColor = value.accentColor.toUtf8().toStdString();
+    settings.sidebarStyle = static_cast<std::uint32_t>(std::clamp(value.sidebarStyle, 0, 3));
+    settings.cardRadiusMode = static_cast<std::uint32_t>(std::clamp(value.cardRadiusMode, 0, 3));
+    settings.uiDensity = static_cast<std::uint32_t>(std::clamp(value.uiDensity, 0, 2));
+    settings.fontSizeMode = static_cast<std::uint32_t>(std::clamp(value.fontSizeMode, 0, 3));
+    settings.chatBackground = value.chatBackground.toUtf8().toStdString();
+    settings.messageBubbleStyle = static_cast<std::uint32_t>(std::clamp(value.messageBubbleStyle, 0, 2));
+    settings.contentViewMode = static_cast<std::uint32_t>(std::clamp(value.contentViewMode, 0, 1));
+    settings.windowTransparency = static_cast<std::uint32_t>(std::clamp(value.windowTransparency, 0, 40));
+    settings.animationEnabled = value.animationEnabled;
+    settings.animationIntensity = static_cast<std::uint32_t>(std::clamp(value.animationIntensity, 0, 2));
+    settings.autoSaveReceivedFiles = value.autoSaveReceivedFiles;
+    settings.recentFileRetentionDays = static_cast<std::uint32_t>(
+        std::clamp(value.recentFileRetentionDays, 1, 3'650));
+    settings.autoCacheCleanupEnabled = value.autoCacheCleanupEnabled;
+    settings.cacheSizeLimitMb = static_cast<std::uint32_t>(
+        std::clamp(value.cacheSizeLimitMb, 256, 102'400));
+    settings.filePreviewMode = static_cast<std::uint32_t>(std::clamp(value.filePreviewMode, 0, 1));
+    settings.imageAutoCompressEnabled = value.imageAutoCompressEnabled;
+    settings.videoTranscodeMode = static_cast<std::uint32_t>(std::clamp(value.videoTranscodeMode, 0, 1));
+    settings.fileEncryptionMode = static_cast<std::uint32_t>(std::clamp(value.fileEncryptionMode, 0, 1));
+    settings.externalWatermarkMode = static_cast<std::uint32_t>(std::clamp(value.externalWatermarkMode, 0, 1));
+    settings.defaultSharePermission = static_cast<std::uint32_t>(std::clamp(value.defaultSharePermission, 0, 2));
+    settings.syncFolderPath = value.syncFolderPath.toUtf8().toStdString();
+    settings.echoCancellationEnabled = value.echoCancellationEnabled;
+    settings.noiseSuppressionEnabled = value.noiseSuppressionEnabled;
+    settings.autoGainControlEnabled = value.autoGainControlEnabled;
+    settings.cameraMirrorEnabled = value.cameraMirrorEnabled;
+    settings.videoResolutionMode = static_cast<std::uint32_t>(std::clamp(value.videoResolutionMode, 0, 2));
+    settings.bandwidthOptimizationEnabled = value.bandwidthOptimizationEnabled;
+    settings.recordingPermissionEnabled = value.recordingPermissionEnabled;
+    settings.incomingCallWindowPosition = static_cast<std::uint32_t>(
+        std::clamp(value.incomingCallWindowPosition, 0, 3));
+    settings.bluetoothPreferred = value.bluetoothPreferred;
+    settings.callShortcut = value.callShortcut.left(64).toUtf8().toStdString();
+    return settings;
 }
 
 RemoteSettingsSystemInfo toRemoteSettingsSystemInfo(const protocol::SettingsSystemInfo& value)
@@ -259,7 +392,13 @@ RemoteSettingsSystemInfo toRemoteSettingsSystemInfo(const protocol::SettingsSyst
         value.endToEndEncryptionAvailable, QString::fromUtf8(value.certificateStatus),
         QString::fromUtf8(value.transportEncryption), QString::fromUtf8(value.cryptoStatus),
         QString::fromUtf8(value.productName), QString::fromUtf8(value.currentVersion),
-        QString::fromUtf8(value.updateDate)};
+        QString::fromUtf8(value.updateDate), QString::fromUtf8(value.organizationName),
+        QString::fromUtf8(value.loginName), QString::fromUtf8(value.accountStatusText),
+        value.lastLoginAtUtcMs, QString::fromUtf8(value.lastLoginDeviceName),
+        QString::fromUtf8(value.lastLoginPlatform), QString::fromUtf8(value.lastLoginSource),
+        static_cast<int>(value.teamMemberCount), value.storageDocumentBytes,
+        value.storageImageBytes, value.storageVideoBytes, value.storageOtherBytes,
+        value.syncedFileCount, value.lastFileSyncAtUtcMs};
 }
 
 RemoteContactSummary toRemoteContactSummary(const protocol::ContactSummary& value)
@@ -1126,11 +1265,9 @@ void NetworkClient::requestSettings()
 
 void NetworkClient::updateSettings(const RemoteUserSettings& settings)
 {
-    QMetaObject::invokeMethod(worker_, [this, settings]() {
-        worker_->updateSettings(settings.revision, settings.twoFactorEnabled,
-            settings.startupEnabled, settings.autoLoginEnabled, settings.autoLockMinutes,
-            settings.chatWatermarkEnabled, settings.screenshotProtectionEnabled,
-            settings.downloadPath, settings.language, settings.theme);
+    const auto protocolSettings = toProtocolUserSettings(settings);
+    QMetaObject::invokeMethod(worker_, [this, protocolSettings]() {
+        worker_->updateSettings(protocolSettings);
     }, Qt::QueuedConnection);
 }
 

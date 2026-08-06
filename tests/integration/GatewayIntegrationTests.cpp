@@ -464,6 +464,12 @@ void GatewayIntegrationTests::twoClientReliableMessageFlow()
     auto changedSettings = aliceSettings.settings;
     changedSettings.startupEnabled = false;
     changedSettings.autoLockMinutes = 15;
+    changedSettings.cacheSizeLimitMb = 5'120;
+    changedSettings.defaultSharePermission = 2;
+    changedSettings.echoCancellationEnabled = false;
+    changedSettings.videoResolutionMode = 2;
+    changedSettings.incomingCallWindowPosition = 3;
+    changedSettings.callShortcut = "Ctrl+Alt+C";
     send(alice, orglink::protocol::MessageType::SettingsUpdateRequest,
          orglink::protocol::encodeMessage(orglink::protocol::SettingsUpdateRequest{
              aliceSettings.settings.revision, changedSettings}));
@@ -473,6 +479,12 @@ void GatewayIntegrationTests::twoClientReliableMessageFlow()
     QVERIFY(updatedSettings.success);
     QCOMPARE(updatedSettings.settings.revision, 2ULL);
     QVERIFY(!updatedSettings.settings.startupEnabled);
+    QCOMPARE(updatedSettings.settings.cacheSizeLimitMb, 5'120U);
+    QCOMPARE(updatedSettings.settings.defaultSharePermission, 2U);
+    QVERIFY(!updatedSettings.settings.echoCancellationEnabled);
+    QCOMPARE(updatedSettings.settings.videoResolutionMode, 2U);
+    QCOMPARE(updatedSettings.settings.incomingCallWindowPosition, 3U);
+    QCOMPARE(updatedSettings.settings.callShortcut, "Ctrl+Alt+C");
 
     send(alice, orglink::protocol::MessageType::SettingsUpdateRequest,
          orglink::protocol::encodeMessage(orglink::protocol::SettingsUpdateRequest{
@@ -501,6 +513,12 @@ void GatewayIntegrationTests::twoClientReliableMessageFlow()
     QVERIFY(resetSettings.success);
     QCOMPARE(resetSettings.settings.revision, 3ULL);
     QVERIFY(resetSettings.settings.startupEnabled);
+    QCOMPARE(resetSettings.settings.cacheSizeLimitMb, 2'048U);
+    QCOMPARE(resetSettings.settings.defaultSharePermission, 0U);
+    QVERIFY(resetSettings.settings.echoCancellationEnabled);
+    QCOMPARE(resetSettings.settings.videoResolutionMode, 1U);
+    QCOMPARE(resetSettings.settings.incomingCallWindowPosition, 0U);
+    QCOMPARE(resetSettings.settings.callShortcut, "Alt+C");
 
     gateway.stop();
 }

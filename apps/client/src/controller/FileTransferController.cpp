@@ -2,15 +2,15 @@
 
 #include "model/SettingsModel.h"
 #include "network/NetworkClient.h"
-#include "view/file/FilePreviewDialog.h"
-#include "view/main/MainWindow.h"
 
 #include <QCryptographicHash>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileInfo>
+#include <QMimeDatabase>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QSet>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
@@ -18,18 +18,40 @@
 namespace orglink::client
 {
 
+namespace
+{
+
+/** @brief 危险扩展名优先级高于 MIME；任何平台均不得通过双击启动此类正文。 */
+bool isBlockedSuffix(const QString& suffix)
+{
+    static const QSet<QString> blocked{
+        QStringLiteral("exe"), QStringLiteral("com"), QStringLiteral("bat"),
+        QStringLiteral("cmd"), QStringLiteral("ps1"), QStringLiteral("psm1"),
+        QStringLiteral("msi"), QStringLiteral("msix"), QStringLiteral("scr"),
+        QStringLiteral("dll"), QStringLiteral("cpl"), QStringLiteral("lnk"),
+        QStringLiteral("url"), QStringLiteral("reg"), QStringLiteral("js"),
+        QStringLiteral("jse"), QStringLiteral("vbs"), QStringLiteral("vbe"),
+        QStringLiteral("wsf"), QStringLiteral("wsh"), QStringLiteral("hta"),
+        QStringLiteral("appx"), QStringLiteral("appxbundle")};
+    return blocked.contains(suffix.toLower());
+}
+
+} // namespace
+
 FileTransferController::FileTransferController(
-    NetworkClient* networkClient, SettingsModel* settingsModel,
-    MainWindow* mainWindow, QObject* parent)
-    : QObject(parent), networkClient_(networkClient), settingsModel_(settingsModel),
-      mainWindow_(mainWindow)
+    NetworkClient* networkClient, SettingsModel* settingsModel, QObject* parent)
+    : QObject(parent), networkClient_(networkClient), settingsModel_(settingsModel)
 {
     Q_ASSERT(settingsModel_ != nullptr);
-    Q_ASSERT(mainWindow_ != nullptr);
     if (networkClient_ != nullptr)
     {
         connect(networkClient_, &NetworkClient::fileDownloaded,
                 this, &FileTransferController::handleFileDownloaded);
+        connect(networkClient_, &NetworkClient::fileTransferFailed, this,
+                [this](const QString&) {
+            // 旧协议失败回调不携带资产标识，因此清空全部待处理意图，避免失败后永久阻止用户重试。
+            pendingActions_.clear();
+        });
     }
 }
 
@@ -72,6 +94,28 @@ QString FileTransferController::sanitizedFileName(const QString& fileName)
             + (suffix.isEmpty() ? QString{} : QStringLiteral(".") + suffix);
     }
     return normalized;
+}
+
+FilePreviewKind FileTransferController::previewKind(
+    const QString& localPath, const QString& mediaType)
+{
+    const QFileInfo fileInfo(localPath);
+    if (isBlockedSuffix(fileInfo.suffix())) return FilePreviewKind::Blocked;
+
+    QMimeDatabase database;
+    const auto contentMime = fileInfo.exists()
+        ? database.mimeTypeForFile(localPath, QMimeDatabase::MatchContent).name() : QString{};
+    const auto extensionMime = database.mimeTypeForFile(
+        localPath, QMimeDatabase::MatchExtension).name();
+    auto resolvedMime = contentMime;
+    if (resolvedMime.isEmpty() || resolvedMime == QStringLiteral("application/octet-stream"))
+        resolvedMime = mediaType.trimmed().toLower();
+    if (resolvedMime.isEmpty() || resolvedMime == QStringLiteral("application/octet-stream"))
+        resolvedMime = extensionMime;
+    if (resolvedMime.startsWith(QStringLiteral("image/"))) return FilePreviewKind::Image;
+    if (resolvedMime.startsWith(QStringLiteral("audio/"))) return FilePreviewKind::Audio;
+    if (resolvedMime.startsWith(QStringLiteral("video/"))) return FilePreviewKind::Video;
+    return FilePreviewKind::External;
 }
 
 void FileTransferController::requestOpen(const QString& assetUuid)
@@ -194,8 +238,9 @@ QString FileTransferController::uniqueTargetPath(
         if (!QFileInfo::exists(candidate)) return candidate;
     }
     // 极端冲突时使用随机性足够的时间无关散列后缀，避免覆盖任一现有用户文件。
+    const auto stableSeed = QDir(directory).absolutePath() + QLatin1Char('/') + safeFileName;
     const auto suffixHash = QString::fromLatin1(QCryptographicHash::hash(
-        safeFileName.toUtf8() + QByteArray::number(qHash(assetUuid)), QCryptographicHash::Sha256).toHex().left(10));
+        stableSeed.toUtf8(), QCryptographicHash::Sha256).toHex().left(10));
     return targetDirectory.filePath(QStringLiteral("%1-%2").arg(baseName, suffixHash)
         + (suffix.isEmpty() ? QString{} : QStringLiteral(".") + suffix));
 }
@@ -210,7 +255,7 @@ void FileTransferController::rememberLocalPath(
 void FileTransferController::openLocalFile(
     const QString& localPath, const QString& displayName, const QString& mediaType)
 {
-    const auto kind = FilePreviewDialog::previewKind(localPath, mediaType);
+    const auto kind = previewKind(localPath, mediaType);
     if (kind == FilePreviewKind::Blocked)
     {
         emit notificationRequested(QStringLiteral("安全策略禁止打开可执行文件或脚本；文件已保存供安全审查。"));
@@ -219,17 +264,9 @@ void FileTransferController::openLocalFile(
     if (kind == FilePreviewKind::Image || kind == FilePreviewKind::Audio
         || kind == FilePreviewKind::Video)
     {
-        auto* dialog = new FilePreviewDialog(localPath, displayName, mediaType, mainWindow_);
-        if (!dialog->isReady())
-        {
-            const auto message = dialog->diagnostic();
-            dialog->deleteLater();
-            emit notificationRequested(message);
-            return;
-        }
-        dialog->show();
-        dialog->raise();
-        dialog->activateWindow();
+        // 预览界面完全由 QML Image/MediaPlayer/VideoOutput 构建；C++ 只暴露安全 URL 和分类。
+        emit previewRequested(QUrl::fromLocalFile(localPath), displayName, mediaType,
+                              static_cast<int>(kind));
         return;
     }
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(localPath)))

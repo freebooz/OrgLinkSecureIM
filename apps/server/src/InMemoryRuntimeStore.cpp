@@ -30,17 +30,93 @@ protocol::LoginResponse loginFailure(std::uint32_t code, std::string message)
 /** @brief 构造与 PostgreSQL 迁移一致的安全默认设置，确保 Mock 测试不形成第二套业务语义。 */
 protocol::UserSettingsProfile defaultSettings(std::uint64_t revision = 1)
 {
-    return {revision, false, true, false, 10, true, false, "Downloads", "zh-CN", "system"};
+    protocol::UserSettingsProfile value;
+    value.revision = revision;
+    value.startupEnabled = true;
+    value.autoLockMinutes = 10;
+    value.chatWatermarkEnabled = true;
+    value.downloadPath = "Downloads";
+    value.language = "zh-CN";
+    value.theme = "system";
+    value.phoneSearchEnabled = true;
+    // 通知默认策略与迁移 015 保持一致；Mock 只模拟持久化语义，不宣称具有系统级推送权限。
+    value.newMessageNotificationEnabled = true;
+    value.notificationSoundEnabled = true;
+    value.notificationSoundName = "default";
+    value.desktopPopupEnabled = true;
+    value.unreadBadgeEnabled = true;
+    value.mentionNotificationEnabled = true;
+    value.systemNotificationEnabled = true;
+    value.approvalNotificationEnabled = true;
+    value.fileNotificationEnabled = true;
+    value.calendarNotificationEnabled = true;
+    value.calendarReminderMinutes = 15;
+    value.doNotDisturbStartMinutes = 22 * 60;
+    value.doNotDisturbEndMinutes = 8 * 60;
+    value.readReceiptEnabled = true;
+    value.messageBubbleDensity = 1;
+    value.primaryColor = "#1677FF";
+    value.accentColor = "#13C2C2";
+    value.cardRadiusMode = 1;
+    value.uiDensity = 1;
+    value.fontSizeMode = 1;
+    value.chatBackground = "default";
+    value.windowTransparency = 30;
+    value.animationEnabled = true;
+    value.animationIntensity = 1;
+    // 文件与存储默认值必须与迁移 017 一致，保证集成测试和生产数据库采用同一语义。
+    value.autoSaveReceivedFiles = true;
+    value.recentFileRetentionDays = 30;
+    value.autoCacheCleanupEnabled = true;
+    value.cacheSizeLimitMb = 2048;
+    value.imageAutoCompressEnabled = true;
+    // 通话默认值与迁移 018 保持一致；Mock 不保存或伪造任何硬件设备标识。
+    value.echoCancellationEnabled = true;
+    value.noiseSuppressionEnabled = true;
+    value.autoGainControlEnabled = true;
+    value.videoResolutionMode = 1;
+    value.bandwidthOptimizationEnabled = true;
+    value.bluetoothPreferred = true;
+    value.callShortcut = "Alt+C";
+    return value;
 }
 
 /** @brief 对可持久化设置执行与数据库约束一致的前置校验。 */
 bool validSettings(const protocol::UserSettingsProfile& value)
 {
+    const auto colorValid = [](const std::string& color) {
+        return (color.size() == 7 || color.size() == 9) && color.front() == '#'
+            && std::all_of(color.begin() + 1, color.end(), [](unsigned char character) {
+                   return std::isxdigit(character) != 0;
+               });
+    };
     const auto languageValid = value.language == "zh-CN" || value.language == "en-US";
     const auto themeValid = value.theme == "system" || value.theme == "light" || value.theme == "dark";
     return value.autoLockMinutes >= 1 && value.autoLockMinutes <= 1440
         && !value.downloadPath.empty() && value.downloadPath.size() <= 1024
-        && languageValid && themeValid;
+        && languageValid && themeValid && value.phoneVisibility <= 2
+        && value.emailVisibility <= 2 && value.searchVisibility <= 2
+        && value.profileSignature.size() <= 160
+        && !value.notificationSoundName.empty() && value.notificationSoundName.size() <= 64
+        && value.groupNotificationLevel <= 2
+        && value.calendarReminderMinutes <= 10'080
+        && value.doNotDisturbStartMinutes <= 1'439
+        && value.doNotDisturbEndMinutes <= 1'439
+        && value.notificationPreviewMode <= 2
+        && value.messageBubbleDensity <= 2
+        && colorValid(value.primaryColor) && colorValid(value.accentColor)
+        && value.sidebarStyle <= 3 && value.cardRadiusMode <= 3
+        && value.uiDensity <= 2 && value.fontSizeMode <= 3
+        && !value.chatBackground.empty() && value.chatBackground.size() <= 64
+        && value.messageBubbleStyle <= 2 && value.contentViewMode <= 1
+        && value.windowTransparency <= 40 && value.animationIntensity <= 2
+        && value.recentFileRetentionDays >= 1 && value.recentFileRetentionDays <= 3'650
+        && value.cacheSizeLimitMb >= 256 && value.cacheSizeLimitMb <= 102'400
+        && value.filePreviewMode <= 1 && value.videoTranscodeMode <= 1
+        && value.fileEncryptionMode <= 1 && value.externalWatermarkMode <= 1
+        && value.defaultSharePermission <= 2 && value.syncFolderPath.size() <= 1024
+        && value.videoResolutionMode <= 2 && value.incomingCallWindowPosition <= 3
+        && !value.callShortcut.empty() && value.callShortcut.size() <= 64;
 }
 
 /** @brief 对日程可持久化字段执行与 PostgreSQL 约束一致的校验，避免 Mock 与生产行为分叉。 */
@@ -1248,9 +1324,29 @@ protocol::SettingsGetResponse InMemoryRuntimeStore::loadSettings(std::uint64_t r
     auto [settings, inserted] = settings_.try_emplace(requesterPersonId, defaultSettings());
     static_cast<void>(inserted);
     response.settings = settings->second;
-    response.systemInfo = {1, 0, 0, 5ULL * 1024ULL * 1024ULL * 1024ULL,
-        true, false, "测试证书有效", "测试链路", "协议预留",
-        "OrgLink Secure IM", "1.0.0", "2026-08-05"};
+    response.systemInfo.deviceCount = 1;
+    response.systemInfo.storageQuotaBytes = 5ULL * 1024ULL * 1024ULL * 1024ULL;
+    // Mock 存储未持有对象正文，因此分类占用和同步数量必须保持真实的零值。
+    response.systemInfo.storageDocumentBytes = 0;
+    response.systemInfo.storageImageBytes = 0;
+    response.systemInfo.storageVideoBytes = 0;
+    response.systemInfo.storageOtherBytes = 0;
+    response.systemInfo.syncedFileCount = 0;
+    response.systemInfo.lastFileSyncAtUtcMs = 0;
+    response.systemInfo.intranetMode = true;
+    response.systemInfo.certificateStatus = "测试证书有效";
+    response.systemInfo.transportEncryption = "测试链路";
+    response.systemInfo.cryptoStatus = "协议预留";
+    response.systemInfo.productName = "安域通";
+    response.systemInfo.currentVersion = "1.0.0";
+    response.systemInfo.updateDate = "2026-08-05";
+    response.systemInfo.organizationName = "OrgLink 测试组织";
+    response.systemInfo.loginName = account->first;
+    response.systemInfo.accountStatusText = "正常";
+    response.systemInfo.lastLoginAtUtcMs = currentUtcMs();
+    response.systemInfo.lastLoginDeviceName = "集成测试客户端";
+    response.systemInfo.lastLoginPlatform = "Mock";
+    response.systemInfo.teamMemberCount = static_cast<std::uint32_t>(accounts_.size());
     response.success = true;
     return response;
 }

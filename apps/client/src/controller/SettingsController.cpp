@@ -88,9 +88,64 @@ void SettingsController::initializeForUser(qulonglong personId)
 
 SettingsProfileItem SettingsController::mapProfile(const RemoteUserSettings& remote)
 {
-    return {remote.revision, remote.twoFactorEnabled, remote.startupEnabled,
+    SettingsProfileItem profile{remote.revision, remote.twoFactorEnabled, remote.startupEnabled,
         remote.autoLoginEnabled, remote.autoLockMinutes, remote.chatWatermarkEnabled,
-        remote.screenshotProtectionEnabled, remote.downloadPath, remote.language, remote.theme};
+        remote.screenshotProtectionEnabled, remote.downloadPath, remote.language, remote.theme,
+        remote.phoneVisibility, remote.emailVisibility, remote.searchVisibility,
+        remote.phoneSearchEnabled, remote.profileSignature};
+    profile.newMessageNotificationEnabled = remote.newMessageNotificationEnabled;
+    profile.notificationSoundEnabled = remote.notificationSoundEnabled;
+    profile.notificationSoundName = remote.notificationSoundName;
+    profile.desktopPopupEnabled = remote.desktopPopupEnabled;
+    profile.unreadBadgeEnabled = remote.unreadBadgeEnabled;
+    profile.mentionNotificationEnabled = remote.mentionNotificationEnabled;
+    profile.groupNotificationLevel = remote.groupNotificationLevel;
+    profile.systemNotificationEnabled = remote.systemNotificationEnabled;
+    profile.approvalNotificationEnabled = remote.approvalNotificationEnabled;
+    profile.fileNotificationEnabled = remote.fileNotificationEnabled;
+    profile.calendarNotificationEnabled = remote.calendarNotificationEnabled;
+    profile.calendarReminderMinutes = remote.calendarReminderMinutes;
+    profile.doNotDisturbEnabled = remote.doNotDisturbEnabled;
+    profile.doNotDisturbStartMinutes = remote.doNotDisturbStartMinutes;
+    profile.doNotDisturbEndMinutes = remote.doNotDisturbEndMinutes;
+    profile.notificationPreviewMode = remote.notificationPreviewMode;
+    profile.readReceiptEnabled = remote.readReceiptEnabled;
+    profile.enterToSendEnabled = remote.enterToSendEnabled;
+    profile.messageBubbleDensity = remote.messageBubbleDensity;
+    profile.primaryColor = remote.primaryColor;
+    profile.accentColor = remote.accentColor;
+    profile.sidebarStyle = remote.sidebarStyle;
+    profile.cardRadiusMode = remote.cardRadiusMode;
+    profile.uiDensity = remote.uiDensity;
+    profile.fontSizeMode = remote.fontSizeMode;
+    profile.chatBackground = remote.chatBackground;
+    profile.messageBubbleStyle = remote.messageBubbleStyle;
+    profile.contentViewMode = remote.contentViewMode;
+    profile.windowTransparency = remote.windowTransparency;
+    profile.animationEnabled = remote.animationEnabled;
+    profile.animationIntensity = remote.animationIntensity;
+    profile.autoSaveReceivedFiles = remote.autoSaveReceivedFiles;
+    profile.recentFileRetentionDays = remote.recentFileRetentionDays;
+    profile.autoCacheCleanupEnabled = remote.autoCacheCleanupEnabled;
+    profile.cacheSizeLimitMb = remote.cacheSizeLimitMb;
+    profile.filePreviewMode = remote.filePreviewMode;
+    profile.imageAutoCompressEnabled = remote.imageAutoCompressEnabled;
+    profile.videoTranscodeMode = remote.videoTranscodeMode;
+    profile.fileEncryptionMode = remote.fileEncryptionMode;
+    profile.externalWatermarkMode = remote.externalWatermarkMode;
+    profile.defaultSharePermission = remote.defaultSharePermission;
+    profile.syncFolderPath = remote.syncFolderPath;
+    profile.echoCancellationEnabled = remote.echoCancellationEnabled;
+    profile.noiseSuppressionEnabled = remote.noiseSuppressionEnabled;
+    profile.autoGainControlEnabled = remote.autoGainControlEnabled;
+    profile.cameraMirrorEnabled = remote.cameraMirrorEnabled;
+    profile.videoResolutionMode = remote.videoResolutionMode;
+    profile.bandwidthOptimizationEnabled = remote.bandwidthOptimizationEnabled;
+    profile.recordingPermissionEnabled = remote.recordingPermissionEnabled;
+    profile.incomingCallWindowPosition = remote.incomingCallWindowPosition;
+    profile.bluetoothPreferred = remote.bluetoothPreferred;
+    profile.callShortcut = remote.callShortcut;
+    return profile;
 }
 
 SettingsSystemInfoItem SettingsController::mapSystemInfo(const RemoteSettingsSystemInfo& remote)
@@ -98,14 +153,74 @@ SettingsSystemInfoItem SettingsController::mapSystemInfo(const RemoteSettingsSys
     return {remote.deviceCount, remote.trustedDeviceCount, remote.storageUsedBytes,
         remote.storageQuotaBytes, remote.intranetMode, remote.endToEndEncryptionAvailable,
         remote.certificateStatus, remote.transportEncryption, remote.cryptoStatus,
-        remote.productName, remote.currentVersion, remote.updateDate};
+        remote.productName, remote.currentVersion, remote.updateDate, remote.organizationName,
+        remote.loginName, remote.accountStatusText, remote.lastLoginAtUtcMs,
+        remote.lastLoginDeviceName, remote.lastLoginPlatform, remote.lastLoginSource,
+        remote.teamMemberCount, remote.storageDocumentBytes, remote.storageImageBytes,
+        remote.storageVideoBytes, remote.storageOtherBytes, remote.syncedFileCount,
+        remote.lastFileSyncAtUtcMs};
 }
 
 RemoteUserSettings SettingsController::mapRemote(const SettingsProfileItem& profile)
 {
-    return {profile.revision, profile.twoFactorEnabled, profile.startupEnabled,
+    RemoteUserSettings remote{profile.revision, profile.twoFactorEnabled, profile.startupEnabled,
         profile.autoLoginEnabled, profile.autoLockMinutes, profile.chatWatermarkEnabled,
-        profile.screenshotProtectionEnabled, profile.downloadPath, profile.language, profile.theme};
+        profile.screenshotProtectionEnabled, profile.downloadPath, profile.language, profile.theme,
+        profile.phoneVisibility, profile.emailVisibility, profile.searchVisibility,
+        profile.phoneSearchEnabled, profile.profileSignature};
+    remote.newMessageNotificationEnabled = profile.newMessageNotificationEnabled;
+    remote.notificationSoundEnabled = profile.notificationSoundEnabled;
+    remote.notificationSoundName = profile.notificationSoundName;
+    remote.desktopPopupEnabled = profile.desktopPopupEnabled;
+    remote.unreadBadgeEnabled = profile.unreadBadgeEnabled;
+    remote.mentionNotificationEnabled = profile.mentionNotificationEnabled;
+    remote.groupNotificationLevel = profile.groupNotificationLevel;
+    remote.systemNotificationEnabled = profile.systemNotificationEnabled;
+    remote.approvalNotificationEnabled = profile.approvalNotificationEnabled;
+    remote.fileNotificationEnabled = profile.fileNotificationEnabled;
+    remote.calendarNotificationEnabled = profile.calendarNotificationEnabled;
+    remote.calendarReminderMinutes = profile.calendarReminderMinutes;
+    remote.doNotDisturbEnabled = profile.doNotDisturbEnabled;
+    remote.doNotDisturbStartMinutes = profile.doNotDisturbStartMinutes;
+    remote.doNotDisturbEndMinutes = profile.doNotDisturbEndMinutes;
+    remote.notificationPreviewMode = profile.notificationPreviewMode;
+    remote.readReceiptEnabled = profile.readReceiptEnabled;
+    remote.enterToSendEnabled = profile.enterToSendEnabled;
+    remote.messageBubbleDensity = profile.messageBubbleDensity;
+    remote.primaryColor = profile.primaryColor;
+    remote.accentColor = profile.accentColor;
+    remote.sidebarStyle = profile.sidebarStyle;
+    remote.cardRadiusMode = profile.cardRadiusMode;
+    remote.uiDensity = profile.uiDensity;
+    remote.fontSizeMode = profile.fontSizeMode;
+    remote.chatBackground = profile.chatBackground;
+    remote.messageBubbleStyle = profile.messageBubbleStyle;
+    remote.contentViewMode = profile.contentViewMode;
+    remote.windowTransparency = profile.windowTransparency;
+    remote.animationEnabled = profile.animationEnabled;
+    remote.animationIntensity = profile.animationIntensity;
+    remote.autoSaveReceivedFiles = profile.autoSaveReceivedFiles;
+    remote.recentFileRetentionDays = profile.recentFileRetentionDays;
+    remote.autoCacheCleanupEnabled = profile.autoCacheCleanupEnabled;
+    remote.cacheSizeLimitMb = profile.cacheSizeLimitMb;
+    remote.filePreviewMode = profile.filePreviewMode;
+    remote.imageAutoCompressEnabled = profile.imageAutoCompressEnabled;
+    remote.videoTranscodeMode = profile.videoTranscodeMode;
+    remote.fileEncryptionMode = profile.fileEncryptionMode;
+    remote.externalWatermarkMode = profile.externalWatermarkMode;
+    remote.defaultSharePermission = profile.defaultSharePermission;
+    remote.syncFolderPath = profile.syncFolderPath;
+    remote.echoCancellationEnabled = profile.echoCancellationEnabled;
+    remote.noiseSuppressionEnabled = profile.noiseSuppressionEnabled;
+    remote.autoGainControlEnabled = profile.autoGainControlEnabled;
+    remote.cameraMirrorEnabled = profile.cameraMirrorEnabled;
+    remote.videoResolutionMode = profile.videoResolutionMode;
+    remote.bandwidthOptimizationEnabled = profile.bandwidthOptimizationEnabled;
+    remote.recordingPermissionEnabled = profile.recordingPermissionEnabled;
+    remote.incomingCallWindowPosition = profile.incomingCallWindowPosition;
+    remote.bluetoothPreferred = profile.bluetoothPreferred;
+    remote.callShortcut = profile.callShortcut;
+    return remote;
 }
 
 } // namespace orglink::client

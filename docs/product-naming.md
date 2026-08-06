@@ -4,8 +4,8 @@
 
 | 项目 | 规范值 |
 |---|---|
-| 中文产品名称 | 信创组织即时通信平台 |
-| 中文简称 | 信创通 |
+| 中文产品名称 | 安域通 |
+| 中文简称 | 安域通 |
 | 英文产品名称 | OrgLink Secure IM |
 | 工程内部名称 | OrgLinkSecureIM |
 | 建议 Git 仓库名 | orglink-secure-im |
@@ -68,6 +68,15 @@ Windows：
 | `ORGLINK_BOOTSTRAP_PASSWORD` | Compose 初始管理员口令 | 是 |
 | `ORGLINK_PRIVATE_KEY_PASSWORD` | 证书私钥口令 | 是 |
 | `ORGLINK_LOG_LEVEL` | 日志级别 | 否 |
+| `ORGLINK_BUILD_NUMBER` | 关于页展示的受控构建号；未配置时使用工程版本与 Qt 版本组合 | 否 |
+| `ORGLINK_LICENSE_TYPE` | 部署方授权类型说明；空值明确显示“未配置授权服务” | 否 |
+| `ORGLINK_LICENSE_SEAT_LIMIT` | 部署授权席位上限，必须为正整数 | 否 |
+| `ORGLINK_LICENSE_EXPIRES_AT` | 部署授权到期日说明 | 否 |
+| `ORGLINK_SUPPORT_WEBSITE` | 关于页技术支持 HTTPS 地址 | 否 |
+| `ORGLINK_SUPPORT_EMAIL` | 关于页客服邮箱 | 否 |
+| `ORGLINK_SUPPORT_PHONE` | 关于页服务热线 | 否 |
+| `ORGLINK_IOS_DOWNLOAD_URL` | iOS 客户端 HTTPS 下载地址 | 否 |
+| `ORGLINK_ANDROID_DOWNLOAD_URL` | Android 客户端 HTTPS 下载地址 | 否 |
 
 敏感变量不得出现在命令行、镜像层、日志和崩溃报告中。生产环境应改用 Docker/Kubernetes Secret、密码机或操作系统秘密存储；仓库只保留空值 `.env.example`。
 

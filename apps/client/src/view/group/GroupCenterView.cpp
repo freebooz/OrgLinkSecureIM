@@ -18,6 +18,7 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSet>
 #include <QRegularExpression>
 #include <QSplitter>
 #include <QTableView>
@@ -367,13 +368,17 @@ void GroupCenterView::showGroupDetail(const GroupDetailItem& detail)
         detail.group.tags.isEmpty() ? QStringLiteral("内部") : detail.group.tags.join(QStringLiteral("  "))));
     announcement_->setText(detail.announcement.isEmpty() ? QStringLiteral("暂无群公告。") : detail.announcement);
     files_->clear();
+    QSet<QString> seenAssets;
     for (const auto& file : detail.files)
     {
+        // 同一次详情响应内按稳定资产标识去重，避免多条消息引用同一 MinIO 对象时重复展示文件名。
+        if (file.assetUuid.isEmpty() || seenAssets.contains(file.assetUuid)) continue;
+        seenAssets.insert(file.assetUuid);
         auto* item = new QListWidgetItem(makeUiIcon(UiIcon::File),
             QStringLiteral("%1\n%2 · %3").arg(file.fileName, file.ownerDisplayName, bytesText(file.sizeBytes)), files_);
         item->setData(Qt::UserRole, file.assetUuid);
     }
-    if (detail.files.isEmpty()) files_->addItem(QStringLiteral("暂无共享文件"));
+    if (seenAssets.isEmpty()) files_->addItem(QStringLiteral("暂无共享文件"));
     members_->clear();
     for (const auto& member : detail.members.mid(0, 8))
     {

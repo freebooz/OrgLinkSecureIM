@@ -3,6 +3,7 @@
 #include "controller/OrganizationController.h"
 #include "controller/PersonnelController.h"
 #include "controller/TrayController.h"
+#include "controller/FileTransferController.h"
 #include "model/DepartmentPersonnelModel.h"
 #include "model/ConversationListModel.h"
 #include "model/OrganizationTreeModel.h"
@@ -13,6 +14,7 @@
 #include "view/login/LoginWindow.h"
 #include "view/main/MainWindow.h"
 #include "view/common/UiTheme.h"
+#include "qml/QmlClientBackend.h"
 
 #include <orglink/application/InMemoryOrganizationRepository.h>
 #include <orglink/application/ConversationService.h>
@@ -23,6 +25,9 @@
 #include <QSignalSpy>
 #include <QLabel>
 #include <QListWidget>
+#include <QQmlApplicationEngine>
+#include <QQmlComponent>
+#include <QQmlContext>
 #include <QPushButton>
 #include <QResource>
 #include <QTableWidget>
@@ -53,9 +58,203 @@ private slots:
     {
         // 测试目标链接的是静态 UI 库，必须显式保留并初始化 RCC，才能验证发布版相同的内置字体。
         Q_INIT_RESOURCE(client_assets);
+        Q_INIT_RESOURCE(qml_assets);
         auto* application = qobject_cast<QApplication*>(QCoreApplication::instance());
         QVERIFY(application != nullptr);
         UiTheme::apply(*application);
+    }
+
+    /** @brief 验证生产 QML 入口和七个响应式业务页均可由引擎创建，防止资源遗漏在运行时才暴露。 */
+    void qmlResponsivePagesSmokeTest()
+    {
+        QmlClientBackend backend(nullptr);
+        // 关于页的本机投影在离线模式也必须可用，且不得依赖服务端固定假数据才能创建界面。
+        QCOMPARE(backend.aboutSystem().value(QStringLiteral("productName")).toString(),
+                 QStringLiteral("安域通"));
+        QVERIFY(!backend.aboutSystem().value(QStringLiteral("version")).toString().isEmpty());
+        QVERIFY(!backend.aboutSystem().value(QStringLiteral("systemEnvironment")).toString().isEmpty());
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+
+        QQmlComponent themeComponent(&engine, QUrl(QStringLiteral("qrc:/orglink/qml/Theme.qml")));
+        std::unique_ptr<QObject> theme(themeComponent.create());
+        QVERIFY2(theme != nullptr, qPrintable(themeComponent.errorString()));
+
+        const QStringList pages{
+            QStringLiteral("MessagePage.qml"), QStringLiteral("DirectoryPage.qml"),
+            QStringLiteral("GroupPage.qml"), QStringLiteral("FileCenterPage.qml"),
+            QStringLiteral("NotificationPage.qml"), QStringLiteral("CalendarPage.qml"),
+            QStringLiteral("SettingsPage.qml")};
+        const QList<QVariantMap> deviceProfiles{
+            {{QStringLiteral("phone"), true}, {QStringLiteral("tablet"), false},
+             {QStringLiteral("width"), 390}, {QStringLiteral("height"), 844}},
+            {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), true},
+             {QStringLiteral("width"), 900}, {QStringLiteral("height"), 1180}},
+            {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), false},
+             {QStringLiteral("width"), 1360}, {QStringLiteral("height"), 820}},
+            // 设计稿原始画布为 1584×992，必须单独实例化以守住三栏比例和右侧名片栏断点。
+            {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), false},
+             {QStringLiteral("width"), 1584}, {QStringLiteral("height"), 992}}};
+        for (const auto& page : pages)
+        {
+            for (auto properties : deviceProfiles)
+            {
+                QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/orglink/qml/") + page));
+                properties.insert(QStringLiteral("theme"), QVariant::fromValue(theme.get()));
+                std::unique_ptr<QObject> object(component.createWithInitialProperties(properties));
+                QVERIFY2(object != nullptr,
+                         qPrintable(page + QStringLiteral(": ") + component.errorString()));
+                if (page == QStringLiteral("SettingsPage.qml"))
+                {
+                    // 四种尺寸都必须默认进入账号资料页；桌面专属侧栏只在宽屏显示。
+                    QCOMPARE(object->property("selectedCategory").toInt(), 0);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAccountProfilePage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlPersonalProfileCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlPrivacyVisibilityCard")) != nullptr);
+                    const auto* rightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlAccountProfileRightPanel"));
+                    QVERIFY(rightPanel != nullptr);
+                    QCOMPARE(rightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 安全与登录页必须包含五组真实设置卡和状态右栏；窄屏把右栏卡片并入主滚动区。
+                    object->setProperty("selectedCategory", 1);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityLoginPage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityAuthCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityDeviceCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityStartupCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityPrivacyCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityPreferenceCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecurityStatusCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSecuritySystemInfoCard")) != nullptr);
+                    const auto* securityRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlSecurityRightPanel"));
+                    QVERIFY(securityRightPanel != nullptr);
+                    QCOMPARE(securityRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 切换到消息与通知页，验证三张业务卡和响应式右栏确实被创建而非静态占位。
+                    object->setProperty("selectedCategory", 2);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlMessageNotificationPage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlNewMessageReminderCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlReminderMethodsCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlNotificationBehaviorCard")) != nullptr);
+                    const auto* notificationRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlNotificationRightPanel"));
+                    QVERIFY(notificationRightPanel != nullptr);
+                    QCOMPARE(notificationRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 文件与存储页必须包含主设置列表和四张状态卡，且移动端把右栏内容顺序并入主滚动区。
+                    object->setProperty("selectedCategory", 3);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlFileStorageSettingsPage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlFileStorageMainCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlStorageOverviewCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlCacheStatusCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlSyncStatusCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlBackupInfoCard")) != nullptr);
+                    const auto* storageRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlFileStorageRightPanel"));
+                    QVERIFY(storageRightPanel != nullptr);
+                    QCOMPARE(storageRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 外观页必须在所有断点可创建，桌面右栏独立显示，窄屏则并入主滚动区。
+                    object->setProperty("selectedCategory", 4);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAppearanceThemePage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlThemeModeCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlPrimaryColorCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlChatBackgroundCard")) != nullptr);
+                    const auto* appearanceRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlAppearanceRightPanel"));
+                    QVERIFY(appearanceRightPanel != nullptr);
+                    QCOMPARE(appearanceRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 通话与设备页必须创建五组设置卡和四张真实状态卡，摄像头预览默认保持关闭。
+                    object->setProperty("selectedCategory", 5);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlCallDeviceSettingsPage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlDeviceSelectionCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAudioProcessingCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlVideoSettingsCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlCallAssistCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlDeviceConnectionCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlCameraPreviewCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlNetworkQualityCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlCallDiagnosticCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlDeviceHealthCard")) != nullptr);
+                    const auto* callRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlCallDeviceRightPanel"));
+                    QVERIFY(callRightPanel != nullptr);
+                    QCOMPARE(callRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+
+                    // 关于系统必须是独立页面，并在桌面显示版本/下载/支持右栏，平板和手机则合并进主滚动区。
+                    object->setProperty("selectedCategory", 6);
+                    QCoreApplication::processEvents();
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutSystemPage")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutProductCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutLicenseCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutVersionStatusCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutMobileDownloadCard")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlAboutSupportCard")) != nullptr);
+                    const auto* aboutRightPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlAboutSystemRightPanel"));
+                    QVERIFY(aboutRightPanel != nullptr);
+                    QCOMPARE(aboutRightPanel->property("visible").toBool(),
+                             !properties.value(QStringLiteral("phone")).toBool()
+                             && !properties.value(QStringLiteral("tablet")).toBool());
+                }
+            }
+        }
+
+        engine.load(QUrl(QStringLiteral("qrc:/orglink/qml/Main.qml")));
+        QVERIFY2(!engine.rootObjects().isEmpty(), "生产 QML 主入口创建失败");
+        auto* mainWindow = engine.rootObjects().constFirst();
+        QCOMPARE(mainWindow->objectName(), QStringLiteral("qmlMainWindow"));
+        QCOMPARE(mainWindow->property("title").toString(), QStringLiteral("安域通"));
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlWindowTitleBar")) != nullptr);
+#if defined(Q_OS_WIN)
+        // Windows 生产入口必须移除系统标题栏，窗口移动、缩放和按钮由公共 QML 标题栏承接。
+        QVERIFY((mainWindow->property("flags").toULongLong()
+                 & static_cast<qulonglong>(Qt::FramelessWindowHint)) != 0);
+#endif
+
+        QQmlComponent shellComponent(&engine, QUrl(QStringLiteral("qrc:/orglink/qml/ApplicationShell.qml")));
+        QVariantMap shellProperties{{QStringLiteral("theme"), QVariant::fromValue(theme.get())},
+            {QStringLiteral("width"), 390}, {QStringLiteral("height"), 844}};
+        std::unique_ptr<QObject> mobileShell(shellComponent.createWithInitialProperties(shellProperties));
+        QVERIFY2(mobileShell != nullptr, qPrintable(shellComponent.errorString()));
+        const auto* mobileHeader = mobileShell->findChild<QObject*>(QStringLiteral("qmlMobileCommonHeader"));
+        QVERIFY(mobileHeader != nullptr);
+        QVERIFY(mobileHeader->property("visible").toBool());
+    }
+
+    /** @brief 验证文件名裁剪、危险扩展阻断和媒体类型分流不依赖具体窗口实现。 */
+    void fileTransferSafetyPolicyTest()
+    {
+        QCOMPARE(FileTransferController::sanitizedFileName(QStringLiteral("../CON.exe")),
+                 QStringLiteral("_CON.exe"));
+        QCOMPARE(FileTransferController::previewKind(
+                     QStringLiteral("payload.exe"), QStringLiteral("image/png")),
+                 FilePreviewKind::Blocked);
+        QCOMPARE(FileTransferController::previewKind(
+                     QStringLiteral("picture.png"), QStringLiteral("image/png")),
+                 FilePreviewKind::Image);
+        QCOMPARE(FileTransferController::previewKind(
+                     QStringLiteral("clip.mp4"), QStringLiteral("video/mp4")),
+                 FilePreviewKind::Video);
     }
 
     /** @brief 验证统一字号以及行列表无垂直网格的公共配置不会在后续页面重构中丢失。 */
@@ -318,6 +517,10 @@ private slots:
     /** @brief 验证独立网络线程能通过真实回环 TCP 完成登录、单聊请求和消息确认。 */
     void networkClientIntegrationTest()
     {
+#if !defined(ORGLINK_ENABLE_MOCK_MODE)
+        // 生产客户端编译时必须拒绝明文回环；该行为由 TLS 端到端用例验证，不能为测试降低安全边界。
+        QSKIP("生产构建禁用明文回环集成测试；请使用 client-tls-stack-optional。");
+#else
         auto store = std::make_shared<orglink::server::InMemoryRuntimeStore>();
         orglink::server::GatewayServer gateway(store);
         orglink::server::GatewayConfiguration configuration;
@@ -330,6 +533,7 @@ private slots:
 
         NetworkClient client;
         QSignalSpy loggedIn(&client, &NetworkClient::loginSucceeded);
+        QSignalSpy loginFailed(&client, &NetworkClient::loginFailed);
         bool directoryReady = false;
         connect(&client, &NetworkClient::directorySnapshotReady, this,
                 [&](domain::OrganizationSnapshot snapshot) { directoryReady = !snapshot.people.empty(); });
@@ -337,7 +541,11 @@ private slots:
         QSignalSpy acknowledged(&client, &NetworkClient::messageAcknowledged);
         client.login(QStringLiteral("127.0.0.1:%1").arg(gateway.serverPort()),
                      QStringLiteral("alice"), QStringLiteral("alice-pass"));
-        QTRY_COMPARE_WITH_TIMEOUT(loggedIn.size(), 1, 3000);
+        // 同时等待成功和失败信号，失败时保留服务端诊断，避免超时结果掩盖真实握手原因。
+        QTRY_VERIFY_WITH_TIMEOUT(!loggedIn.isEmpty() || !loginFailed.isEmpty(), 3000);
+        QVERIFY2(loginFailed.isEmpty(), qPrintable(loginFailed.isEmpty()
+            ? QString() : loginFailed.constFirst().constFirst().toString()));
+        QCOMPARE(loggedIn.size(), 1);
         client.requestDirectorySync(0);
         QTRY_VERIFY_WITH_TIMEOUT(directoryReady, 3000);
         client.requestDirectConversation(2, QStringLiteral("Bob"));
@@ -349,6 +557,7 @@ private slots:
         QVERIFY(!acknowledged.at(0).at(1).toString().isEmpty());
         qunsetenv("ORGLINK_CLIENT_ALLOW_INSECURE_LOOPBACK");
         gateway.stop();
+#endif
     }
 #endif
 

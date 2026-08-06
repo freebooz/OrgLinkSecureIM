@@ -1,10 +1,11 @@
-# OrgLink Secure IM（信创通）
+# OrgLink Secure IM（安域通）
 
 基于 C++20、Qt 6、PostgreSQL 的局域网即时通信工程。当前已形成可运行的安全通信垂直切片：TLS 登录、组织目录、可靠单聊与群聊、群组中心、文件中心、通知中心、日程中心、设置中心、服务端会话历史、MinIO 私有文件对象、LiveKit 音视频会议入口、本地加密缓存、托盘驻留，以及 Docker Compose 一键部署。
 
 ## 已完成并验证
 
-- Qt Widgets MVC 客户端：参考设计图完成登录页、组织通讯录、消息四栏、群组三栏、通知三栏、设置三栏、人员/群组/通知详情和系统托盘，并接入正式 Logo 资源；`ApplicationShell` 统一承载各模块复用的品牌栏、左侧菜单、当前用户与底部安全状态。
+- Qt Quick + QML 客户端：参考设计图完成登录、消息、通讯录、群组、文件、通知、日程和设置页；`ApplicationShell.qml` 统一承载品牌顶栏、左侧导航与当前用户。桌面为多栏，平板折叠次要详情栏，手机使用抽屉导航和单栏详情切换；网络、协议、实时去重、文件落盘与设置修订均位于 C++。
+- 文件打开链：文件经 Gateway 重新鉴权后由 C++ 原子写入用户下载目录；图片、音频和视频使用 QML 应用内预览，普通文档交给系统关联程序，危险可执行文件和脚本禁止双击启动。消息、群组、通知和文件中心均按稳定资产标识去重。
 - 固定 68 字节网络序帧、CRC、半包/粘包解码和 Protobuf wire-compatible 应用消息。
 - TLS Gateway：认证门禁、心跳、空闲超时、速率限制、慢客户端保护和单端互踢。
 - PostgreSQL 运行时：bcrypt 口令、失败锁定、设备、唯一单聊、群组与成员角色、消息幂等、多接收人 Outbox、送达/已读连续水位、离线推送，以及通知详情、附件关联和状态审计。
@@ -46,6 +47,10 @@ cmake --build --preset windows-qt-production
 ```
 
 生产构建会在 EXE 重新链接后自动调用 `windeployqt`；`package-windows.ps1` 还会自动发现 Visual Studio，将 x64 MSVC CRT 作为应用本地 DLL 发布。运行或分发时必须保留完整发布目录，不能只复制 `orglink-client.exe`。发布脚本默认不夹带开发 CA；部署者应通过 `ORGLINK_TLS_CA_FILE` 指向单位批准的外部信任锚，或显式使用 `-CaFile` 生成受控内部安装包。Qt SDK 默认路径为忽略目录 `.tools/Qt/6.8.3/msvc2022_64`。
+
+## 平板与手机构建
+
+生产目标使用 `qt_add_executable`，不链接 QWidget；同一套 QML 根据窗口宽度切换桌面、平板和手机布局。`deploy/client/android` 已提供局域网、通知、相机和麦克风的最小 Android 清单，`deploy/client/ios/Info.plist.in` 已提供 iPhone/iPad 方向及本地网络、相机、麦克风用途说明。移动包仍须使用本机安装的 Qt Android/iOS Kit、Android SDK/NDK 或 Xcode 进行签名构建；当前 Windows 环境只完成三种尺寸的 QML 实例化测试，未声称通过 Android/iOS 真机验收。
 
 ## PostgreSQL + Docker 一键部署
 

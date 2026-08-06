@@ -11,6 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(WIN32)
+    # 在根作用域发现 PostgreSQL，使服务端和迁移工具使用同一套导入库及 DLL 发布来源。
+    find_package(PostgreSQL QUIET)
+    include(cmake/DeployPostgreSqlRuntime.cmake)
+endif()
+
 if(MSVC)
     add_compile_options(/utf-8 /W4 /permissive-)
 else()

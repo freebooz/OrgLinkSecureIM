@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>zh_CN</string>
+    <key>CFBundleDisplayName</key><string>安域通</string>
+    <key>CFBundleExecutable</key><string>${EXECUTABLE_NAME}</string>
+    <key>CFBundleIdentifier</key><string>com.orglink.secureim</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>OrgLinkSecureIM</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.2.0</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>LSRequiresIPhoneOS</key><true/>
+    <!-- 会议和局域网连接在系统弹窗前必须提供明确用途说明。 -->
+    <key>NSCameraUsageDescription</key><string>用于组织内视频通话和音视频会议。</string>
+    <key>NSMicrophoneUsageDescription</key><string>用于组织内语音通话和音视频会议。</string>
+    <key>NSLocalNetworkUsageDescription</key><string>用于发现并连接组织局域网内的 OrgLink 服务端。</string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>

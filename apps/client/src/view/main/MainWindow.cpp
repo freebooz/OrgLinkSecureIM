@@ -127,7 +127,7 @@ MainWindow::MainWindow(OrganizationTreeModel* organizationModel,
     if (fileModel_ == nullptr) fileModel_ = new FileCenterModel(this);
     // 日程中心允许旧 UI 测试省略注入；生产组合根始终显式共享 Model，避免 View 私建业务状态。
     if (calendarModel_ == nullptr) calendarModel_ = new CalendarModel(this);
-    setWindowTitle(QStringLiteral("OrgLink Secure IM"));
+    setWindowTitle(QStringLiteral("安域通"));
     setMinimumSize(1180, 700);
     if (const auto* screen = QGuiApplication::primaryScreen())
     {
@@ -413,6 +413,13 @@ QLabel#modulePlaceholderDescription { color:#667085; font-size:14px; }
     chatMessages_ = new QListWidget(chatCard);
     chatMessages_->setObjectName(QStringLiteral("chatMessageList"));
     chatMessages_->setMinimumHeight(220);
+    connect(chatMessages_, &QListWidget::itemDoubleClicked, this,
+            [this](QListWidgetItem* item) {
+        // 只有显式标记的文件消息才允许双击触发下载，普通文本的 UserRole 数据不得被误当作资产标识。
+        if (item == nullptr || !item->data(Qt::UserRole + 3).toBool()) return;
+        const auto assetUuid = item->data(Qt::UserRole + 1).toString();
+        if (!assetUuid.isEmpty()) emit fileDownloadRequested(assetUuid);
+    });
     chatInput_ = new QPlainTextEdit(chatCard);
     chatInput_->setObjectName(QStringLiteral("chatInput"));
     chatInput_->setPlaceholderText(QStringLiteral("选择人员并打开会话后输入消息"));
@@ -872,6 +879,9 @@ void MainWindow::showConversationOpened(qulonglong conversationId, const QString
     shell_->setBreadcrumb(QStringLiteral("消息 / 与 %1 的会话").arg(displayName));
     conversationTitleLabel_->setText(QStringLiteral("与 %1 的聊天").arg(displayName));
     chatMessages_->clear();
+    // 历史响应可能因实时推送而重复到达；切换会话后重建去重集合和共享文件投影。
+    sharedFileKeys_.clear();
+    sharedFilesLabel_->setText(QStringLiteral("暂无共享文件"));
     chatInput_->setEnabled(networkConnected_);
     chatSendButton_->setEnabled(networkConnected_);
     chatFileButton_->setEnabled(networkConnected_);
@@ -972,6 +982,7 @@ void MainWindow::appendFileMessage(
     item->setData(Qt::UserRole, clientMessageId);
     item->setData(Qt::UserRole + 1, assetUuid);
     item->setData(Qt::UserRole + 2, sender);
+    item->setData(Qt::UserRole + 3, true);
     auto* row = new QWidget(chatMessages_);
     auto* rowLayout = new QHBoxLayout(row);
     rowLayout->setContentsMargins(4, 5, 4, 5);
@@ -1017,8 +1028,14 @@ void MainWindow::appendFileMessage(
     }
     item->setSizeHint(QSize(0, std::max(92, row->sizeHint().height())));
     chatMessages_->setItemWidget(item, row);
-    sharedFilesLabel_->setText(sharedFilesLabel_->text() == QStringLiteral("暂无共享文件")
-        ? fileName : sharedFilesLabel_->text() + QStringLiteral("\n") + fileName);
+    // 以资产 UUID 为首选幂等键；旧消息缺失 UUID 时退化为客户端消息键，不能仅按文件名误合并不同版本。
+    const auto sharedKey = assetUuid.isEmpty() ? clientMessageId : assetUuid;
+    if (!sharedKey.isEmpty() && !sharedFileKeys_.contains(sharedKey))
+    {
+        sharedFileKeys_.insert(sharedKey);
+        sharedFilesLabel_->setText(sharedFilesLabel_->text() == QStringLiteral("暂无共享文件")
+            ? fileName : sharedFilesLabel_->text() + QStringLiteral("\n") + fileName);
+    }
     chatMessages_->scrollToBottom();
 }
 
