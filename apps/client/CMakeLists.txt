@@ -1,7 +1,14 @@
-# 生产客户端只依赖 Qt Quick 栈；Widgets 在桌面端作为迁移回归测试依赖单独发现，不能阻塞 Android/iOS 配置。
-find_package(Qt6 6.2 QUIET COMPONENTS Network Qml Quick QuickControls2 Multimedia)
+# 生产客户端只依赖 Qt Quick 栈；桌面会议使用 WebEngine 以避免原生 WebView 覆盖层吞掉窗口输入，
+# Android/iOS 则继续使用系统 WebView 和平台媒体权限。两类组件必须按目标平台互斥发现。
+set(_orglink_qt_components Network Qml Quick QuickControls2 Multimedia)
+if(ANDROID OR IOS)
+    list(APPEND _orglink_qt_components WebView)
+else()
+    list(APPEND _orglink_qt_components WebEngineQuick)
+endif()
+find_package(Qt6 6.2 QUIET COMPONENTS ${_orglink_qt_components})
 if(NOT Qt6_FOUND)
-    message(WARNING "Qt 6 Network/QML/Quick/Multimedia 未找到：跳过 orglink-client；核心目标仍可构建。")
+    message(WARNING "Qt 6 客户端组件未找到：跳过 orglink-client；核心目标仍可构建。")
     return()
 endif()
 
@@ -27,6 +34,12 @@ target_link_libraries(orglink-client-ui
     PUBLIC Qt6::Network Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia
            orglink::domain orglink::protocol
 )
+if(ANDROID OR IOS)
+    target_link_libraries(orglink-client-ui PUBLIC Qt6::WebView)
+else()
+    target_link_libraries(orglink-client-ui PUBLIC Qt6::WebEngineQuick)
+    target_compile_definitions(orglink-client-ui PUBLIC ORGLINK_DESKTOP_WEBENGINE=1)
+endif()
 target_compile_features(orglink-client-ui PUBLIC cxx_std_20)
 target_compile_definitions(orglink-client-ui PUBLIC
     ORGLINK_PROJECT_VERSION="${PROJECT_VERSION}")
@@ -72,7 +85,7 @@ if(NOT ANDROID AND NOT IOS)
     endif()
     if(TARGET Qt6::Widgets AND TARGET Qt6::Sql)
         add_library(orglink-client-widgets-legacy STATIC
-            src/tray/ITrayAdapter.h
+            # ITrayAdapter 的 Qt 元对象由 orglink-client-ui 唯一生成；旧回归库只链接复用，避免重复 MOC 符号。
             src/storage/LocalMessageRepository.cpp
             src/storage/LocalDirectoryRepository.cpp
             src/controller/MessageController.cpp

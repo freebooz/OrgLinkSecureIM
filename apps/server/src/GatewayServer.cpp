@@ -136,6 +136,12 @@ void GatewayServer::stop()
     }
     for (auto* socket : sockets)
     {
+        const auto connection = connections_.find(socket);
+        if (connection != connections_.end() && connection->second->authenticated)
+        {
+            // 正常停服先落离线审计；异常退出时下次目录仍由新的 Gateway 连接表覆盖历史记录。
+            store_->updatePresence(connection->second->personId, connection->second->deviceId, false);
+        }
         socket->disconnectFromHost();
         socket->deleteLater();
     }
@@ -360,7 +366,7 @@ void GatewayServer::dispatchFrame(
     {
         // 请求中的本地修订号仅用于后续增量优化；可见组织范围始终由已认证人员身份重新确定。
         static_cast<void>(protocol::decodeDirectorySnapshotRequest(frame.body));
-        const auto response = store_->loadDirectorySnapshot(state.personId);
+        const auto response = loadDirectoryWithLivePresence(state.personId);
         const auto body = protocol::encodeMessage(response);
         sendFrame(socket, state, protocol::MessageType::DirectorySnapshotResponse, frame.header.requestId, body);
         break;
@@ -407,6 +413,7 @@ void GatewayServer::handleLogin(
             old->second->disconnectFromHost();
         }
         onlinePeople_[state.personId] = socket;
+        store_->updatePresence(state.personId, state.deviceId, true);
     }
     const auto body = protocol::encodeMessage(response);
     sendFrame(socket, state, protocol::MessageType::LoginResponse, frame.header.requestId, body);
@@ -414,6 +421,9 @@ void GatewayServer::handleLogin(
     {
         return;
     }
+
+    // 登录响应先到达新客户端，随后目录刷新才能安全关联认证会话；其他在线人员同步看到真实上线状态。
+    broadcastPresenceSnapshots();
 
     for (const auto& pending : store_->pendingMessages(state.personId, 500))
     {
@@ -962,6 +972,44 @@ void GatewayServer::sendError(
     sendFrame(socket, state, protocol::MessageType::ServerErrorResponse, requestId, body);
 }
 
+protocol::DirectorySnapshotResponse GatewayServer::loadDirectoryWithLivePresence(
+    std::uint64_t requesterPersonId)
+{
+    auto response = store_->loadDirectorySnapshot(requesterPersonId);
+    if (!response.success)
+        return response;
+    // onlinePeople_ 由本线程串行维护，是本节点当前连接事实；数据库记录只承担审计与跨进程诊断。
+    for (auto& person : response.people)
+    {
+        const auto online = onlinePeople_.find(person.id);
+        person.presenceState = online != onlinePeople_.end() && !online->second.isNull() ? 1U : 0U;
+    }
+    return response;
+}
+
+void GatewayServer::broadcastPresenceSnapshots()
+{
+    // 先复制目标，避免写帧触发断开回调时迭代器失效；单节点目录规模下全量刷新简单且状态一致。
+    std::vector<QTcpSocket*> recipients;
+    recipients.reserve(onlinePeople_.size());
+    for (const auto& [personId, socket] : onlinePeople_)
+    {
+        static_cast<void>(personId);
+        if (!socket.isNull()) recipients.push_back(socket.data());
+    }
+    for (auto* socket : recipients)
+    {
+        const auto connection = connections_.find(socket);
+        if (connection == connections_.end() || !connection->second->authenticated)
+            continue;
+        const auto response = loadDirectoryWithLivePresence(connection->second->personId);
+        if (!response.success)
+            continue;
+        const auto body = protocol::encodeMessage(response);
+        sendFrame(socket, *connection->second, protocol::MessageType::DirectorySnapshotResponse, 0, body);
+    }
+}
+
 void GatewayServer::removeConnection(QTcpSocket* socket)
 {
     const auto connection = connections_.find(socket);
@@ -975,6 +1023,8 @@ void GatewayServer::removeConnection(QTcpSocket* socket)
         if (online != onlinePeople_.end() && online->second == socket)
         {
             onlinePeople_.erase(online);
+            store_->updatePresence(connection->second->personId, connection->second->deviceId, false);
+            broadcastPresenceSnapshots();
         }
     }
     connections_.erase(connection);

@@ -17,6 +17,7 @@ history.replaceState(null, '', location.pathname);
 
 const room = new Room({ adaptiveStream: true, dynacast: true });
 const tiles = new Map();
+let mediaReady = false;
 
 function participantKey(participant) {
   return participant.identity || 'local';
@@ -77,18 +78,25 @@ room
     status.textContent = '已离开会议';
   });
 
-microphone.addEventListener('click', async () => {
+async function runMediaAction(action) {
+  if (!mediaReady) return;
+  try {
+    await action();
+    refreshControls();
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : '媒体设备操作失败';
+  }
+}
+
+microphone.addEventListener('click', () => runMediaAction(async () => {
   await room.localParticipant.setMicrophoneEnabled(!room.localParticipant.isMicrophoneEnabled);
-  refreshControls();
-});
-camera.addEventListener('click', async () => {
+}));
+camera.addEventListener('click', () => runMediaAction(async () => {
   await room.localParticipant.setCameraEnabled(!room.localParticipant.isCameraEnabled);
-  refreshControls();
-});
-screen.addEventListener('click', async () => {
+}));
+screen.addEventListener('click', () => runMediaAction(async () => {
   await room.localParticipant.setScreenShareEnabled(!room.localParticipant.isScreenShareEnabled);
-  refreshControls();
-});
+}));
 leave.addEventListener('click', async () => {
   await room.disconnect();
   window.close();
@@ -96,10 +104,14 @@ leave.addEventListener('click', async () => {
 
 async function join() {
   if (!serverUrl || !participantToken) throw new Error('会议加入凭据缺失或已失效');
+  // Chromium 只在安全上下文暴露 mediaDevices；先给出可操作的安全错误，禁止抛出未定义属性异常。
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia)
+    throw new Error('会议服务未通过 HTTPS 安全上下文加载，请联系管理员检查会议地址和证书。');
   await room.connect(serverUrl, participantToken);
   roomName.textContent = room.name || 'OrgLink 会议';
   status.textContent = '安全媒体连接已建立';
   ensureTile(room.localParticipant);
+  mediaReady = true;
   await room.localParticipant.setMicrophoneEnabled(true);
   if (initialVideo) await room.localParticipant.setCameraEnabled(true);
   refreshControls();

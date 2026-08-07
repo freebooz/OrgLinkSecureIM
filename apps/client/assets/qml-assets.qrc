@@ -9,9 +9,14 @@
         <file alias="AppTextField.qml">../qml/AppTextField.qml</file>
         <file alias="AppTextArea.qml">../qml/AppTextArea.qml</file>
         <file alias="NavButton.qml">../qml/NavButton.qml</file>
+        <file alias="CommonNavigationRail.qml">../qml/CommonNavigationRail.qml</file>
         <file alias="LoginPage.qml">../qml/LoginPage.qml</file>
+        <file alias="LoginBackground.qml">../qml/LoginBackground.qml</file>
         <file alias="ApplicationShell.qml">../qml/ApplicationShell.qml</file>
         <file alias="PreviewOverlay.qml">../qml/PreviewOverlay.qml</file>
+        <file alias="ConferenceWindow.qml">../qml/ConferenceWindow.qml</file>
+        <file alias="DesktopConferenceView.qml">../qml/DesktopConferenceView.qml</file>
+        <file alias="MobileConferenceView.qml">../qml/MobileConferenceView.qml</file>
         <file alias="MessagePage.qml">../qml/MessagePage.qml</file>
         <file alias="DirectoryPage.qml">../qml/DirectoryPage.qml</file>
         <file alias="GroupPage.qml">../qml/GroupPage.qml</file>

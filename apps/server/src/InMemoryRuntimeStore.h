@@ -23,6 +23,7 @@ public:
 
     [[nodiscard]] protocol::LoginResponse authenticate(
         const protocol::LoginRequest& request, const std::string& sourceAddress) override;
+    void updatePresence(std::uint64_t personId, std::uint64_t deviceId, bool online) override;
     [[nodiscard]] protocol::DirectorySnapshotResponse loadDirectorySnapshot(
         std::uint64_t requesterPersonId) override;
     [[nodiscard]] protocol::DirectoryDeltaResponse loadDirectoryDelta(
@@ -118,6 +119,8 @@ private:
 
     std::mutex mutex_;
     std::unordered_map<std::string, Account> accounts_;
+    /** @brief Mock 连接状态只用于验证 Gateway 生命周期；真实状态由 PostgreSQL presence_history 持久化。 */
+    std::unordered_map<std::uint64_t, bool> presenceStates_;
     std::map<std::pair<std::uint64_t, std::uint64_t>, std::uint64_t> conversations_;
     std::unordered_map<std::uint64_t, std::uint64_t> conversationSequences_;
     std::vector<protocol::DirectMessagePush> messages_;

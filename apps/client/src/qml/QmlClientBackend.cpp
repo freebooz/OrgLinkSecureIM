@@ -340,14 +340,20 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
     connect(networkClient_, &NetworkClient::conferenceFailed,
             this, &QmlClientBackend::showToast);
     connect(networkClient_, &NetworkClient::conferenceReady, this,
-            [this](const QUrl& joinUrl, const QString&) {
-        // 短效令牌仅存在于 URL fragment 和浏览器进程内，不落盘、不写日志，也不回传 QML。
-        if (!joinUrl.isValid() || !QDesktopServices::openUrl(joinUrl))
+            [this](const QUrl& joinUrl, const QString& conferenceUuid) {
+        // 媒体采集只能在 HTTPS 安全上下文启用；拒绝 HTTP 可避免 Chromium 隐藏 mediaDevices 后
+        // 产生 getUserMedia 未定义异常。短效令牌只停留在内存 URL fragment 中，关闭时立即清空。
+        const auto scheme = joinUrl.scheme().toLower();
+        if (!joinUrl.isValid() || scheme != QStringLiteral("https"))
         {
-            showToast(QStringLiteral("无法打开音视频会议页面，请检查默认浏览器。"));
+            showToast(QStringLiteral("会议服务必须使用 HTTPS 安全连接，请联系管理员检查会议配置。"));
             return;
         }
-        showToast(QStringLiteral("音视频会议已在安全会议窗口中打开。"));
+        conferenceUrl_ = joinUrl;
+        conferenceUuid_ = conferenceUuid;
+        conferenceVisible_ = true;
+        emit conferenceChanged();
+        showToast(QStringLiteral("音视频会议已在安域通应用内打开。"));
     });
 
     connect(networkClient_, &NetworkClient::conversationListReady, this,
@@ -367,8 +373,35 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
         if (conversationId == currentConversationId_) replaceMessages(remote);
     });
     connect(networkClient_, &NetworkClient::conversationReady, this,
-            [this](qulonglong, qulonglong conversationId, const QString& displayName) {
+            [this](qulonglong peerPersonId, qulonglong conversationId, const QString& displayName) {
         openConversation(conversationId, displayName);
+        if (pendingConferencePersonId_ == peerPersonId)
+        {
+            const auto videoEnabled = pendingConferenceVideoEnabled_;
+            pendingConferencePersonId_ = 0;
+            pendingConferenceVideoEnabled_ = false;
+            // 只有服务端确认单聊成员关系后才申请媒体凭据，避免用目录编号自行拼装会议房间。
+            networkClient_->joinConference(conversationId, videoEnabled);
+            showToast(videoEnabled ? QStringLiteral("正在准备视频会议…")
+                                   : QStringLiteral("正在准备语音会议…"));
+        }
+        if (pendingFileTransferPersonId_ == peerPersonId)
+        {
+            pendingFileTransferPersonId_ = 0;
+            // 文件选择器只能在权威 conversationId 已写入 currentConversationId_ 后打开。
+            emit contactFileTransferReady();
+        }
+    });
+    connect(networkClient_, &NetworkClient::conversationFailed, this,
+            [this](qulonglong peerPersonId, const QString& friendlyMessage) {
+        if (pendingConferencePersonId_ == peerPersonId)
+        {
+            pendingConferencePersonId_ = 0;
+            pendingConferenceVideoEnabled_ = false;
+        }
+        if (pendingFileTransferPersonId_ == peerPersonId)
+            pendingFileTransferPersonId_ = 0;
+        showToast(friendlyMessage);
     });
     connect(networkClient_, &NetworkClient::directMessageReceived, this,
             [this](const QString& serverId, const QString& clientId, qulonglong conversationId,
@@ -407,9 +440,140 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
 
     connect(networkClient_, &NetworkClient::directorySnapshotReady, this,
             [this](const domain::OrganizationSnapshot& snapshot) {
+        directoryUnits_.clear();
         directoryPeople_.clear();
+
+        QHash<qulonglong, QString> organizationNames;
+        QHash<qulonglong, qulonglong> organizationParents;
+        QHash<qulonglong, QString> departmentNames;
+        QHash<qulonglong, qulonglong> departmentParents;
+        QHash<qulonglong, qulonglong> departmentOrganizations;
+        QHash<qulonglong, QString> positionNames;
+        QHash<qulonglong, int> departmentPeopleCounts;
+        QHash<qulonglong, int> organizationPeopleCounts;
+        QHash<qulonglong, domain::PresenceState> presenceByPerson;
+
+        for (const auto& organization : snapshot.organizations)
+        {
+            const auto organizationId = organization.id.value();
+            organizationNames.insert(organizationId, QString::fromStdString(organization.name));
+            organizationParents.insert(organizationId,
+                organization.parentId ? organization.parentId->value() : 0);
+        }
+        for (const auto& department : snapshot.departments)
+        {
+            const auto departmentId = department.id.value();
+            departmentNames.insert(departmentId, QString::fromStdString(department.name));
+            departmentParents.insert(departmentId,
+                department.parentDepartmentId ? department.parentDepartmentId->value() : 0);
+            departmentOrganizations.insert(departmentId, department.organizationId.value());
+        }
+        for (const auto& position : snapshot.positions)
+            positionNames.insert(position.id.value(), QString::fromStdString(position.name));
+        for (const auto& presence : snapshot.presences)
+            presenceByPerson.insert(presence.personId.value(), presence.state);
         for (const auto& person : snapshot.people)
         {
+            const auto departmentId = person.primaryDepartmentId
+                ? person.primaryDepartmentId->value() : 0;
+            if (departmentId != 0)
+            {
+                departmentPeopleCounts[departmentId] += 1;
+                organizationPeopleCounts[departmentOrganizations.value(departmentId)] += 1;
+            }
+        }
+
+        // 组织节点先于部门节点输出；稳定父键让 QML 能折叠显示而无需理解领域 StrongId。
+        for (const auto& organization : snapshot.organizations)
+        {
+            const auto organizationId = organization.id.value();
+            const auto parentId = organizationParents.value(organizationId);
+            directoryUnits_.push_back(QVariantMap{
+                {QStringLiteral("key"), QStringLiteral("organization:%1").arg(organizationId)},
+                {QStringLiteral("parentKey"), parentId == 0 ? QString()
+                    : QStringLiteral("organization:%1").arg(parentId)},
+                {QStringLiteral("unitId"), identifier(organizationId)},
+                {QStringLiteral("organizationId"), identifier(organizationId)},
+                {QStringLiteral("type"), QStringLiteral("organization")},
+                {QStringLiteral("name"), organizationNames.value(organizationId)},
+                {QStringLiteral("depth"), parentId == 0 ? 0 : 1},
+                {QStringLiteral("peopleCount"), organizationPeopleCounts.value(organizationId)}});
+        }
+
+        std::vector<const domain::Department*> sortedDepartments;
+        sortedDepartments.reserve(snapshot.departments.size());
+        for (const auto& department : snapshot.departments) sortedDepartments.push_back(&department);
+        std::stable_sort(sortedDepartments.begin(), sortedDepartments.end(),
+            [&departmentParents](const auto* left, const auto* right) {
+                const auto depthOf = [&departmentParents](qulonglong id) {
+                    int depth = 0;
+                    QSet<qulonglong> visited;
+                    while (id != 0 && departmentParents.contains(id) && depth < 32)
+                    {
+                        if (visited.contains(id)) break;
+                        visited.insert(id);
+                        id = departmentParents.value(id);
+                        if (id != 0) ++depth;
+                    }
+                    return depth;
+                };
+                const auto leftDepth = depthOf(left->id.value());
+                const auto rightDepth = depthOf(right->id.value());
+                if (left->organizationId != right->organizationId)
+                    return left->organizationId.value() < right->organizationId.value();
+                if (leftDepth != rightDepth) return leftDepth < rightDepth;
+                if (left->sortOrder != right->sortOrder) return left->sortOrder < right->sortOrder;
+                return left->id.value() < right->id.value();
+            });
+
+        for (const auto* department : sortedDepartments)
+        {
+            const auto departmentId = department->id.value();
+            const auto parentId = departmentParents.value(departmentId);
+            int depth = 1;
+            auto ancestorId = parentId;
+            QSet<qulonglong> visited;
+            while (ancestorId != 0 && depth < 32)
+            {
+                if (visited.contains(ancestorId)) break;
+                visited.insert(ancestorId);
+                ++depth;
+                ancestorId = departmentParents.value(ancestorId);
+            }
+            directoryUnits_.push_back(QVariantMap{
+                {QStringLiteral("key"), QStringLiteral("department:%1").arg(departmentId)},
+                {QStringLiteral("parentKey"), parentId == 0
+                    ? QStringLiteral("organization:%1").arg(department->organizationId.value())
+                    : QStringLiteral("department:%1").arg(parentId)},
+                {QStringLiteral("unitId"), identifier(departmentId)},
+                {QStringLiteral("organizationId"), identifier(department->organizationId.value())},
+                {QStringLiteral("type"), QStringLiteral("department")},
+                {QStringLiteral("name"), departmentNames.value(departmentId)},
+                {QStringLiteral("depth"), depth},
+                {QStringLiteral("peopleCount"), departmentPeopleCounts.value(departmentId)}});
+        }
+
+        const auto presenceText = [](domain::PresenceState state) {
+            switch (state)
+            {
+            case domain::PresenceState::Online: return QStringLiteral("在线");
+            case domain::PresenceState::Busy: return QStringLiteral("忙碌");
+            case domain::PresenceState::Away: return QStringLiteral("离开");
+            case domain::PresenceState::DoNotDisturb: return QStringLiteral("勿扰");
+            case domain::PresenceState::Invisible:
+            case domain::PresenceState::Offline:
+            default: return QStringLiteral("离线");
+            }
+        };
+        for (const auto& person : snapshot.people)
+        {
+            const auto departmentId = person.primaryDepartmentId
+                ? person.primaryDepartmentId->value() : 0;
+            const auto positionId = person.primaryPositionId
+                ? person.primaryPositionId->value() : 0;
+            const auto organizationId = departmentOrganizations.value(departmentId);
+            const auto presence = presenceByPerson.value(
+                person.id.value(), domain::PresenceState::Offline);
             directoryPeople_.push_back(QVariantMap{
                 {QStringLiteral("personId"), identifier(person.id.value())},
                 {QStringLiteral("displayName"), QString::fromStdString(person.displayName)},
@@ -417,11 +581,16 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
                 {QStringLiteral("phone"), QString::fromStdString(person.workPhone)},
                 {QStringLiteral("email"), QString::fromStdString(person.workEmail)},
                 {QStringLiteral("avatar"), qmlAssetUrl(QString::fromStdString(person.avatarResourceId))},
-                {QStringLiteral("departmentId"), identifier(
-                    person.primaryDepartmentId ? person.primaryDepartmentId->value() : 0)},
-                {QStringLiteral("positionId"), identifier(
-                    person.primaryPositionId ? person.primaryPositionId->value() : 0)}});
+                {QStringLiteral("organizationId"), identifier(organizationId)},
+                {QStringLiteral("organizationName"), organizationNames.value(organizationId)},
+                {QStringLiteral("departmentId"), identifier(departmentId)},
+                {QStringLiteral("department"), departmentNames.value(departmentId)},
+                {QStringLiteral("positionId"), identifier(positionId)},
+                {QStringLiteral("position"), positionNames.value(positionId)},
+                {QStringLiteral("presence"), static_cast<int>(presence)},
+                {QStringLiteral("statusText"), presenceText(presence)}});
         }
+        emit directoryUnitsChanged();
         emit directoryPeopleChanged();
     });
     connect(networkClient_, &NetworkClient::directorySnapshotFailed,
@@ -801,6 +970,53 @@ void QmlClientBackend::openConversation(qulonglong conversationId, const QString
     networkClient_->requestMessageHistory(conversationId, 0, 100);
 }
 
+void QmlClientBackend::startDirectConversation(qulonglong personId, const QString& displayName)
+{
+    if (networkClient_ == nullptr || !authenticated_ || !connected_ || personId == 0)
+    {
+        showToast(QStringLiteral("当前未连接服务端，无法打开联系人会话。"));
+        return;
+    }
+
+    // 先切换到消息模块再异步申请会话；conversationReady 会写入权威会话编号并加载历史。
+    if (currentSection_ != 0)
+    {
+        currentSection_ = 0;
+        emit currentSectionChanged();
+    }
+    networkClient_->requestDirectConversation(personId, displayName.trimmed());
+}
+
+void QmlClientBackend::startContactConference(qulonglong personId, const QString& displayName,
+                                              bool videoEnabled)
+{
+    if (networkClient_ == nullptr || !authenticated_ || !connected_ || personId == 0)
+    {
+        showToast(QStringLiteral("当前未连接服务端，无法发起联系人通话。"));
+        return;
+    }
+
+    // 目录人员编号不能直接作为会议房间；保存短暂意图并等待服务端创建/复用单聊会话。
+    pendingConferencePersonId_ = personId;
+    pendingConferenceVideoEnabled_ = videoEnabled;
+    networkClient_->requestDirectConversation(personId, displayName.trimmed());
+    showToast(videoEnabled ? QStringLiteral("正在建立视频通话…")
+                           : QStringLiteral("正在建立语音通话…"));
+}
+
+void QmlClientBackend::prepareContactFileTransfer(qulonglong personId,
+                                                  const QString& displayName)
+{
+    if (networkClient_ == nullptr || !authenticated_ || !connected_ || personId == 0)
+    {
+        showToast(QStringLiteral("当前未连接服务端，无法向联系人发送文件。"));
+        return;
+    }
+    pendingFileTransferPersonId_ = personId;
+    networkClient_->requestDirectConversation(personId, displayName.trimmed());
+    showToast(QStringLiteral("正在建立安全文件会话…"));
+}
+
 void QmlClientBackend::sendMessage(const QString& text)
 {
     const auto normalized = text.trimmed();
@@ -831,9 +1047,27 @@ void QmlClientBackend::startConference(qulonglong conversationId, bool videoEnab
     }
 
     // 服务端重新校验会话成员身份并签发短效 LiveKit JWT，客户端不能自行拼装房间或访问令牌。
+    conferenceTitle_ = videoEnabled ? QStringLiteral("安域通视频会议")
+                                    : QStringLiteral("安域通语音会议");
     networkClient_->joinConference(effectiveConversationId, videoEnabled);
     showToast(videoEnabled ? QStringLiteral("正在准备视频会议…")
                            : QStringLiteral("正在准备语音会议…"));
+}
+
+void QmlClientBackend::closeConference()
+{
+    if (!conferenceVisible_ && conferenceUrl_.isEmpty() && conferenceUuid_.isEmpty()) return;
+
+    const auto conferenceUuid = conferenceUuid_;
+    // 先清理 WebView 地址，确保 fragment 中的短效令牌不会继续驻留在界面或导航历史中。
+    conferenceVisible_ = false;
+    conferenceUrl_.clear();
+    conferenceUuid_.clear();
+    conferenceTitle_ = QStringLiteral("安域通会议");
+    emit conferenceChanged();
+
+    if (networkClient_ != nullptr && !conferenceUuid.isEmpty())
+        networkClient_->leaveConference(conferenceUuid);
 }
 
 void QmlClientBackend::selectGroup(qulonglong groupId)
@@ -872,7 +1106,14 @@ void QmlClientBackend::uploadFile(const QUrl& localUrl, qulonglong conversationI
     if (networkClient_ == nullptr || !localUrl.isLocalFile()) return;
     const auto path = localUrl.toLocalFile();
     if (!QFileInfo(path).isFile()) { showToast(QStringLiteral("请选择有效的本地文件。")); return; }
-    if (networkClient_->uploadFile(conversationId, path).isEmpty())
+    const auto effectiveConversationId = conversationId == 0
+        ? currentConversationId_ : conversationId;
+    if (effectiveConversationId == 0)
+    {
+        showToast(QStringLiteral("请先打开联系人或群组会话。"));
+        return;
+    }
+    if (networkClient_->uploadFile(effectiveConversationId, path).isEmpty())
         showToast(QStringLiteral("文件未进入上传队列。"));
     else
         showToast(QStringLiteral("文件正在上传…"));

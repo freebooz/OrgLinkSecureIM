@@ -839,6 +839,24 @@ VALUES ($1, $2, NULLIF($3, '')::inet, true, gen_random_uuid())
     return response;
 }
 
+void PostgresRuntimeStore::updatePresence(
+    std::uint64_t personId, std::uint64_t deviceId, bool online)
+{
+    if (personId == 0 || deviceId == 0)
+        return;
+    auto connection = connectDatabase(config_, "orglink-presence-update");
+    if (connection.get() == nullptr || PQstatus(connection.get()) != CONNECTION_OK)
+        return;
+    // presence_history 是连接状态审计流；Gateway 内存连接表仍是单节点当前在线状态的最终依据。
+    static_cast<void>(query(connection.get(), R"SQL(
+INSERT INTO presence_history(person_id, device_id, presence_state, recorded_at_utc)
+SELECT $1, $2, $3, CURRENT_TIMESTAMP
+WHERE EXISTS (
+    SELECT 1 FROM user_devices d JOIN user_accounts a ON a.id=d.account_id
+    WHERE d.id=$2 AND a.person_id=$1)
+)SQL", {std::to_string(personId), std::to_string(deviceId), online ? "1" : "0"}));
+}
+
 protocol::DirectorySnapshotResponse PostgresRuntimeStore::loadDirectorySnapshot(
     std::uint64_t requesterPersonId)
 {
@@ -877,11 +895,18 @@ FROM positions WHERE organization_id=$1
 ORDER BY sort_order, id
 )SQL", {std::to_string(organizationId)});
     const auto people = query(connection.get(), R"SQL(
-SELECT id::text, employee_number, display_name, avatar_resource_id,
+SELECT p.id::text, p.employee_number, p.display_name, p.avatar_resource_id,
        work_phone, extension_number, work_email,
-       COALESCE(primary_department_id::text, ''), COALESCE(primary_position_id::text, ''), enabled::text
-FROM persons WHERE organization_id=$1
-ORDER BY display_name, id
+       COALESCE(primary_department_id::text, ''), COALESCE(primary_position_id::text, ''), enabled::text,
+       COALESCE(latest_presence.presence_state, 0)::text
+FROM persons p
+LEFT JOIN LATERAL (
+    SELECT ph.presence_state FROM presence_history ph
+    WHERE ph.person_id=p.id
+    ORDER BY ph.recorded_at_utc DESC, ph.id DESC LIMIT 1
+) latest_presence ON true
+WHERE p.organization_id=$1
+ORDER BY p.display_name, p.id
 )SQL", {std::to_string(organizationId)});
     const auto assignments = query(connection.get(), R"SQL(
 SELECT a.id::text, a.person_id::text, a.department_id::text,
@@ -933,7 +958,8 @@ ORDER BY a.sort_order, a.id
             stringColumn(people.get(), row, 5), stringColumn(people.get(), row, 6),
             primaryDepartment.empty() ? 0 : std::stoull(primaryDepartment),
             primaryPosition.empty() ? 0 : std::stoull(primaryPosition),
-            stringColumn(people.get(), row, 9) == "true"});
+            stringColumn(people.get(), row, 9) == "true",
+            static_cast<std::uint32_t>(unsignedColumn(people.get(), row, 10))});
     }
     response.assignments.reserve(static_cast<std::size_t>(PQntuples(assignments.get())));
     for (int row = 0; row < PQntuples(assignments.get()); ++row)

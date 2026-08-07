@@ -6,8 +6,8 @@ import QtQuick.Window
 /**
  * 桌面端公共自定义标题栏。
  *
- * 该组件只负责窗口操作、全局搜索和公共入口；业务页面不得重复实现窗口控制。
- * 移动端由 Main.qml 隐藏本组件并交给系统状态栏和全屏窗口管理。
+ * 左端品牌块与 CommonNavigationRail 组成连续深蓝边界；右端只承载全局通知、帮助、设置、
+ * 当前人员头像及系统窗口操作。登录态仍遵循“仅服务器设置与关闭”的安全约束。
  */
 Rectangle {
     id: root
@@ -15,22 +15,52 @@ Rectangle {
     required property var theme
     required property var targetWindow
     signal serverSettingsRequested()
-    color: theme.darkMode ? theme.surface : "#F7FAFF"
-    border.width: 0
-    implicitHeight: 64
+
+    color: root.theme.darkMode ? root.theme.surface : "#F7FAFF"
+    implicitHeight: 76
     clip: true
 
-    // 标题栏与主工作区共享同一张不透明背景，裁取顶部区域以维持连续的品牌层次。
     Image {
         id: titleBarBackground
         objectName: "qmlTitleBarBackground"
         anchors.fill: parent
         visible: !root.theme.darkMode
         source: "qrc:/orglink/assets/backgrounds/main-shell-background.png"
-        sourceClipRect: Qt.rect(0, 0, 1584, 132)
+        sourceClipRect: Qt.rect(0, 0, 1680, 150)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
+    }
+
+    // 独立覆盖最左端 72 px，使标题栏与下方公共导航轨在视觉上无接缝。
+    Rectangle {
+        width: 72
+        visible: backend.authenticated
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "#05285C" }
+            GradientStop { position: 1.0; color: "#07336F" }
+        }
+        Image {
+            anchors.centerIn: parent
+            // 图标源文件保留了透明安全边，按 52px 容器投影后可见盾牌约为设计稿 30px。
+            width: 52
+            height: 52
+            source: "qrc:/orglink/assets/orglink-app-icon.png"
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+        }
+    }
+
+    Rectangle {
+        // Windows 无边框窗口在右侧控制区的隐藏控件边距上可能露出黑色合成底层；
+        // 用独立不透明底板覆盖控制区及安全余量，按钮仍由下方布局负责交互。
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        width: backend.authenticated ? 148 : 90
+        color: root.theme.darkMode ? root.theme.surface : "#F7FAFF"
     }
 
     function toggleMaximized() {
@@ -40,7 +70,7 @@ Rectangle {
             targetWindow.showMaximized()
     }
 
-    // 使用系统移动循环保留 Windows 贴靠布局和跨屏 DPI 行为，避免手算坐标产生跳动。
+    // 使用系统移动循环保留跨屏 DPI、贴靠与系统边界约束，不在 QML 中自行累计坐标。
     DragHandler {
         target: null
         acceptedButtons: Qt.LeftButton
@@ -53,16 +83,22 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 22
-        spacing: 10
+        // 窗口按钮必须连续铺满右上角；布局间距在部分 Windows 合成器中会暴露黑色底层像素。
+        spacing: 0
+
+        Item {
+            // 登录页没有左侧导航轨，品牌从安全边距起排；工作台仍与 72px 导航轨对齐。
+            Layout.preferredWidth: backend.authenticated ? 92 : 28
+            Layout.fillHeight: true
+        }
 
         RowLayout {
-            Layout.preferredWidth: 218
+            Layout.preferredWidth: backend.authenticated ? 250 : 270
             Layout.fillHeight: true
             spacing: 10
             Image {
-                Layout.preferredWidth: 38
-                Layout.preferredHeight: 38
+                Layout.preferredWidth: backend.authenticated ? 46 : 56
+                Layout.preferredHeight: backend.authenticated ? 46 : 56
                 source: "qrc:/orglink/assets/orglink-app-icon.png"
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
@@ -73,110 +109,120 @@ Rectangle {
                     text: "安域通"
                     color: root.theme.text
                     font.family: root.theme.uiFont
-                    font.pixelSize: root.theme.sectionSize
+                    font.pixelSize: 18
                     font.bold: true
                 }
                 Text {
                     text: "OrgLink Secure IM"
-                    color: root.theme.secondaryText
+                    color: "#244A7C"
                     font.family: root.theme.uiFont
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                 }
             }
         }
+
         Item { Layout.fillWidth: true }
-        AppTextField {
-            id: globalSearch
-            theme: root.theme
-            objectName: "qmlGlobalSearch"
-            visible: backend.authenticated && root.width >= 820
-            Layout.preferredWidth: root.width >= 1220 ? 250 : 190
-            implicitHeight: 40
-            placeholderText: "搜索（Ctrl+F）"
-            leftPadding: 38
-            font.family: root.theme.uiFont
-            font.pixelSize: root.theme.bodySize
-            onAccepted: backend.globalSearch(text)
-            IconCanvas {
-                anchors.left: parent.left
-                anchors.leftMargin: 11
-                anchors.verticalCenter: parent.verticalCenter
-                width: root.theme.fieldIconSize; height: root.theme.fieldIconSize; kind: 7; color: root.theme.secondaryText
+
+        component HeaderToolButton: ToolButton {
+            id: headerButton
+            property int iconKind: 10
+            property string tooltip: ""
+            implicitWidth: 48
+            implicitHeight: 54
+            background: Rectangle {
+                radius: 8
+                color: headerButton.hovered ? root.theme.primarySoft : "transparent"
             }
+            contentItem: IconCanvas {
+                anchors.centerIn: parent
+                width: 25
+                height: 25
+                kind: headerButton.iconKind
+                color: "#071E41"
+            }
+            ToolTip.visible: hovered
+            ToolTip.text: tooltip
         }
-        ToolButton {
+
+        HeaderToolButton {
             visible: backend.authenticated
-            implicitWidth: root.theme.touchTarget; implicitHeight: root.theme.touchTarget
+            iconKind: 4
+            tooltip: "通知"
             onClicked: backend.currentSection = 4
             contentItem: Item {
-                IconCanvas { anchors.centerIn: parent; width: root.theme.toolbarIconSize; height: root.theme.toolbarIconSize; kind: 4; color: root.theme.text }
+                IconCanvas { anchors.centerIn: parent; width: 25; height: 25; kind: 4; color: "#071E41" }
                 Rectangle {
                     visible: backend.unreadNotifications > 0
-                    anchors.right: parent.right; anchors.top: parent.top
-                    width: 18; height: 18; radius: 9; color: root.theme.danger
-                    Text { anchors.centerIn: parent; text: backend.unreadNotifications > 9 ? "9+" : backend.unreadNotifications; color: "white"; font.pixelSize: 9; font.bold: true }
+                    anchors.right: parent.right
+                    anchors.rightMargin: 2
+                    anchors.top: parent.top
+                    anchors.topMargin: 1
+                    width: Math.max(18, titleBadge.implicitWidth + 8)
+                    height: 18
+                    radius: 9
+                    color: root.theme.danger
+                    Text {
+                        id: titleBadge
+                        anchors.centerIn: parent
+                        text: backend.unreadNotifications > 99 ? "99+" : backend.unreadNotifications
+                        color: "white"
+                        font.family: root.theme.uiFont
+                        font.pixelSize: 10
+                        font.bold: true
+                    }
                 }
             }
         }
-        ToolButton {
-            visible: backend.authenticated && root.width >= 720
-            implicitWidth: root.theme.touchTarget; implicitHeight: root.theme.touchTarget
+        HeaderToolButton {
+            visible: backend.authenticated && root.width >= 760
+            iconKind: 10
+            tooltip: "帮助中心"
             onClicked: backend.globalSearch("帮助中心")
-            contentItem: Item {
-                IconCanvas { anchors.centerIn: parent; width: root.theme.toolbarIconSize; height: root.theme.toolbarIconSize; kind: 10; color: root.theme.text }
-            }
         }
-        ToolButton {
-            visible: backend.authenticated && root.width >= 720
-            implicitWidth: root.theme.touchTarget; implicitHeight: root.theme.touchTarget
+        HeaderToolButton {
+            visible: backend.authenticated && root.width >= 760
+            iconKind: 6
+            tooltip: "设置"
             onClicked: backend.currentSection = 6
-            contentItem: Item {
-                IconCanvas { anchors.centerIn: parent; width: root.theme.toolbarIconSize; height: root.theme.toolbarIconSize; kind: 6; color: root.theme.text }
-            }
         }
         UserAvatar {
             objectName: "qmlTitleBarUserAvatar"
-            visible: backend.authenticated && root.width >= 1080
-            Layout.preferredWidth: visible ? 34 : 0
-            Layout.preferredHeight: visible ? 34 : 0
+            visible: backend.authenticated
+            Layout.preferredWidth: visible ? 38 : 0
+            Layout.preferredHeight: visible ? 38 : 0
+            // 登录态隐藏头像时同时清除布局边距，防止右上角暴露未绘制的合成器底色。
+            Layout.leftMargin: visible ? 6 : 0
+            Layout.rightMargin: visible ? 10 : 0
             theme: root.theme
             source: String(backend.accountProfile.avatar || "")
             displayName: String(backend.currentDisplayName || "当前用户")
             online: backend.connected
-            avatarSize: 34
-            TapHandler {
-                // 标题栏头像与左侧用户入口行为一致，统一进入账号与资料页面。
-                onTapped: backend.currentSection = 6
-            }
+            avatarSize: 38
+            TapHandler { onTapped: backend.currentSection = 6 }
         }
-        Rectangle { visible: backend.authenticated; Layout.preferredWidth: 1; Layout.preferredHeight: 26; color: root.theme.border }
 
-        ToolButton {
+        HeaderToolButton {
             objectName: "qmlLoginServerSettingsButton"
             visible: !backend.authenticated
-            implicitWidth: root.theme.touchTarget
-            implicitHeight: root.theme.touchTarget
+            iconKind: 6
+            tooltip: "服务器设置"
             onClicked: root.serverSettingsRequested()
-            ToolTip.visible: hovered
-            ToolTip.text: "服务器设置"
-            contentItem: IconCanvas {
-                width: root.theme.toolbarIconSize
-                height: root.theme.toolbarIconSize
-                kind: 6
-                color: root.theme.primary
-            }
         }
 
         component WindowButton: ToolButton {
             id: windowButton
             required property string glyph
-            property color hoverColor: root.theme.surfaceMuted
-            implicitWidth: 46
-            implicitHeight: 64
-            background: Rectangle { color: windowButton.hovered ? windowButton.hoverColor : "transparent" }
+            property color hoverColor: root.theme.primarySoft
+            implicitWidth: 42
+            implicitHeight: 76
+            // Windows 原生 Control 样式在透明背景上可能回退为黑色；显式铺底保持标题栏连续不透明。
+            background: Rectangle {
+                color: windowButton.hovered ? windowButton.hoverColor
+                                            : (root.theme.darkMode ? root.theme.surface : "#F7FAFF")
+            }
             contentItem: Text {
                 text: windowButton.glyph
-                color: root.theme.text
+                color: "#071E41"
                 font.family: "Segoe UI Symbol"
                 font.pixelSize: 16
                 horizontalAlignment: Text.AlignHCenter
@@ -184,16 +230,22 @@ Rectangle {
             }
         }
 
-        WindowButton { objectName: "qmlWindowMinimizeButton"; visible: backend.authenticated; glyph: "—"; onClicked: root.targetWindow.showMinimized() }
+        WindowButton {
+            objectName: "qmlWindowMinimizeButton"
+            visible: backend.authenticated
+            glyph: "−"
+            onClicked: root.targetWindow.showMinimized()
+        }
         WindowButton {
             objectName: "qmlWindowMaximizeButton"
             visible: backend.authenticated
             glyph: root.targetWindow.visibility === Window.Maximized ? "❐" : "□"
             onClicked: root.toggleMaximized()
         }
-        WindowButton { glyph: "×"; hoverColor: "#E5484D"; onClicked: root.targetWindow.close() }
+        WindowButton {
+            glyph: "×"
+            hoverColor: "#E5484D"
+            onClicked: root.targetWindow.close()
+        }
     }
-
-    Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: root.theme.border }
-    Shortcut { sequence: "Ctrl+F"; enabled: globalSearch.visible; onActivated: globalSearch.forceActiveFocus() }
 }

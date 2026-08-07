@@ -341,6 +341,7 @@ std::vector<std::byte> encodeDirectoryPerson(const DirectoryPerson& value)
     writeUnsigned(output, 8, value.primaryDepartmentId);
     writeUnsigned(output, 9, value.primaryPositionId);
     writeBoolean(output, 10, value.enabled);
+    writeUnsigned(output, 11, value.presenceState);
     return output;
 }
 
@@ -359,6 +360,7 @@ DirectoryPerson decodeDirectoryPerson(std::span<const std::byte> bytes)
         case 8: value.primaryDepartmentId = reader.readUnsigned(wire); return true;
         case 9: value.primaryPositionId = reader.readUnsigned(wire); return true;
         case 10: value.enabled = reader.readUnsigned(wire) != 0; return true;
+        case 11: value.presenceState = static_cast<std::uint32_t>(reader.readUnsigned(wire)); return true;
         default: return false;
         }
     });

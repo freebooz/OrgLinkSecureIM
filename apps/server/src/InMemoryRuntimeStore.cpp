@@ -184,6 +184,14 @@ protocol::LoginResponse InMemoryRuntimeStore::authenticate(
     return response;
 }
 
+void InMemoryRuntimeStore::updatePresence(
+    std::uint64_t personId, std::uint64_t deviceId, bool online)
+{
+    static_cast<void>(deviceId);
+    std::scoped_lock lock(mutex_);
+    presenceStates_[personId] = online;
+}
+
 protocol::DirectorySnapshotResponse InMemoryRuntimeStore::loadDirectorySnapshot(
     std::uint64_t requesterPersonId)
 {
@@ -207,7 +215,8 @@ protocol::DirectorySnapshotResponse InMemoryRuntimeStore::loadDirectorySnapshot(
     std::uint64_t assignmentId = 1;
     for (const auto& [loginName, account] : accounts_)
     {
-        response.people.push_back({account.personId, loginName, account.displayName, {}, {}, {}, {}, 1, 0, true});
+        response.people.push_back({account.personId, loginName, account.displayName, {}, {}, {}, {},
+            1, 0, true, presenceStates_[account.personId] ? 1U : 0U});
         response.assignments.push_back({assignmentId++, account.personId, 1, 0, true, 0});
     }
     return response;
@@ -248,7 +257,7 @@ protocol::ContactCenterResponse InMemoryRuntimeStore::loadContactCenter(
         if (account == accounts_.end()) return summary;
         summary.personId = contactPersonId;
         summary.displayName = account->second.displayName;
-        summary.presenceState = 1;
+        summary.presenceState = presenceStates_[contactPersonId] ? 1U : 0U;
         const auto profile = contactProfiles_.find({requesterPersonId, contactPersonId});
         summary.favorite = profile != contactProfiles_.end() && profile->second.favorite;
         summary.lastInteractionAtUtcMs = currentUtcMs();
@@ -302,7 +311,7 @@ protocol::ContactDetailResponse InMemoryRuntimeStore::loadContactDetail(
     response.detail.employeeNumber = account->first;
     response.detail.departmentName = "研发部";
     response.detail.positionName = "组织成员";
-    response.detail.presenceState = 1;
+    response.detail.presenceState = presenceStates_[contactPersonId] ? 1U : 0U;
     if (response.detail.revision == 0) response.detail.revision = 1;
     for (const auto& [groupId, group] : groups_)
     {
@@ -355,7 +364,7 @@ protocol::ContactPreferenceUpdateResponse InMemoryRuntimeStore::updateContactPre
     detail.employeeNumber = target->first;
     detail.departmentName = "研发部";
     detail.positionName = "组织成员";
-    detail.presenceState = 1;
+    detail.presenceState = presenceStates_[request.contactPersonId] ? 1U : 0U;
     detail.favorite = request.favorite;
     detail.note = request.note;
     detail.tags = request.tags;

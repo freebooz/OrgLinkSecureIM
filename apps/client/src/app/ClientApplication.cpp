@@ -18,6 +18,11 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QUrl>
+#if defined(ORGLINK_DESKTOP_WEBENGINE)
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
+#else
+#include <QtWebView/QtWebView>
+#endif
 
 #include <memory>
 
@@ -52,6 +57,13 @@ int ClientApplication::run(int argc, char* argv[])
     Q_INIT_RESOURCE(client_assets);
     Q_INIT_RESOURCE(qml_assets);
 
+    // 浏览器后端必须在应用对象创建前初始化；桌面 WebEngine 使用 QML 图层并独立承载渲染进程，
+    // 移动端保留系统 WebView，从而分别满足桌面窗口交互和移动平台生命周期约束。
+#if defined(ORGLINK_DESKTOP_WEBENGINE)
+    QtWebEngineQuick::initialize();
+#else
+    QtWebView::initialize();
+#endif
     // Basic 样式在 Windows、Linux 和移动端具有一致指标，业务页面不依赖平台原生控件的隐式边距。
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 #if defined(ORGLINK_DESKTOP_TRAY)

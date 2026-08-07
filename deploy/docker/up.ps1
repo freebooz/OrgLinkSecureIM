@@ -66,6 +66,17 @@ $env:ORGLINK_LIVEKIT_NODE_IP = if ([string]::IsNullOrWhiteSpace($configuredNodeI
     $detectedAddress
 } else { $configuredNodeIp }
 
+# 会议页和 LiveKit 信令共用该证书；自动部署需把客户端实际访问的主机写入 SAN，
+# 否则 Chromium 会拒绝安全上下文并隐藏 getUserMedia。显式主机允许 IPv4 或内网 DNS 名称。
+$parsedPublicAddress = $null
+if ([Net.IPAddress]::TryParse($env:ORGLINK_PUBLIC_HOST, [ref]$parsedPublicAddress)) {
+    $env:ORGLINK_TLS_PUBLIC_SAN = "IP:$($env:ORGLINK_PUBLIC_HOST)"
+    $env:ORGLINK_TLS_CHECK_OPTION = '-checkip'
+} else {
+    $env:ORGLINK_TLS_PUBLIC_SAN = "DNS:$($env:ORGLINK_PUBLIC_HOST)"
+    $env:ORGLINK_TLS_CHECK_OPTION = '-checkhost'
+}
+
 $certificateDirectory = Join-Path $deployDirectory 'runtime-certs'
 New-Item -ItemType Directory -Path $certificateDirectory -Force | Out-Null
 docker compose --project-directory $deployDirectory --env-file $environmentFile -f (Join-Path $deployDirectory 'compose.yml') up -d --build --wait

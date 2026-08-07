@@ -151,6 +151,11 @@ private:
                    std::uint64_t requestId, std::span<const std::byte> body);
     void sendError(QTcpSocket* socket, ConnectionState& state, std::uint64_t requestId,
                    std::uint32_t code, const std::string& friendlyMessage);
+    /** @brief 在持久目录上覆盖本节点真实连接状态，避免进程异常退出留下的历史在线记录误导客户端。 */
+    [[nodiscard]] protocol::DirectorySnapshotResponse loadDirectoryWithLivePresence(
+        std::uint64_t requesterPersonId);
+    /** @brief 人员登录或最后连接断开后向所有在线人员推送各自权限范围内的最新目录。 */
+    void broadcastPresenceSnapshots();
     void removeConnection(QTcpSocket* socket);
     void expireIdleConnections();
     [[nodiscard]] bool consumeRateBudget(ConnectionState& state);

@@ -59,6 +59,9 @@ domain::OrganizationSnapshot toDomainSnapshot(const protocol::DirectorySnapshotR
                 : std::optional{domain::DepartmentId{item.primaryDepartmentId}},
             item.primaryPositionId == 0 ? std::nullopt
                 : std::optional{domain::PositionId{item.primaryPositionId}}, item.enabled});
+        // 在线状态来自服务端连接会话聚合；即使离线也写入快照，避免客户端沿用旧在线状态。
+        snapshot.presences.push_back({domain::PersonId{item.id}, std::nullopt,
+            static_cast<domain::PresenceState>(item.presenceState), 0, 0});
     }
     snapshot.assignments.reserve(response.assignments.size());
     for (const auto& item : response.assignments)

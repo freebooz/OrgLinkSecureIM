@@ -36,6 +36,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QWindow>
+#include <QtWebView/QtWebView>
 
 #if defined(ORGLINK_TEST_HAS_GATEWAY)
 #include "GatewayServer.h"
@@ -74,6 +75,11 @@ private slots:
         QCOMPARE(backend.currentAccountName(), QStringLiteral("尚未登录"));
         QCOMPARE(backend.currentDisplayName(), QStringLiteral("尚未登录"));
         QCOMPARE(backend.currentUser(), backend.currentDisplayName());
+        // 未建立会议时不得残留窗口、服务端 UUID 或带短效令牌的 URL；重复关闭保持幂等。
+        QVERIFY(!backend.conferenceVisible());
+        QVERIFY(backend.conferenceUrl().isEmpty());
+        backend.closeConference();
+        QVERIFY(!backend.conferenceVisible());
         QSignalSpy closeToTrayRequested(&backend, &QmlClientBackend::windowCloseToTrayRequested);
         QSignalSpy foregroundAcknowledged(&backend, &QmlClientBackend::windowForegroundAcknowledged);
         QVERIFY(!backend.requestWindowCloseToTray());
@@ -133,6 +139,15 @@ private slots:
             {{QStringLiteral("theme"), QVariant::fromValue(theme.get())}}));
         QVERIFY2(inputField != nullptr, qPrintable(inputComponent.errorString()));
 
+        // 公共深蓝导航轨必须保持设计稿 72px 宽度，并作为独立组件供全部业务模块复用。
+        QQmlComponent railComponent(
+            &engine, QUrl(QStringLiteral("qrc:/orglink/qml/CommonNavigationRail.qml")));
+        std::unique_ptr<QObject> navigationRail(railComponent.createWithInitialProperties(
+            {{QStringLiteral("theme"), QVariant::fromValue(theme.get())},
+             {QStringLiteral("height"), 860}}));
+        QVERIFY2(navigationRail != nullptr, qPrintable(railComponent.errorString()));
+        QCOMPARE(navigationRail->property("implicitWidth").toInt(), 72);
+
         const QStringList pages{
             QStringLiteral("MessagePage.qml"), QStringLiteral("DirectoryPage.qml"),
             QStringLiteral("GroupPage.qml"), QStringLiteral("FileCenterPage.qml"),
@@ -145,9 +160,11 @@ private slots:
              {QStringLiteral("width"), 900}, {QStringLiteral("height"), 1180}},
             {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), false},
              {QStringLiteral("width"), 1360}, {QStringLiteral("height"), 820}},
-            // 设计稿原始画布为 1584×992，必须单独实例化以守住三栏比例和右侧名片栏断点。
+            // 历史 1584×992 与当前 1680×941 设计稿都必须创建，防止公共栏改造破坏旧桌面断点。
             {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), false},
-             {QStringLiteral("width"), 1584}, {QStringLiteral("height"), 992}}};
+             {QStringLiteral("width"), 1584}, {QStringLiteral("height"), 992}},
+            {{QStringLiteral("phone"), false}, {QStringLiteral("tablet"), false},
+             {QStringLiteral("width"), 1680}, {QStringLiteral("height"), 865}}};
         for (const auto& page : pages)
         {
             for (auto properties : deviceProfiles)
@@ -162,6 +179,29 @@ private slots:
                     // 会话头部必须暴露真实语音/视频入口，按钮只向 C++ 用例门面转发意图。
                     QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlVoiceCallButton")) != nullptr);
                     QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlVideoCallButton")) != nullptr);
+                }
+                if (page == QStringLiteral("DirectoryPage.qml"))
+                {
+                    // 通讯录必须始终创建组织树、无竖分隔线成员表与详情卡；断点只改变可见性。
+                    const auto* organizationPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlDirectoryOrganizationPanel"));
+                    const auto* peoplePanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlDirectoryPeoplePanel"));
+                    const auto* detailPanel = object->findChild<QObject*>(
+                        QStringLiteral("qmlDirectoryDetailPanel"));
+                    QVERIFY(organizationPanel != nullptr);
+                    QVERIFY(peoplePanel != nullptr);
+                    QVERIFY(detailPanel != nullptr);
+                    QVERIFY(object->findChild<QObject*>(
+                        QStringLiteral("qmlDirectoryOrganizationTree")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(
+                        QStringLiteral("qmlDirectoryPeopleTable")) != nullptr);
+                    const auto phoneProfile = properties.value(QStringLiteral("phone")).toBool();
+                    const auto tabletProfile = properties.value(QStringLiteral("tablet")).toBool();
+                    QCOMPARE(organizationPanel->property("visible").toBool(), true);
+                    QCOMPARE(peoplePanel->property("visible").toBool(), !phoneProfile);
+                    QCOMPARE(detailPanel->property("visible").toBool(),
+                             !phoneProfile && !tabletProfile);
                 }
                 if (page == QStringLiteral("SettingsPage.qml"))
                 {
@@ -283,14 +323,27 @@ private slots:
         auto* mainWindow = engine.rootObjects().constFirst();
         QCOMPARE(mainWindow->objectName(), QStringLiteral("qmlMainWindow"));
         QCOMPARE(mainWindow->property("title").toString(), QStringLiteral("安域通"));
+        QCoreApplication::processEvents();
+        // 未登录窗口按表单最小所需空间创建，避免沿用工作台 1680px 大画布。
+        QVERIFY(mainWindow->property("width").toInt() <= 980);
+        QVERIFY(mainWindow->property("height").toInt() <= 650);
         // 主窗口必须始终完全不透明，防止宿主桌面内容干扰业务信息阅读或意外透出敏感内容。
         QCOMPARE(mainWindow->property("opacity").toDouble(), 1.0);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlWindowTitleBar")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlConferenceWindow")) != nullptr);
         auto* loginServerSettingsButton = mainWindow->findChild<QObject*>(
             QStringLiteral("qmlLoginServerSettingsButton"));
         QVERIFY(loginServerSettingsButton != nullptr);
         QVERIFY(loginServerSettingsButton->property("visible").toBool());
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginServerSettingsDialog")) != nullptr);
+        // 新登录页必须同时保留品牌价值区、三张能力卡、表单和安全状态条，避免设计调整后退化成裸表单。
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginBrandPanel")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginHeadline")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard0")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard1")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard2")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFormCard")) != nullptr);
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginSecurityStrip")) != nullptr);
         auto* loginMinimizeButton = mainWindow->findChild<QObject*>(
             QStringLiteral("qmlWindowMinimizeButton"));
         auto* loginMaximizeButton = mainWindow->findChild<QObject*>(
@@ -776,5 +829,13 @@ private slots:
 
 } // namespace orglink::client
 
-QTEST_MAIN(orglink::client::ClientSmokeTests)
+/** @brief 在 QApplication 创建前初始化 WebView，模拟生产入口并保证会议 QML 类型可安全装载。 */
+int main(int argc, char* argv[])
+{
+    QtWebView::initialize();
+    QApplication application(argc, argv);
+    orglink::client::ClientSmokeTests tests;
+    return QTest::qExec(&tests, argc, argv);
+}
+
 #include "ClientSmokeTests.moc"

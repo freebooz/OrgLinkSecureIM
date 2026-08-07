@@ -83,6 +83,14 @@ public:
     [[nodiscard]] virtual protocol::LoginResponse authenticate(
         const protocol::LoginRequest& request, const std::string& sourceAddress) = 0;
 
+    /**
+     * @brief 持久化人员当前连接聚合状态；online=true 表示认证连接建立，false 表示最后连接断开。
+     *
+     * Gateway 只允许使用认证态中的 personId/deviceId 调用；失败不得中断网络线程，后续快照按离线回退。
+     */
+    virtual void updatePresence(
+        std::uint64_t personId, std::uint64_t deviceId, bool online) = 0;
+
     /** @brief 返回当前人员可见且内部一致的组织目录快照；查询失败返回稳定错误，不抛出数据库细节。 */
     [[nodiscard]] virtual protocol::DirectorySnapshotResponse loadDirectorySnapshot(
         std::uint64_t requesterPersonId) = 0;

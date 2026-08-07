@@ -42,6 +42,7 @@ public:
 
     [[nodiscard]] protocol::LoginResponse authenticate(
         const protocol::LoginRequest& request, const std::string& sourceAddress) override;
+    void updatePresence(std::uint64_t personId, std::uint64_t deviceId, bool online) override;
     [[nodiscard]] protocol::DirectorySnapshotResponse loadDirectorySnapshot(
         std::uint64_t requesterPersonId) override;
     [[nodiscard]] protocol::DirectoryDeltaResponse loadDirectoryDelta(

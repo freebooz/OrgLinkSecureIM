@@ -17,8 +17,8 @@ x-server-environment: &server-environment
   ORGLINK_MINIO_TIMEOUT_MS: "15000"
   ORGLINK_LIVEKIT_API_KEY: ${ORGLINK_LIVEKIT_API_KEY:?请设置 LiveKit API Key}
   ORGLINK_LIVEKIT_API_SECRET: ${ORGLINK_LIVEKIT_API_SECRET:?请设置 LiveKit API Secret}
-  ORGLINK_LIVEKIT_PUBLIC_URL: ws://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_LIVEKIT_SIGNAL_PORT:-7880}
-  ORGLINK_CONFERENCE_WEB_URL: http://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_CONFERENCE_WEB_PORT:-7888}
+  ORGLINK_LIVEKIT_PUBLIC_URL: wss://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_CONFERENCE_WEB_PORT:-7888}/livekit
+  ORGLINK_CONFERENCE_WEB_URL: https://${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}:${ORGLINK_CONFERENCE_WEB_PORT:-7888}
   ORGLINK_LIVEKIT_TOKEN_TTL_SECONDS: "600"
   TZ: Asia/Shanghai
 
@@ -51,12 +51,18 @@ services:
     image: orglink-secure-im/server:0.2.0
     user: "0:0"
     entrypoint: ["/bin/sh", "-c"]
-    # 仅缺少任一文件时精确删除这一对旧 TLS 资产后全量重建，避免证书与私钥错配。
+    environment:
+      ORGLINK_PUBLIC_HOST: ${ORGLINK_PUBLIC_HOST:?请设置局域网可访问地址}
+      ORGLINK_TLS_PUBLIC_SAN: ${ORGLINK_TLS_PUBLIC_SAN:?请设置证书局域网 SAN}
+      ORGLINK_TLS_CHECK_OPTION: ${ORGLINK_TLS_CHECK_OPTION:?请设置证书主机校验参数}
+    # 缺少任一文件或证书不覆盖当前局域网主机时，精确删除这一对旧 TLS 资产后全量重建，
+    # 避免覆盖导入残留旧 SAN 或造成证书与私钥错配；无关运行数据不受影响。
     command:
       - >-
-        if [ ! -s /certs/server.crt ] || [ ! -s /certs/server.key ]; then
+        if [ ! -s /certs/server.crt ] || [ ! -s /certs/server.key ] ||
+          ! openssl x509 -in /certs/server.crt "$${ORGLINK_TLS_CHECK_OPTION}" "$${ORGLINK_PUBLIC_HOST}" -noout >/dev/null 2>&1; then
           rm -f /certs/server.crt /certs/server.key;
-          openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 -subj /CN=orglink-server -addext subjectAltName=DNS:orglink-server,DNS:localhost,IP:127.0.0.1 -addext basicConstraints=critical,CA:TRUE -keyout /certs/server.key -out /certs/server.crt;
+          openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 -subj /CN=orglink-server -addext "subjectAltName=DNS:orglink-server,DNS:localhost,IP:127.0.0.1,$${ORGLINK_TLS_PUBLIC_SAN}" -addext basicConstraints=critical,CA:TRUE -keyout /certs/server.key -out /certs/server.crt;
           chown orglink:orglink /certs/server.crt /certs/server.key;
           chmod 644 /certs/server.crt;
           chmod 640 /certs/server.key;
@@ -176,7 +182,14 @@ services:
     image: orglink-secure-im/conference-web:0.1.0
     restart: unless-stopped
     ports:
-      - "${ORGLINK_CONFERENCE_WEB_PORT:-7888}:8080"
+      - "${ORGLINK_CONFERENCE_WEB_PORT:-7888}:8443"
+    volumes:
+      - ./runtime-certs:/etc/orglink/tls:ro
+    depends_on:
+      certificate-generator:
+        condition: service_completed_successfully
+      livekit:
+        condition: service_started
     read_only: true
     tmpfs:
       - /var/cache/nginx:size=16m,mode=0755

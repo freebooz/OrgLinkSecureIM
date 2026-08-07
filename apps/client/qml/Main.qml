@@ -11,12 +11,37 @@ ApplicationWindow {
     // 主窗口固定为完全不透明，避免桌面内容透入工作区影响可读性和敏感信息保护。
     // 历史 windowTransparency 字段仅保留协议兼容，不再参与任何窗口合成计算。
     opacity: 1.0
-    width: mobilePlatform ? Screen.width : (Screen.width >= 1500 ? 1500 : Math.max(360, Screen.width * 0.94))
-    height: mobilePlatform ? Screen.height : (Screen.height >= 920 ? 920 : Math.max(640, Screen.height * 0.92))
-    minimumWidth: mobilePlatform ? 320 : 360
-    minimumHeight: mobilePlatform ? 480 : 640
+    // 登录页只保留表单和品牌信息所需空间；认证成功后再切换为完整工作台画布。
+    readonly property real loginDesktopWidth: Math.min(980, Screen.width * 0.92)
+    readonly property real loginDesktopHeight: Math.min(650, Screen.height * 0.90)
+    readonly property real workspaceDesktopWidth: Screen.width >= 1720 ? 1680 : Math.max(1120, Screen.width * 0.96)
+    readonly property real workspaceDesktopHeight: Screen.height >= 980 ? 941 : Math.max(680, Screen.height * 0.94)
+    width: mobilePlatform ? Screen.width : loginDesktopWidth
+    height: mobilePlatform ? Screen.height : loginDesktopHeight
+    minimumWidth: mobilePlatform ? 320 : (backend.authenticated ? 1120 : 760)
+    minimumHeight: mobilePlatform ? 480 : (backend.authenticated ? 680 : 600)
     title: "安域通"
     color: appTheme.background
+
+    /**
+     * 根据认证状态切换窗口画布并重新居中。这里显式赋值而不依赖窗口宽高绑定，避免用户手动
+     * 缩放无边框窗口后绑定被窗口系统覆盖，导致登录/退出时尺寸无法恢复。
+     */
+    function applyWindowModeSize() {
+        if (window.mobilePlatform)
+            return
+        window.visibility = Window.Windowed
+        window.width = backend.authenticated ? window.workspaceDesktopWidth : window.loginDesktopWidth
+        window.height = backend.authenticated ? window.workspaceDesktopHeight : window.loginDesktopHeight
+        window.x = Math.max(0, Math.round((Screen.width - window.width) / 2))
+        window.y = Math.max(0, Math.round((Screen.height - window.height) / 2))
+    }
+
+    Component.onCompleted: Qt.callLater(window.applyWindowModeSize)
+    Connections {
+        target: backend
+        function onAuthenticatedChanged() { Qt.callLater(window.applyWindowModeSize) }
+    }
 
     // 桌面关闭由 C++ 托盘控制器全局接管；托盘不可用或移动端仍执行平台默认关闭。
     onClosing: function(close) {
@@ -30,12 +55,15 @@ ApplicationWindow {
 
     Theme { id: appTheme }
 
+    // 会议窗口与主工作台同属当前进程；关闭会议不影响主窗口和安全连接。
+    ConferenceWindow { theme: appTheme }
+
     Column {
         anchors.fill: parent
         WindowTitleBar {
             visible: !window.mobilePlatform
             width: parent.width
-            height: visible ? 64 : 0
+            height: visible ? 76 : 0
             theme: appTheme
             targetWindow: window
             onServerSettingsRequested: serverSettingsDialog.open()

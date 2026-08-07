@@ -1284,6 +1284,8 @@ struct DirectoryPerson
     std::uint64_t primaryDepartmentId{0};
     std::uint64_t primaryPositionId{0};
     bool enabled{false};
+    /** @brief 服务端连接会话聚合状态：0=离线、1=在线，其余值保留给忙碌/离开/勿扰。 */
+    std::uint32_t presenceState{0};
 };
 
 /** @brief 人员任职关系；positionId 为零表示未绑定岗位。 */

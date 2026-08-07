@@ -46,6 +46,8 @@ class QmlClientBackend final : public QObject
     Q_PROPERTY(QVariantList conversations READ conversations NOTIFY conversationsChanged)
     Q_PROPERTY(QVariantList messages READ messages NOTIFY messagesChanged)
     Q_PROPERTY(QVariantList sharedFiles READ sharedFiles NOTIFY sharedFilesChanged)
+    // 组织树与人员表分开投影；QML 只执行展示筛选，不解析领域快照或推断层级。
+    Q_PROPERTY(QVariantList directoryUnits READ directoryUnits NOTIFY directoryUnitsChanged)
     Q_PROPERTY(QVariantList directoryPeople READ directoryPeople NOTIFY directoryPeopleChanged)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QVariantMap groupDetail READ groupDetail NOTIFY groupDetailChanged)
@@ -69,6 +71,10 @@ class QmlClientBackend final : public QObject
     Q_PROPERTY(QString previewName READ previewName NOTIFY previewChanged)
     Q_PROPERTY(QString previewMediaType READ previewMediaType NOTIFY previewChanged)
     Q_PROPERTY(int previewKind READ previewKind NOTIFY previewChanged)
+    // 会议地址包含服务端签发的短效令牌，只在进程内暴露给受控 WebView，禁止持久化或写日志。
+    Q_PROPERTY(bool conferenceVisible READ conferenceVisible NOTIFY conferenceChanged)
+    Q_PROPERTY(QUrl conferenceUrl READ conferenceUrl NOTIFY conferenceChanged)
+    Q_PROPERTY(QString conferenceTitle READ conferenceTitle NOTIFY conferenceChanged)
 
 public:
     /**
@@ -102,6 +108,8 @@ public:
     [[nodiscard]] const QVariantList& conversations() const noexcept { return conversations_; }
     [[nodiscard]] const QVariantList& messages() const noexcept { return messages_; }
     [[nodiscard]] const QVariantList& sharedFiles() const noexcept { return sharedFiles_; }
+    /** @brief 返回按父子关系展平的组织/部门目录节点，用于通讯录树形导航。 */
+    [[nodiscard]] const QVariantList& directoryUnits() const noexcept { return directoryUnits_; }
     [[nodiscard]] const QVariantList& directoryPeople() const noexcept { return directoryPeople_; }
     [[nodiscard]] const QVariantList& groups() const noexcept { return groups_; }
     [[nodiscard]] const QVariantMap& groupDetail() const noexcept { return groupDetail_; }
@@ -128,6 +136,12 @@ public:
     [[nodiscard]] QString previewName() const { return previewName_; }
     [[nodiscard]] QString previewMediaType() const { return previewMediaType_; }
     [[nodiscard]] int previewKind() const noexcept { return previewKind_; }
+    /** @brief 返回应用内会议窗口是否应当显示；认证令牌不包含在该状态中。 */
+    [[nodiscard]] bool conferenceVisible() const noexcept { return conferenceVisible_; }
+    /** @brief 返回仅供受控 WebView 使用的短效会议 URL；调用结束后立即清空。 */
+    [[nodiscard]] QUrl conferenceUrl() const { return conferenceUrl_; }
+    /** @brief 返回不含参会令牌和内部编号的会议窗口标题。 */
+    [[nodiscard]] QString conferenceTitle() const { return conferenceTitle_; }
 
     /** @brief 切换公共导航当前模块并按模块刷新真实服务端数据。 */
     void setCurrentSection(int section);
@@ -155,6 +169,20 @@ public:
     Q_INVOKABLE void globalSearch(const QString& keyword);
     /** @brief 打开会话并加载最近历史；conversationId 来自服务端列表。 */
     Q_INVOKABLE void openConversation(qulonglong conversationId, const QString& displayName);
+    /**
+     * @brief 从通讯录请求或复用单聊并切换到消息模块。
+     * @param personId 服务端目录人员编号，不能使用账号编号代替。
+     * @param displayName 仅用于会话标题；服务端仍以 personId 完成成员鉴权。
+     */
+    Q_INVOKABLE void startDirectConversation(qulonglong personId, const QString& displayName);
+    /**
+     * @brief 从通讯录请求单聊后发起语音或视频会议。
+     * 会话编号与短效媒体凭据均由服务端返回；连续点击会覆盖尚未完成的同类意图。
+     */
+    Q_INVOKABLE void startContactConference(qulonglong personId, const QString& displayName,
+                                            bool videoEnabled);
+    /** @brief 建立联系人单聊后通知 QML 打开文件选择器；失败时不会弹出本地文件窗口。 */
+    Q_INVOKABLE void prepareContactFileTransfer(qulonglong personId, const QString& displayName);
     /** @brief 发送纯文本消息；空白正文和未打开会话不会进入网络队列。 */
     Q_INVOKABLE void sendMessage(const QString& text);
     /**
@@ -164,6 +192,11 @@ public:
      * @note QML 不接触 LiveKit 令牌；失败、离线或会话无效时仅返回脱敏提示。
      */
     Q_INVOKABLE void startConference(qulonglong conversationId, bool videoEnabled);
+    /**
+     * @brief 关闭应用内会议窗口并通知服务端离会。
+     * @note 本方法会先清空含短效令牌的 URL，再异步发送离会请求；重复调用保持幂等。
+     */
+    Q_INVOKABLE void closeConference();
     /** @brief 选择群组、通知、联系人、文件或日程详情。 */
     Q_INVOKABLE void selectGroup(qulonglong groupId);
     Q_INVOKABLE void selectNotification(qulonglong notificationId);
@@ -269,6 +302,8 @@ signals:
     void conversationsChanged();
     void messagesChanged();
     void sharedFilesChanged();
+    /** @brief 组织/部门树展示投影已被新的权威目录快照替换。 */
+    void directoryUnitsChanged();
     void directoryPeopleChanged();
     void groupsChanged();
     void groupDetailChanged();
@@ -292,12 +327,16 @@ signals:
     void callDeviceInfoChanged();
     void aboutSystemChanged();
     void previewChanged();
+    /** @brief 应用内会议窗口及其进程内短效地址发生变化。 */
+    void conferenceChanged();
     /** @brief QML 已确认普通关闭应转为隐藏；桌面托盘控制器同步处理该信号。 */
     void windowCloseToTrayRequested();
     /** @brief 窗口获得前台焦点；托盘控制器据此结束闪烁但不擅自清除服务端未读。 */
     void windowForegroundAcknowledged();
     /** @brief 收到服务端实时消息推送；正文不随信号进入桌面平台层。 */
     void incomingMessageReceived(qulonglong conversationId);
+    /** @brief 联系人单聊已由服务端确认，QML 现在可以安全打开文件选择器。 */
+    void contactFileTransferReady();
 
 private:
     /** @brief 发出脱敏短提示；相同文本也会重新触发 QML Toast。 */
@@ -342,6 +381,11 @@ private:
     /** @brief 通讯录当前请求目标；用于防止账号自资料响应覆盖联系人详情面板。 */
     qulonglong selectedContactPersonId_{0};
     qulonglong currentConversationId_{0};
+    /** @brief 等待单聊创建完成的联系人会议意图；为 0 表示当前无待处理会议。 */
+    qulonglong pendingConferencePersonId_{0};
+    bool pendingConferenceVideoEnabled_{false};
+    /** @brief 等待会话确认后打开文件选择器的人员编号；0 表示没有待处理传输。 */
+    qulonglong pendingFileTransferPersonId_{0};
     QString currentConversationName_;
     int currentSection_{0};
     int unreadMessages_{0};
@@ -359,6 +403,8 @@ private:
     QVariantList conversations_;
     QVariantList messages_;
     QVariantList sharedFiles_;
+    /** @brief 最近目录快照生成的组织/部门扁平树；节点包含稳定父键、深度与直属人数。 */
+    QVariantList directoryUnits_;
     QVariantList directoryPeople_;
     QVariantList groups_;
     QVariantMap groupDetail_;
@@ -392,6 +438,14 @@ private:
     QString previewName_;
     QString previewMediaType_;
     int previewKind_{0};
+    /** @brief 当前应用内会议展示状态；窗口关闭后立即复位。 */
+    bool conferenceVisible_{false};
+    /** @brief 含短效媒体令牌的内存 URL；禁止进入设置、日志、缓存或安装包。 */
+    QUrl conferenceUrl_;
+    /** @brief 服务端会议 UUID 仅用于离会请求，生命周期不超过当前会议窗口。 */
+    QString conferenceUuid_;
+    /** @brief 会议窗口可见标题，不含内部标识或凭据。 */
+    QString conferenceTitle_{QStringLiteral("安域通会议")};
 };
 
 } // namespace orglink::client
