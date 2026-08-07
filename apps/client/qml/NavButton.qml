@@ -21,8 +21,9 @@ Rectangle {
         anchors.rightMargin: 10
         spacing: 13
         IconCanvas {
+            objectName: "qmlNavigationIcon"
             visible: control.showIcon
-            width: 24; height: 24
+            width: theme.navigationIconSize; height: theme.navigationIconSize
             anchors.verticalCenter: parent.verticalCenter
             kind: control.iconKind
             color: control.selected ? theme.primary : "#344054"

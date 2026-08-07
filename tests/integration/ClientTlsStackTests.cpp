@@ -373,7 +373,7 @@ private slots:
             QVERIFY(!adminSystemInfo->transportEncryption.isEmpty());
             // 账号与资料页必须消费服务端聚合的真实组织和登录摘要，禁止用 QML 固定文案冒充。
             QVERIFY(!adminSystemInfo->organizationName.trimmed().isEmpty());
-            QCOMPARE(adminSystemInfo->loginName, QStringLiteral("test1"));
+            QCOMPARE(adminSystemInfo->loginName, adminLoginName);
             QVERIFY(adminSystemInfo->teamMemberCount > 0);
             const auto previousRevision = adminSettings->revision;
             const auto userPreviousRevision = userSettings->revision;

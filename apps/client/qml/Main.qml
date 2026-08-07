@@ -8,9 +8,9 @@ ApplicationWindow {
     readonly property bool mobilePlatform: Qt.platform.os === "android" || Qt.platform.os === "ios"
     visibility: mobilePlatform ? Window.FullScreen : Window.Windowed
     flags: mobilePlatform ? Qt.Window : (Qt.Window | Qt.FramelessWindowHint)
-    // “透明度”按设计语义表示透明部分；移动端交给系统合成且始终保持完全不透明。
-    opacity: mobilePlatform || !backend.authenticated ? 1.0
-            : Math.max(0.6, 1.0 - Number(backend.settingsProfile.windowTransparency === undefined ? 30 : backend.settingsProfile.windowTransparency) / 100.0)
+    // 主窗口固定为完全不透明，避免桌面内容透入工作区影响可读性和敏感信息保护。
+    // 历史 windowTransparency 字段仅保留协议兼容，不再参与任何窗口合成计算。
+    opacity: 1.0
     width: mobilePlatform ? Screen.width : (Screen.width >= 1500 ? 1500 : Math.max(360, Screen.width * 0.94))
     height: mobilePlatform ? Screen.height : (Screen.height >= 920 ? 920 : Math.max(640, Screen.height * 0.92))
     minimumWidth: mobilePlatform ? 320 : 360

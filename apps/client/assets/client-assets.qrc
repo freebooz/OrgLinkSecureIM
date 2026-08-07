@@ -2,6 +2,7 @@
     <qresource prefix="/orglink/assets">
         <file alias="orglink-logo.png">orglink-logo.png</file>
         <file alias="orglink-app-icon.png">orglink-app-icon.png</file>
+        <file alias="backgrounds/main-shell-background.png">backgrounds/main-shell-background.png</file>
         <file alias="avatars/test1.png">avatars/test1.png</file>
         <file alias="avatars/test2.png">avatars/test2.png</file>
         <file alias="avatars/test3.png">avatars/test3.png</file>

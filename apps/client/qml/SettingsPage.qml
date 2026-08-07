@@ -214,7 +214,7 @@ Item {
                 anchors.fill: parent; anchors.margins: 16; spacing: 8
                 Text { text: "当前外观摘要"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.sectionSize; font.bold: true }
                 Repeater {
-                    model: [["主题模式", ["浅色模式", "深色模式", "跟随系统"][["light", "dark", "system"].indexOf(String(backend.settingsProfile.theme || "system"))]], ["字体大小", ["小", "中", "大", "超大"][root.settingNumber("fontSizeMode", 1)]], ["卡片圆角", ["小", "中", "大", "超大"][root.settingNumber("cardRadiusMode", 1)]], ["界面密度", ["紧凑", "舒适", "宽松"][root.settingNumber("uiDensity", 1)]], ["动画效果", backend.settingsProfile.animationEnabled === false ? "已关闭" : "已启用"], ["透明度", root.settingNumber("windowTransparency", 30) + "%"]]
+                    model: [["主题模式", ["浅色模式", "深色模式", "跟随系统"][["light", "dark", "system"].indexOf(String(backend.settingsProfile.theme || "system"))]], ["字体大小", ["小", "中", "大", "超大"][root.settingNumber("fontSizeMode", 1)]], ["卡片圆角", ["小", "中", "大", "超大"][root.settingNumber("cardRadiusMode", 1)]], ["界面密度", ["紧凑", "舒适", "宽松"][root.settingNumber("uiDensity", 1)]], ["动画效果", backend.settingsProfile.animationEnabled === false ? "已关闭" : "已启用"], ["主窗口", "完全不透明"]]
                     delegate: RowLayout { required property var modelData; Layout.fillWidth: true; Text { Layout.fillWidth: true; text: modelData[0]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
                 }
                 StyledButton { Layout.fillWidth: true; text: "恢复默认主题"; onClicked: backend.resetAppearanceSettings() }
@@ -679,7 +679,7 @@ Item {
                         }
                         contentItem: RowLayout {
                             spacing: 13
-                            IconCanvas { width: 22; height: 22; kind: modelData.icon; color: root.selectedCategory === index ? root.theme.primary : root.theme.secondaryText }
+                            IconCanvas { width: root.theme.navigationIconSize; height: root.theme.navigationIconSize; kind: modelData.icon; color: root.selectedCategory === index ? root.theme.primary : root.theme.secondaryText }
                             Text { Layout.fillWidth: true; text: modelData.title; color: root.selectedCategory === index ? root.theme.primary : root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: root.selectedCategory === index }
                         }
                         onClicked: root.openCategory(index)
@@ -1399,9 +1399,16 @@ Item {
                                                 color: root.theme.surface; border.width: 1; border.color: root.theme.border
                                                 RowLayout { anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 12; spacing: 9
                                                     IconCanvas { width: 20; height: 20; kind: 22; color: root.theme.secondaryText }
-                                                    Text { text: "窗口透明度"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true }
-                                                    Slider { Layout.fillWidth: true; from: 0; to: 40; stepSize: 5; value: root.settingNumber("windowTransparency", 30); onMoved: backend.updateSetting("windowTransparency", Math.round(value / 5) * 5) }
-                                                    Text { text: root.settingNumber("windowTransparency", 30) + "%"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
+                                                    ColumnLayout {
+                                                        Layout.fillWidth: true; spacing: 1
+                                                        Text { text: "主窗口透明效果"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true }
+                                                        Text { text: "已关闭，避免桌面内容透入工作区"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
+                                                    }
+                                                    Rectangle {
+                                                        implicitWidth: 92; implicitHeight: 28; radius: 6
+                                                        color: root.theme.primarySoft; border.width: 1; border.color: root.theme.primary
+                                                        Text { anchors.centerIn: parent; text: "100% 不透明"; color: root.theme.primary; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; font.bold: true }
+                                                    }
                                                 }
                                             }
                                             Rectangle {
@@ -1432,7 +1439,7 @@ Item {
                                                 Rectangle { Layout.fillWidth: true; Layout.fillHeight: true; radius: 8; color: root.theme.background; border.width: 1; border.color: root.theme.border
                                                     Row { anchors.fill: parent; anchors.margins: 9; spacing: 8
                                                         Rectangle { width: 130; height: parent.height; radius: 7; color: root.theme.surface
-                                                            Column { anchors.fill: parent; anchors.margins: 8; spacing: 6; Text { text: backend.currentUser || "当前用户"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; font.bold: true } Repeater { model: 4; Rectangle { required property int index; width: parent.width; height: 12; radius: 4; color: index === 1 ? root.theme.primarySoft : root.theme.surfaceMuted } } }
+                                                            Column { anchors.fill: parent; anchors.margins: 8; spacing: 6; Text { text: backend.currentDisplayName || "当前用户"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; font.bold: true } Repeater { model: 4; Rectangle { required property int index; width: parent.width; height: 12; radius: 4; color: index === 1 ? root.theme.primarySoft : root.theme.surfaceMuted } } }
                                                         }
                                                         Rectangle { width: Math.max(100, parent.width - 138); height: parent.height; radius: 7; color: root.theme.surface
                                                             Rectangle { x: 18; y: 22; width: parent.width * .5; height: 28; radius: root.theme.bubbleRadius; color: root.theme.surfaceMuted }

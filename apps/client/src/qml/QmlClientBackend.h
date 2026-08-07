@@ -30,6 +30,10 @@ class QmlClientBackend final : public QObject
     Q_PROPERTY(bool authenticated READ authenticated NOTIFY authenticatedChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectionChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    // 账号名属于认证凭据标识，用户显示名属于人员资料；两者必须独立暴露，界面不得混用。
+    Q_PROPERTY(QString currentAccountName READ currentAccountName NOTIFY currentAccountNameChanged)
+    Q_PROPERTY(QString currentDisplayName READ currentDisplayName NOTIFY currentDisplayNameChanged)
+    // currentUser 仅为旧 QML/迁移期兼容别名，其语义始终等同 currentDisplayName，绝不返回登录账号。
     Q_PROPERTY(QString currentUser READ currentUser NOTIFY currentUserChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
     Q_PROPERTY(QString errorText READ errorText NOTIFY errorTextChanged)
@@ -77,6 +81,11 @@ public:
     [[nodiscard]] bool authenticated() const noexcept { return authenticated_; }
     [[nodiscard]] bool connected() const noexcept { return connected_; }
     [[nodiscard]] bool busy() const noexcept { return busy_; }
+    /** @brief 返回当前登录账号标识；仅用于账号资料，不应用于头像旁姓名。 */
+    [[nodiscard]] QString currentAccountName() const { return currentAccountName_; }
+    /** @brief 返回当前人员的姓名或昵称；值来自认证响应及人员主数据。 */
+    [[nodiscard]] QString currentDisplayName() const { return currentUser_; }
+    /** @brief 迁移兼容别名，始终返回人员显示名而非登录账号。 */
     [[nodiscard]] QString currentUser() const { return currentUser_; }
     [[nodiscard]] QString statusText() const { return statusText_; }
     [[nodiscard]] QString errorText() const { return errorText_; }
@@ -214,6 +223,11 @@ signals:
     void authenticatedChanged();
     void connectionChanged();
     void busyChanged();
+    /** @brief 认证账号标识变化；不得驱动头像旁姓名。 */
+    void currentAccountNameChanged();
+    /** @brief 人员姓名或昵称变化；公共头像和名片使用此信号。 */
+    void currentDisplayNameChanged();
+    /** @brief 旧 currentUser 属性的兼容通知，与 currentDisplayNameChanged 同步发出。 */
     void currentUserChanged();
     void statusTextChanged();
     void errorTextChanged();
@@ -291,6 +305,11 @@ private:
     int currentSection_{0};
     int unreadMessages_{0};
     int unreadNotifications_{0};
+    /** @brief 已认证登录账号；只保存本次会话标识，不含口令且不作为人员姓名回退。 */
+    QString currentAccountName_{QStringLiteral("尚未登录")};
+    /** @brief 登录请求中的账号临时值；认证失败即清除，认证成功后转入 currentAccountName_。 */
+    QString pendingLoginName_;
+    /** @brief 当前人员姓名/昵称；成员名沿用旧字段以保持 currentUser 兼容属性稳定。 */
     QString currentUser_{QStringLiteral("尚未登录")};
     QString statusText_{QStringLiteral("等待登录")};
     QString errorText_;

@@ -68,6 +68,10 @@ private slots:
     void qmlResponsivePagesSmokeTest()
     {
         QmlClientBackend backend(nullptr);
+        // 登录账号与人员显示名是两个独立属性；未认证状态也不能靠账号字段推导头像姓名。
+        QCOMPARE(backend.currentAccountName(), QStringLiteral("尚未登录"));
+        QCOMPARE(backend.currentDisplayName(), QStringLiteral("尚未登录"));
+        QCOMPARE(backend.currentUser(), backend.currentDisplayName());
         // 关于页的本机投影在离线模式也必须可用，且不得依赖服务端固定假数据才能创建界面。
         QCOMPARE(backend.aboutSystem().value(QStringLiteral("productName")).toString(),
                  QStringLiteral("安域通"));
@@ -79,6 +83,24 @@ private slots:
         QQmlComponent themeComponent(&engine, QUrl(QStringLiteral("qrc:/orglink/qml/Theme.qml")));
         std::unique_ptr<QObject> theme(themeComponent.create());
         QVERIFY2(theme != nullptr, qPrintable(themeComponent.errorString()));
+        QCOMPARE(theme->property("navigationIconSize").toInt(), 26);
+        QCOMPARE(theme->property("toolbarIconSize").toInt(), 24);
+        QQmlComponent navButtonComponent(
+            &engine, QUrl(QStringLiteral("qrc:/orglink/qml/NavButton.qml")));
+        QVariantMap navButtonProperties{
+            {QStringLiteral("theme"), QVariant::fromValue(theme.get())},
+            {QStringLiteral("text"), QStringLiteral("消息")},
+            {QStringLiteral("width"), 160},
+            {QStringLiteral("height"), 56}};
+        std::unique_ptr<QObject> navButton(
+            navButtonComponent.createWithInitialProperties(navButtonProperties));
+        QVERIFY2(navButton != nullptr, qPrintable(navButtonComponent.errorString()));
+        auto* navigationIcon = navButton->findChild<QObject*>(
+            QStringLiteral("qmlNavigationIcon"));
+        QVERIFY(navigationIcon != nullptr);
+        QCOMPARE(navigationIcon->property("width").toInt(), 26);
+        QCOMPARE(navigationIcon->property("height").toInt(), 26);
+        QVERIFY(navigationIcon->property("lineWidth").toDouble() >= 2.0);
 
         const QStringList pages{
             QStringLiteral("MessagePage.qml"), QStringLiteral("DirectoryPage.qml"),
@@ -224,7 +246,16 @@ private slots:
         auto* mainWindow = engine.rootObjects().constFirst();
         QCOMPARE(mainWindow->objectName(), QStringLiteral("qmlMainWindow"));
         QCOMPARE(mainWindow->property("title").toString(), QStringLiteral("安域通"));
+        // 主窗口必须始终完全不透明，防止宿主桌面内容干扰业务信息阅读或意外透出敏感内容。
+        QCOMPARE(mainWindow->property("opacity").toDouble(), 1.0);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlWindowTitleBar")) != nullptr);
+        auto* titleBarBackground = mainWindow->findChild<QObject*>(
+            QStringLiteral("qmlTitleBarBackground"));
+        QVERIFY(titleBarBackground != nullptr);
+        QCOMPARE(titleBarBackground->property("source").toUrl(),
+                 QUrl(QStringLiteral("qrc:/orglink/assets/backgrounds/main-shell-background.png")));
+        // 标题栏头像必须复用账户资料绑定，禁止重新维护一套用户名首字母状态。
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlTitleBarUserAvatar")) != nullptr);
 #if defined(Q_OS_WIN)
         // Windows 生产入口必须移除系统标题栏，窗口移动、缩放和按钮由公共 QML 标题栏承接。
         QVERIFY((mainWindow->property("flags").toULongLong()
@@ -239,6 +270,20 @@ private slots:
         const auto* mobileHeader = mobileShell->findChild<QObject*>(QStringLiteral("qmlMobileCommonHeader"));
         QVERIFY(mobileHeader != nullptr);
         QVERIFY(mobileHeader->property("visible").toBool());
+        // 同一公共壳层必须装载完全不透明背景，并把七个主导航图标统一到设计稿尺寸。
+        auto* shellBackground = mobileShell->findChild<QObject*>(
+            QStringLiteral("qmlMainShellBackground"));
+        QVERIFY(shellBackground != nullptr);
+        QCOMPARE(shellBackground->property("source").toUrl(),
+                 QUrl(QStringLiteral("qrc:/orglink/assets/backgrounds/main-shell-background.png")));
+        QTRY_COMPARE(shellBackground->property("status").toInt(), 1);
+        // 桌面侧栏在手机断点虽然隐藏但仍由同一公共组件创建，保证切换窗口尺寸后背景和头像立即可用。
+        auto* navigationBackground = mobileShell->findChild<QObject*>(
+            QStringLiteral("qmlNavigationBackground"));
+        QVERIFY(navigationBackground != nullptr);
+        QCOMPARE(navigationBackground->property("source").toUrl(),
+                 QUrl(QStringLiteral("qrc:/orglink/assets/backgrounds/main-shell-background.png")));
+        QVERIFY(mobileShell->findChild<QObject*>(QStringLiteral("qmlCurrentUserAvatar")) != nullptr);
     }
 
     /** @brief 验证文件名裁剪、危险扩展阻断和媒体类型分流不依赖具体窗口实现。 */

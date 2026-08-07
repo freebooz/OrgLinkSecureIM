@@ -4,13 +4,15 @@ Canvas {
     id: icon
     property int kind: 0
     property color color: "#344054"
-    property real lineWidth: 1.8
+    // 2.1 px 设计线宽在高 DPI 下仍保持清晰；调用者只负责选择统一尺寸，不再各自缩小笔画。
+    property real lineWidth: 2.1
     implicitWidth: 24
     implicitHeight: 24
     antialiasing: true
 
     onKindChanged: requestPaint()
     onColorChanged: requestPaint()
+    onLineWidthChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
 
@@ -30,20 +32,27 @@ Canvas {
         ctx.lineCap = "round"
         ctx.lineJoin = "round"
         ctx.beginPath()
-        if (kind === 0) { // 消息
-            ctx.roundedRect(3, 4, 18, 14, 5, 5); line(ctx, 7, 18, 6, 21); line(ctx, 6, 21, 11, 18)
-        } else if (kind === 1) { // 通讯录
-            ctx.roundedRect(4, 3, 16, 18, 2, 2); ctx.arc(12, 9, 3, 0, Math.PI * 2); ctx.moveTo(7, 18); ctx.arc(12, 18, 5, Math.PI, 0)
-        } else if (kind === 2) { // 群组
-            ctx.arc(12, 8, 3.5, 0, Math.PI * 2); ctx.moveTo(5, 20); ctx.arc(12, 20, 7, Math.PI, 0); ctx.moveTo(3, 15); ctx.arc(6, 15, 3, Math.PI, 0); ctx.moveTo(15, 15); ctx.arc(18, 15, 3, Math.PI, 0)
-        } else if (kind === 3) { // 文件夹
-            ctx.roundedRect(2.5, 6, 19, 14, 2, 2); ctx.moveTo(3.5, 7); line(ctx, 3.5, 4, 10, 4); line(ctx, 10, 4, 12, 7)
-        } else if (kind === 4) { // 通知
-            ctx.moveTo(5, 17); ctx.quadraticCurveTo(7, 14, 7, 9); ctx.quadraticCurveTo(7, 4, 12, 4); ctx.quadraticCurveTo(17, 4, 17, 9); ctx.quadraticCurveTo(17, 14, 19, 17); ctx.closePath(); ctx.moveTo(10, 20); ctx.quadraticCurveTo(12, 22, 14, 20)
-        } else if (kind === 5) { // 日历
-            ctx.roundedRect(3, 5, 18, 16, 2, 2); line(ctx, 3, 10, 21, 10); line(ctx, 8, 3, 8, 7); line(ctx, 16, 3, 16, 7)
-        } else if (kind === 6) { // 设置
-            ctx.arc(12, 12, 4, 0, Math.PI * 2); ctx.arc(12, 12, 9, 0, Math.PI * 2)
+        if (kind === 0) { // 消息：扩大气泡主体，尾部与设计稿保持紧凑连接。
+            ctx.roundedRect(1.5, 3, 21, 16, 5, 5); line(ctx, 7, 19, 5.5, 22); line(ctx, 5.5, 22, 11.5, 19)
+        } else if (kind === 1) { // 通讯录：使用完整证件卡轮廓，避免小尺寸下误读为普通用户图标。
+            ctx.roundedRect(2, 1.5, 20, 21, 2.5, 2.5); ctx.arc(12, 8, 3.4, 0, Math.PI * 2); ctx.moveTo(6.5, 19); ctx.quadraticCurveTo(7.5, 14, 12, 14); ctx.quadraticCurveTo(16.5, 14, 17.5, 19)
+        } else if (kind === 2) { // 群组：三个人员轮廓在 24 px 画布中占满安全区域。
+            ctx.arc(12, 7.5, 3.8, 0, Math.PI * 2); ctx.moveTo(4.5, 21.5); ctx.arc(12, 21.5, 7.5, Math.PI, 0); ctx.moveTo(1.5, 16.5); ctx.arc(5.5, 16.5, 4, Math.PI, 0); ctx.moveTo(14.5, 16.5); ctx.arc(18.5, 16.5, 4, Math.PI, 0)
+        } else if (kind === 3) { // 文件夹：扩大到 21 px 宽并强化标签折角。
+            ctx.roundedRect(1.5, 6, 21, 15.5, 2.5, 2.5); ctx.moveTo(2.5, 7); line(ctx, 2.5, 3, 9.5, 3); line(ctx, 9.5, 3, 12, 6)
+        } else if (kind === 4) { // 通知：铃体接近设计稿的 22 px 可见高度。
+            ctx.moveTo(3, 18.5); ctx.quadraticCurveTo(5.5, 15, 5.5, 9); ctx.quadraticCurveTo(5.5, 2.5, 12, 2.5); ctx.quadraticCurveTo(18.5, 2.5, 18.5, 9); ctx.quadraticCurveTo(18.5, 15, 21, 18.5); ctx.closePath(); ctx.moveTo(9, 20.5); ctx.quadraticCurveTo(12, 22.5, 15, 20.5)
+        } else if (kind === 5) { // 日历：放大外框并保留清晰的标题分隔线。
+            ctx.roundedRect(2, 4, 20, 18, 2.5, 2.5); line(ctx, 2, 9.5, 22, 9.5); line(ctx, 7, 1.5, 7, 6.5); line(ctx, 17, 1.5, 17, 6.5)
+        } else if (kind === 6) { // 设置：重绘为齿轮，替换旧同心圆占位图形。
+            for (let tooth = 0; tooth < 16; ++tooth) {
+                const angle = -Math.PI / 2 + tooth * Math.PI / 8
+                const radius = tooth % 2 === 0 ? 10.5 : 8.4
+                const x = 12 + Math.cos(angle) * radius
+                const y = 12 + Math.sin(angle) * radius
+                if (tooth === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+            }
+            ctx.closePath(); ctx.moveTo(15.4, 12); ctx.arc(12, 12, 3.4, 0, Math.PI * 2)
         } else if (kind === 7) { // 搜索
             ctx.arc(10, 10, 6, 0, Math.PI * 2); line(ctx, 14.5, 14.5, 21, 21)
         } else if (kind === 8) { // 下载

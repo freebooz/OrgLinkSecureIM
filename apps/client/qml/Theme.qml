@@ -40,6 +40,12 @@ QtObject {
     readonly property int touchTarget: [40, 44, 50][Math.max(0, Math.min(2, numberSetting("uiDensity", 1)))]
     readonly property int radius: [6, 10, 14, 18][Math.max(0, Math.min(3, numberSetting("cardRadiusMode", 1)))]
     readonly property int bubbleRadius: [10, 20, 3][Math.max(0, Math.min(2, numberSetting("messageBubbleStyle", 0)))]
+    // 图标尺寸按 1584×992 设计稿建立统一令牌；图形自身在画布内只保留约 1 px 安全边距。
+    readonly property int navigationIconSize: 26
+    readonly property int toolbarIconSize: 24
+    readonly property int fieldIconSize: 20
+    readonly property int listIconSize: 20
+    readonly property int featureIconSize: 34
     readonly property int animationDuration: backend.settingsProfile.animationEnabled === false
                                              ? 0 : [110, 180, 280][Math.max(0, Math.min(2, numberSetting("animationIntensity", 1)))]
 }

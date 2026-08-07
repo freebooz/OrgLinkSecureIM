@@ -319,6 +319,8 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
     });
     connect(networkClient_, &NetworkClient::loginFailed, this, [this](const QString& message) {
         busy_ = false;
+        // 失败账号不进入已认证状态，避免后续公共头像误把登录名当作人员姓名展示。
+        pendingLoginName_.clear();
         errorText_ = message;
         emit busyChanged();
         emit errorTextChanged();
@@ -513,6 +515,15 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
         if (remote.personId == currentPersonId_)
         {
             accountProfile_ = mapped;
+            const auto authoritativeDisplayName = mapped.value(
+                QStringLiteral("displayName")).toString().trimmed();
+            if (!authoritativeDisplayName.isEmpty() && currentUser_ != authoritativeDisplayName)
+            {
+                // 人员详情可能比登录响应更新，头像旁姓名跟随权威主数据但账号名保持不变。
+                currentUser_ = authoritativeDisplayName;
+                emit currentDisplayNameChanged();
+                emit currentUserChanged();
+            }
             mergeAccountSystemInfo();
             emit accountProfileChanged();
         }
@@ -651,9 +662,11 @@ void QmlClientBackend::login(
         emit errorTextChanged();
         return;
     }
+    // 登录账号只在认证窗口内暂存；人员姓名必须等待服务端身份响应，不能由账号推断。
+    pendingLoginName_ = loginName.trimmed();
     busy_ = true;
     emit busyChanged();
-    networkClient_->login(serverAddress.trimmed(), loginName.trimmed(), password);
+    networkClient_->login(serverAddress.trimmed(), pendingLoginName_, password);
 }
 
 void QmlClientBackend::refreshCurrentSection()
@@ -1635,13 +1648,19 @@ void QmlClientBackend::initializeAuthenticatedSession(
     qulonglong personId, const QString& displayName)
 {
     currentPersonId_ = personId;
+    currentAccountName_ = pendingLoginName_.trimmed().isEmpty()
+        ? QStringLiteral("当前账号") : pendingLoginName_.trimmed();
+    pendingLoginName_.clear();
     currentUser_ = displayName.trimmed().isEmpty() ? QStringLiteral("当前用户") : displayName.trimmed();
     authenticated_ = true;
     fileTransferController_.initializeForUser(personId);
+    emit currentAccountNameChanged();
+    emit currentDisplayNameChanged();
     emit currentUserChanged();
     emit authenticatedChanged();
     accountProfile_ = {{QStringLiteral("personId"), identifier(personId)},
-        {QStringLiteral("displayName"), currentUser_}};
+        {QStringLiteral("displayName"), currentUser_},
+        {QStringLiteral("loginName"), currentAccountName_}};
     emit accountProfileChanged();
     if (networkClient_ == nullptr) return;
     networkClient_->requestConversationList();
@@ -1875,6 +1894,13 @@ void QmlClientBackend::applySettings(
             {QStringLiteral("lastFileSyncAt"), info->lastFileSyncAtUtcMs == 0 ? QString() :
                 QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(info->lastFileSyncAtUtcMs))
                     .toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))}};
+        const auto authoritativeAccountName = info->loginName.trimmed();
+        if (!authoritativeAccountName.isEmpty() && currentAccountName_ != authoritativeAccountName)
+        {
+            // 设置响应携带服务端规范化账号名，只更新账号属性，绝不覆盖人员姓名。
+            currentAccountName_ = authoritativeAccountName;
+            emit currentAccountNameChanged();
+        }
         mergeAccountSystemInfo();
         rebuildAboutSystemProjection();
         emit systemInfoChanged();

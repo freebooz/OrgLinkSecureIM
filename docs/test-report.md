@@ -37,11 +37,12 @@
 - 登录后按每用户 SQLite 连续修订优先请求组织增量；事件跳号、类型错配、硬删除或引用不闭合时保留旧缓存并回退全量。
 - 本地会话摘要、分会话未读计数、重复推送幂等、打开当前会话清零，以及系统托盘聚合角标和隐私裁剪通知。
 - 已打开会话与前台已读状态现已分离：窗口失焦时接收消息仍实时追加到聊天列表，但只有前台可见时才清零未读并发送已读回执；Qt 回归测试和两个生产客户端真实 TLS 联调均通过。
-- `UiAssets` 统一提供无字体依赖的线性图标和人员头像委托：主导航 24 px、工具栏 20 px、表单 18 px、状态/列表 16 px、功能入口 32 px；test1～test5 使用内置 256×256 Q 版虚构头像，资源损坏时回退姓名首字而不访问网络。
+- `IconCanvas.qml` 统一提供无字体依赖的线性图标：七个主导航图标按 24×24 标准坐标重绘，容器统一为 26 px、工具栏 24 px、输入框/列表 20 px、功能入口 34 px，线宽提升到 2.1 px，解决旧图形因安全边距过大导致的视觉偏小；test1～test5 继续使用内置 256×256 Q 版虚构头像，资源损坏时回退姓名首字而不访问网络。
+- 主页面已接入内置 1584×992 RGB 蓝白安全通信背景图，资源无 Alpha 通道且仅在浅色主题显示；窗口 `opacity` 继续固定为 1.0，深色主题使用完全不透明的主题底色。
 - 应用级 `UiTheme` 已统一基础控件的字号、圆角和交互状态，行式表格不显示垂直分隔线；Sarasa UI SC 1.0.40 作为全局界面字体，聊天正文单独使用 Source Han Sans SC 2.005R，两套 OFL-1.1 字体与许可证均随客户端发布。
 - 群组中心采用独立 `GroupListModel`、`GroupCenterView`、`GroupController`，实现参考图中的上下文筛选、统计卡、群表格、群详情、公告、共享文件和成员预览，并复用公共 `ApplicationShell`。
 - 通知中心采用独立 `NotificationListModel`、`NotificationCenterView`、`NotificationController`，实现分类计数、未读筛选、搜索、分页、右侧详情、附件、状态动作、全部已读和 CSV 导出；通知徽标与聊天未读独立维护。
-- 设置中心采用独立 `SettingsModel`、`SettingsController` 和 QML 页面，账号资料、消息通知、界面主题均按三栏设计实现；通知来源、免打扰、预览、已读/发送行为，以及主题模式、双色板、侧栏、圆角、密度、字号、聊天背景、气泡、视图、透明度和动画均在服务端确认后应用。推荐主题和“恢复默认主题”以单次完整快照提交，避免连续字段更新产生修订冲突。
+- 设置中心采用独立 `SettingsModel`、`SettingsController` 和 QML 页面，账号资料、安全登录、消息通知、文件存储、界面主题、通话设备和关于系统均按响应式三栏设计实现；通知、外观、存储与媒体偏好都在服务端确认后应用。主窗口固定 100% 不透明，历史透明度字段仅保留协议兼容。文件页展示服务端对象分类用量和真实本机缓存；通话页使用 Qt Multimedia 枚举设备并以用户手势控制测试与预览，硬件标识不上传。
 - 通讯录个人化采用独立 `ContactCenterModel`、`ContactController` 并复用现有 `MainWindow` 三栏工作区；真实账号选择人员后可读取详情、共同群组、最近联系人，并通过乐观 revision 更新个人收藏、标签和备注。
 - 日程中心采用独立 `CalendarModel`、`CalendarCenterView`、`CalendarController`，按参考图实现迷你月历、个人/工作/共享日历筛选、可交互日/周/月网格、按模式导航、创建/编辑/取消和右侧详情；两个便携 Release 窗口分别展示组织者可编辑态与参与者只读态。
 
@@ -55,7 +56,7 @@
 
 ### PostgreSQL
 
-- 001～016 迁移实际执行；006 建立群组基座，007 扩展多接收人 Outbox，008 建立通知中心，009 建立每人员设置快照，010 建立通讯录档案，011 建立文件中心，012 建立日程、参与人和审计表，013 绑定 Q 版内置头像，014 扩展账号资料隐私，015 持久化消息通知偏好，016 持久化界面主题偏好；迁移器支持 SHA-256、advisory lock、单文件事务、幂等和漂移拒绝。
+- 001～018 迁移实际执行；006 建立群组基座，007 扩展多接收人 Outbox，008 建立通知中心，009 建立每人员设置快照，010 建立通讯录档案，011 建立文件中心，012 建立日程、参与人和审计表，013 绑定 Q 版内置头像，014 扩展账号资料隐私，015 持久化消息通知偏好，016 持久化界面主题偏好，017/018 分别扩展文件存储与通话设备偏好；迁移器支持 SHA-256、advisory lock、单文件事务、幂等和漂移拒绝。
 - UTF-8 libpq 参数已验证中文数据写入，不再依赖 Windows ANSI 环境编码。
 - bcrypt 密码、五次失败锁定十五分钟、设备登记、登录记录。
 - 唯一单聊、会话序号、设备 + clientMessageId 幂等、消息/Outbox 同事务。
@@ -66,7 +67,7 @@
 - 005 已建立文件资产/任务幂等索引、会议房间和参与者；文件元数据、加密文件消息与 Outbox 在同一事务提交，失败路径执行对象补偿删除。
 - 群创建在单事务内提交群会话、群记录和双份成员关系；列表与详情按认证人员裁剪，群消息/群文件按有效 `conversation_members` 生成独立接收人 Outbox。
 - 通知列表、详情、单条状态和分类全部已读均按认证 PersonId 限定；状态转换与 `notification_state_events` 同事务提交，通知附件下载同时接受会话成员或通知接收人授权。
-- 设置读取、完整快照更新与恢复默认均按认证 PersonId 限定；当前 46 列设置投影包含账号、安全、通知和外观主题，旧 revision 返回 63009，更新/恢复和 `user_setting_events` 审计在同一事务提交，双重认证与自动登录由服务端强制互斥。
+- 设置读取、完整快照更新与恢复默认均按认证 PersonId 限定；当前 67 列设置投影包含账号、安全、通知、外观、文件存储和通话设备，旧 revision 返回 63009，更新/恢复和 `user_setting_events` 审计在同一事务提交，双重认证与自动登录由服务端强制互斥。
 - 通讯录摘要和详情按认证 PersonId 与同组织范围裁剪；个人收藏、标签和备注以 owner 隔离，旧 revision 返回 64009，更新与 `contact_preference_events` 审计同事务提交；最近联系由成功创建/取得唯一单聊的事务原子累加。
 - 日程范围查询只返回组织者或参与人可见记录；创建时参与账号必须属于组织者所在组织，更新/取消仅允许组织者并校验 revision，主记录、参与关系和 `calendar_event_audit` 在同一事务提交。
 
@@ -74,7 +75,7 @@
 
 - Debian 12 构建/运行镜像实际成功，基础镜像摘要已固定。
 - Compose 全链实际启动：PostgreSQL、证书、迁移、管理员、MinIO、LiveKit、会议 Web 插件和 Gateway 均达到预期状态。
-- `orglink-server --check-runtime` 同时通过 PostgreSQL 基础模式和 TLS 握手；本轮数据库确认 001～016 已登记，迁移器报告 `discovered=16, applied=2`，服务端重建后恢复健康。
+- `orglink-server --check-runtime` 同时通过 PostgreSQL 基础模式和 TLS 握手；本轮数据库确认 001～018 已登记，迁移器报告 `discovered=18, applied=2`，服务端重建后恢复健康。
 - 公开端口 TCP 可达；外部 OpenSSL 验证 TLS 1.3、AES-256-GCM 与证书。
 - 容器非 root、只读、`cap_drop: ALL`、`no-new-privileges`、数据库内部网络。
 - MinIO 桶匿名访问为 Disabled/private；160 字节真实文件经客户端和 Gateway 上传后，对象、`file_assets` 与 `message_type=3` 记录一致。
@@ -95,7 +96,7 @@ gateway-two-client-integration      Passed
 7/7 passed
 ```
 
-Qt 冒烟覆盖窗口、公共导航、群组/通知/设置工作区、独立通知徽标、唯一单聊、消息 SQLite/DPAPI、会话摘要、分会话未读、后台已打开会话实时追加、送达/已读状态推进、目录全量/增量事务、真实回环网络、托盘隐藏和退出；Gateway 双客户端用例额外覆盖群消息、通知操作，以及设置读取、更新、旧修订冲突、用户隔离和恢复默认。
+Qt 冒烟覆盖主窗口固定不透明、公共导航、群组/通知/设置工作区、文件存储与通话设备响应式页面、独立通知徽标、唯一单聊、消息 SQLite/DPAPI、会话摘要、分会话未读、后台已打开会话实时追加、送达/已读状态推进、目录全量/增量事务、真实回环网络、托盘隐藏和退出；Gateway 双客户端用例额外覆盖群消息、通知操作，以及 67 列设置读取、更新、旧修订冲突、用户隔离和恢复默认。
 
 生产客户端实时消息验收使用 test1/test2 打开同一会话，再将 test1 置于前台发送“实时刷新验收-20260805-01”。test2 保持窗口失焦且不切页，聊天控件子项从 6 立即增加到 7；PostgreSQL 同一单聊最新记录为 sequence 12、message_type 1，证明界面推送与服务端持久化链路同时成立。
 
@@ -110,7 +111,7 @@ TLS 栈测试只通过宿主机公开端口访问容器，使用 `test1`、`test
 
 Windows 独立运行验证已把 `PATH` 收缩为系统目录：服务端 `--preflight`、迁移器 `--plan` 均退出 0，客户端越过动态装载阶段并保持运行；服务端发布目录确认包含 `libpq.dll`、Qt Core/Network 和 Schannel TLS 插件，证明不再依赖开发机 PostgreSQL/Qt PATH。TLS 登录凭据仅在测试进程环境中临时注入，不写入报告或日志。
 
-界面验证按实际窗口边界分别截图，见 [登录窗口](screenshots/login-window-v2.png)、[组织客户端](screenshots/client-chatuser1-v2.png)、[通讯录 test1](screenshots/contact-center-test1-20260805.png)、[通讯录 test2](screenshots/contact-center-test2-20260805.png)、[消息客户端一](screenshots/orglink-client-user1-message.png)、[消息客户端二](screenshots/orglink-client-user2-message.png)、[群组客户端 test1](screenshots/group-center-test1-20260805.png)、[群组客户端 test2](screenshots/group-center-test2-20260805.png)、[通知客户端 test1](screenshots/notification-center-test1-20260805.png)、[通知客户端 test2](screenshots/notification-center-test2-20260805.png)、[设置客户端 test1](screenshots/settings-center-test1-20260805.png)、[设置客户端 test2](screenshots/settings-center-test2-20260805.png)、[文件中心 test1](screenshots/file-center-test1-window-final-20260805.png)、[文件中心 test2 已接收](screenshots/file-center-test2-received-window-final-20260805.png)、[日程中心便携版 test1 组织者](screenshots/calendar-center-portable-final-test1-20260805.png) 和 [日程中心便携版 test2 参与者](screenshots/calendar-center-portable-final-test2-20260805.png)。
+界面验证按实际窗口边界分别截图，见 [登录窗口](screenshots/login-window-v2.png)、[组织客户端](screenshots/client-chatuser1-v2.png)、[通讯录 test1](screenshots/contact-center-test1-20260805.png)、[通讯录 test2](screenshots/contact-center-test2-20260805.png)、[消息客户端一](screenshots/orglink-client-user1-message.png)、[消息客户端二](screenshots/orglink-client-user2-message.png)、[群组客户端 test1](screenshots/group-center-test1-20260805.png)、[群组客户端 test2](screenshots/group-center-test2-20260805.png)、[通知客户端 test1](screenshots/notification-center-test1-20260805.png)、[通知客户端 test2](screenshots/notification-center-test2-20260805.png)、[设置客户端 test1](screenshots/settings-center-test1-20260805.png)、[设置客户端 test2](screenshots/settings-center-test2-20260805.png)、[文件中心 test1](screenshots/file-center-test1-window-final-20260805.png)、[文件中心 test2 已接收](screenshots/file-center-test2-received-window-final-20260805.png)、[日程中心便携版 test1 组织者](screenshots/calendar-center-portable-final-test1-20260805.png)、[日程中心便携版 test2 参与者](screenshots/calendar-center-portable-final-test2-20260805.png) 和 [test2 浅色主页面背景与新版公共图标](screenshots/main-background-icons-test2-20260806.png)。
 
 ## 代码已实现但验证范围有限
 
