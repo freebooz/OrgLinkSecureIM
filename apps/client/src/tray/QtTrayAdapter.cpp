@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QSystemTrayIcon>
+#include <QTimer>
 
 #include <algorithm>
 
@@ -55,6 +56,21 @@ QtTrayAdapter::QtTrayAdapter(QObject* parent) : ITrayAdapter(parent)
     trayIcon_->setToolTip(QStringLiteral("OrgLink 安域通"));
     trayIcon_->setContextMenu(menu_.get());
     trayIcon_->setIcon(createIcon(TrayState::Offline, 0));
+    flashTimer_ = std::make_unique<QTimer>();
+    flashTimer_->setInterval(480);
+    connect(flashTimer_.get(), &QTimer::timeout, this, [this]() {
+        if (!isAvailable() || !flashing_) return;
+        flashVisiblePhase_ = !flashVisiblePhase_;
+        if (flashVisiblePhase_)
+        {
+            applyStableIcon();
+            return;
+        }
+        // 透明帧与应用图标交替，形成明确闪烁且不引入第二套品牌图标。
+        QPixmap transparent(64, 64);
+        transparent.fill(Qt::transparent);
+        trayIcon_->setIcon(QIcon(transparent));
+    });
 
     connect(openAction, &QAction::triggered, this, &ITrayAdapter::openRequested);
     connect(unreadAction_, &QAction::triggered, this, &ITrayAdapter::unreadRequested);
@@ -100,10 +116,36 @@ void QtTrayAdapter::updateState(TrayState state, int unreadCount, int activeTran
     }
     const auto safeUnread = std::clamp(unreadCount, 0, 999);
     const auto safeTransfers = std::clamp(activeTransfers, 0, 999);
-    trayIcon_->setIcon(createIcon(state, safeUnread));
+    currentState_ = state;
+    unreadCount_ = safeUnread;
+    activeTransfers_ = safeTransfers;
+    if (!flashing_ || flashVisiblePhase_) applyStableIcon();
     unreadAction_->setText(QStringLiteral("未读消息（%1）").arg(safeUnread > 99 ? QStringLiteral("99+")
                                                                          : QString::number(safeUnread)));
     transferAction_->setText(QStringLiteral("文件传输（%1）").arg(safeTransfers));
+}
+
+void QtTrayAdapter::setAttentionFlashing(bool enabled)
+{
+    if (!isAvailable() || flashing_ == enabled) return;
+    flashing_ = enabled;
+    flashVisiblePhase_ = true;
+    if (flashing_)
+    {
+        applyStableIcon();
+        flashTimer_->start();
+    }
+    else
+    {
+        flashTimer_->stop();
+        applyStableIcon();
+    }
+}
+
+void QtTrayAdapter::applyStableIcon()
+{
+    if (trayIcon_)
+        trayIcon_->setIcon(createIcon(currentState_, unreadCount_));
 }
 
 void QtTrayAdapter::showNotification(const QString& title, const QString& body)
@@ -117,19 +159,18 @@ void QtTrayAdapter::showNotification(const QString& title, const QString& body)
 
 QIcon QtTrayAdapter::createIcon(TrayState state, int unreadCount) const
 {
-    QPixmap pixmap(64, 64);
-    pixmap.fill(Qt::transparent);
+    QPixmap pixmap = QIcon(QStringLiteral(":/orglink/assets/orglink-app-icon.png")).pixmap(64, 64);
+    if (pixmap.isNull())
+    {
+        pixmap = QPixmap(64, 64);
+        pixmap.fill(Qt::transparent);
+    }
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
+    // 左下角状态点使用旧状态色语义，但主体始终保留用户指定的安域通盾牌图标。
     painter.setBrush(stateColor(state));
-    painter.setPen(Qt::NoPen);
-    painter.drawRoundedRect(QRectF(4, 4, 56, 56), 14, 14);
     painter.setPen(Qt::white);
-    auto logoFont = painter.font();
-    logoFont.setBold(true);
-    logoFont.setPixelSize(30);
-    painter.setFont(logoFont);
-    painter.drawText(QRect(4, 4, 56, 56), Qt::AlignCenter, QStringLiteral("O"));
+    painter.drawEllipse(QRectF(2, 45, 17, 17));
 
     if (unreadCount > 0)
     {

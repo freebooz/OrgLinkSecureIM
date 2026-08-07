@@ -25,21 +25,8 @@ Item {
         return entries.length ? 0 : -1
     }
 
-    component CallSwitch: Switch {
-        id: control
-        implicitWidth: 46; implicitHeight: 28; padding: 0
-        indicator: Rectangle {
-            implicitWidth: 42; implicitHeight: 23; radius: 12
-            y: (control.height - height) / 2
-            color: control.checked ? root.theme.primary : "#D9E1EC"
-            Rectangle {
-                width: 17; height: 17; radius: 9; y: 3
-                x: control.checked ? parent.width - width - 3 : 3
-                color: "white"; border.width: 1; border.color: "#D4DCE8"
-                Behavior on x { NumberAnimation { duration: 120 } }
-            }
-        }
-        contentItem: Item { }
+    component CallSwitch: AppSwitch {
+        theme: root.theme
     }
 
     component CallButton: Button {

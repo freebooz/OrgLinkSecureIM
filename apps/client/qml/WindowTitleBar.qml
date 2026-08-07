@@ -14,6 +14,7 @@ Rectangle {
     objectName: "qmlWindowTitleBar"
     required property var theme
     required property var targetWindow
+    signal serverSettingsRequested()
     color: theme.darkMode ? theme.surface : "#F7FAFF"
     border.width: 0
     implicitHeight: 64
@@ -47,7 +48,7 @@ Rectangle {
     }
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onDoubleTapped: root.toggleMaximized()
+        onDoubleTapped: if (backend.authenticated) root.toggleMaximized()
     }
 
     RowLayout {
@@ -84,8 +85,9 @@ Rectangle {
             }
         }
         Item { Layout.fillWidth: true }
-        TextField {
+        AppTextField {
             id: globalSearch
+            theme: root.theme
             objectName: "qmlGlobalSearch"
             visible: backend.authenticated && root.width >= 820
             Layout.preferredWidth: root.width >= 1220 ? 250 : 190
@@ -149,6 +151,22 @@ Rectangle {
         }
         Rectangle { visible: backend.authenticated; Layout.preferredWidth: 1; Layout.preferredHeight: 26; color: root.theme.border }
 
+        ToolButton {
+            objectName: "qmlLoginServerSettingsButton"
+            visible: !backend.authenticated
+            implicitWidth: root.theme.touchTarget
+            implicitHeight: root.theme.touchTarget
+            onClicked: root.serverSettingsRequested()
+            ToolTip.visible: hovered
+            ToolTip.text: "服务器设置"
+            contentItem: IconCanvas {
+                width: root.theme.toolbarIconSize
+                height: root.theme.toolbarIconSize
+                kind: 6
+                color: root.theme.primary
+            }
+        }
+
         component WindowButton: ToolButton {
             id: windowButton
             required property string glyph
@@ -166,8 +184,10 @@ Rectangle {
             }
         }
 
-        WindowButton { glyph: "—"; onClicked: root.targetWindow.showMinimized() }
+        WindowButton { objectName: "qmlWindowMinimizeButton"; visible: backend.authenticated; glyph: "—"; onClicked: root.targetWindow.showMinimized() }
         WindowButton {
+            objectName: "qmlWindowMaximizeButton"
+            visible: backend.authenticated
             glyph: root.targetWindow.visibility === Window.Maximized ? "❐" : "□"
             onClicked: root.toggleMaximized()
         }

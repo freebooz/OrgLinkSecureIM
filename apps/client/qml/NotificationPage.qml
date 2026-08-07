@@ -31,7 +31,7 @@ Item {
                     Button { text: "全部已读" }
                     Button { visible: !root.phone; text: "筛选" }
                 }
-                TextField { visible: root.phone || root.tablet; Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; placeholderText: "搜索通知标题、摘要、来源"; onAccepted: backend.globalSearch(text) }
+                AppTextField { theme: root.theme; visible: root.phone || root.tablet; Layout.fillWidth: true; placeholderText: "搜索通知标题、摘要、来源"; onAccepted: backend.globalSearch(text) }
                 RowLayout { Layout.fillWidth: true; visible: !root.phone
                     Text { Layout.fillWidth: true; text: "通知标题 / 摘要"; color: root.theme.secondaryText }
                     Text { Layout.preferredWidth: 110; text: "来源"; color: root.theme.secondaryText }

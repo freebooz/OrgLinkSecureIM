@@ -93,13 +93,12 @@ Item {
                 Text { Layout.alignment: Qt.AlignHCenter; text: "请输入账号信息进入系统"; color: theme.secondaryText; font.family: theme.uiFont; font.pixelSize: theme.bodySize }
                 Text { text: "组织/租户"; color: theme.text; font.family: theme.uiFont; font.pixelSize: theme.bodySize; font.bold: true }
                 ComboBox { Layout.fillWidth: true; implicitHeight: theme.touchTarget; model: ["OrgLink 默认组织"] }
-                Text { text: "服务器"; color: theme.text; font.family: theme.uiFont; font.pixelSize: theme.bodySize; font.bold: true }
-                TextField { id: server; Layout.fillWidth: true; implicitHeight: theme.touchTarget; text: "127.0.0.1:7443"; placeholderText: "主机:端口" }
                 Text { text: "账号"; color: theme.text; font.family: theme.uiFont; font.pixelSize: theme.bodySize; font.bold: true }
-                TextField { id: loginName; objectName: "qmlLoginName"; Layout.fillWidth: true; implicitHeight: theme.touchTarget; placeholderText: "请输入账号" }
+                AppTextField { id: loginName; theme: root.theme; objectName: "qmlLoginName"; Layout.fillWidth: true; placeholderText: "请输入账号" }
                 Text { text: "密码"; color: theme.text; font.family: theme.uiFont; font.pixelSize: theme.bodySize; font.bold: true }
-                TextField {
+                AppTextField {
                     id: password
+                    theme: root.theme
                     objectName: "qmlPassword"
                     Layout.fillWidth: true
                     implicitHeight: theme.touchTarget
@@ -123,7 +122,7 @@ Item {
                     implicitHeight: 50
                     text: backend.busy ? "正在登录…" : "登录"
                     enabled: !backend.busy
-                    onClicked: backend.login(server.text, loginName.text, password.text)
+                    onClicked: backend.login(loginName.text, password.text)
                     background: Rectangle { radius: 8; color: loginButton.enabled ? theme.primary : "#AAB8D0" }
                     contentItem: Text { text: loginButton.text; color: "white"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: theme.uiFont; font.pixelSize: 16; font.bold: true }
                 }

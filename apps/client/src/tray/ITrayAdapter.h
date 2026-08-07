@@ -25,6 +25,8 @@ public:
     virtual void hide() = 0;
     virtual void updateState(TrayState state, int unreadCount, int activeTransfers) = 0;
     virtual void showNotification(const QString& title, const QString& body) = 0;
+    /** @brief 启停未读消息闪烁；实现必须在停止后恢复最后确认的稳定图标。 */
+    virtual void setAttentionFlashing(bool enabled) = 0;
 
 signals:
     void openRequested();
@@ -34,4 +36,3 @@ signals:
 };
 
 } // namespace orglink::client
-

@@ -22,11 +22,13 @@ public:
         activeTransfers_ = activeTransfers;
     }
     void showNotification(const QString&, const QString&) override { ++notificationCount_; }
+    void setAttentionFlashing(bool enabled) override { attentionFlashing_ = enabled; }
 
     [[nodiscard]] bool visible() const noexcept { return visible_; }
     [[nodiscard]] TrayState state() const noexcept { return state_; }
     [[nodiscard]] int unreadCount() const noexcept { return unreadCount_; }
     [[nodiscard]] int notificationCount() const noexcept { return notificationCount_; }
+    [[nodiscard]] bool attentionFlashing() const noexcept { return attentionFlashing_; }
 
 private:
     bool available_{true};
@@ -35,7 +37,7 @@ private:
     int unreadCount_{0};
     int activeTransfers_{0};
     int notificationCount_{0};
+    bool attentionFlashing_{false};
 };
 
 } // namespace orglink::client
-

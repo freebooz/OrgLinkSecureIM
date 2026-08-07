@@ -27,7 +27,7 @@ Item {
                 anchors.fill: parent; anchors.margins: 14; spacing: 10
                 RowLayout {
                     Layout.fillWidth: true
-                    TextField { Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; placeholderText: "搜索会话、联系人、群组" }
+                    AppTextField { theme: root.theme; Layout.fillWidth: true; placeholderText: "搜索会话、联系人、群组" }
                     RoundButton { text: "+"; implicitWidth: root.theme.touchTarget; implicitHeight: root.theme.touchTarget }
                 }
                 TabBar {
@@ -89,6 +89,22 @@ Item {
                         Text { text: root.conversationTitle; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.sectionSize; font.bold: true }
                         Text { text: "安全连接 · 消息实时同步"; color: root.theme.success; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
                     }
+                    ToolButton {
+                        objectName: "qmlVoiceCallButton"
+                        text: "语音"
+                        enabled: backend.connected && Number(root.conversationId) > 0
+                        implicitWidth: 58
+                        implicitHeight: root.theme.touchTarget
+                        onClicked: backend.startConference(root.conversationId, false)
+                    }
+                    ToolButton {
+                        objectName: "qmlVideoCallButton"
+                        text: "视频"
+                        enabled: backend.connected && Number(root.conversationId) > 0
+                        implicitWidth: 58
+                        implicitHeight: root.theme.touchTarget
+                        onClicked: backend.startConference(root.conversationId, true)
+                    }
                     ToolButton { text: "⋮"; implicitWidth: root.theme.touchTarget }
                 }
                 Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
@@ -134,7 +150,7 @@ Item {
                     Layout.fillWidth: true; Layout.leftMargin: 10; Layout.rightMargin: 10; Layout.bottomMargin: 10
                     implicitHeight: 112; radius: 10; color: root.theme.surface; border.color: root.theme.border
                     ColumnLayout { anchors.fill: parent; anchors.margins: 9; spacing: 5
-                        TextArea { id: composer; Layout.fillWidth: true; Layout.fillHeight: true; placeholderText: "输入消息…"; wrapMode: TextArea.Wrap; font.family: root.theme.chatFont; font.pixelSize: root.theme.bodySize }
+                        AppTextArea { id: composer; theme: root.theme; Layout.fillWidth: true; Layout.fillHeight: true; placeholderText: "输入消息…"; wrapMode: TextArea.Wrap; font.family: root.theme.chatFont; font.pixelSize: root.theme.bodySize }
                         RowLayout { Layout.fillWidth: true
                             ToolButton { text: "☺"; implicitWidth: root.theme.touchTarget }
                             ToolButton { text: "📎"; implicitWidth: root.theme.touchTarget }

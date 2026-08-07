@@ -44,32 +44,8 @@ Item {
         return root.phone ? segments[segments.length - 1] : path
     }
 
-    component FileSwitch: Switch {
-        id: fileSwitch
-        implicitWidth: 48
-        implicitHeight: 30
-        padding: 0
-        indicator: Rectangle {
-            implicitWidth: 44
-            implicitHeight: 24
-            x: fileSwitch.leftPadding
-            y: (fileSwitch.height - height) / 2
-            radius: height / 2
-            color: fileSwitch.checked ? root.theme.primary : "#D9E1EC"
-            Behavior on color { ColorAnimation { duration: 120 } }
-            Rectangle {
-                width: 18
-                height: 18
-                radius: 9
-                y: 3
-                x: fileSwitch.checked ? parent.width - width - 3 : 3
-                color: "white"
-                border.width: 1
-                border.color: "#D5DDE8"
-                Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-            }
-        }
-        contentItem: Item { }
+    component FileSwitch: AppSwitch {
+        theme: root.theme
     }
 
     component FileButton: Button {

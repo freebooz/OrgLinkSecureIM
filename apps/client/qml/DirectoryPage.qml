@@ -24,7 +24,7 @@ Item {
             color: root.theme.surface; radius: root.theme.radius
             ColumnLayout { anchors.fill: parent; anchors.margins: 14; spacing: 10
                 Text { text: "通讯录"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.titleSize; font.bold: true }
-                TextField { Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; placeholderText: "搜索联系人、部门、职位" }
+                AppTextField { theme: root.theme; Layout.fillWidth: true; placeholderText: "搜索联系人、部门、职位" }
                 Text { text: "组织成员"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true }
                 ListView { id: peopleList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; model: backend.directoryPeople; spacing: 3
                     delegate: ItemDelegate { required property var modelData; width: peopleList.width; height: 60; onClicked: root.choose(modelData)

@@ -270,6 +270,14 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
     : QObject(parent), networkClient_(networkClient), settingsModel_(this),
       fileTransferController_(networkClient, &settingsModel_, this)
 {
+    // 服务器地址属于设备级前端配置，不跟随账号漫游；无效旧值回退到安全的本机开发端点。
+    const QSettings startupSettings;
+    const auto configuredServer = startupSettings.value(
+        QStringLiteral("connection/serverAddress"), loginServerAddress_).toString().trimmed();
+    const QUrl configuredUrl(QStringLiteral("tcp://") + configuredServer, QUrl::StrictMode);
+    if (configuredUrl.isValid() && !configuredUrl.host().isEmpty()
+        && configuredUrl.port(-1) > 0 && configuredUrl.port(-1) <= 65535)
+        loginServerAddress_ = configuredServer;
     // 设备监视器只枚举本机端点；原始硬件标识不会写入网络 DTO、日志或服务端设置。
     mediaDevices_ = new QMediaDevices(this);
     connect(mediaDevices_, &QMediaDevices::audioInputsChanged,
@@ -329,6 +337,18 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
             this, &QmlClientBackend::showToast);
     connect(networkClient_, &NetworkClient::fileTransferFailed,
             this, &QmlClientBackend::showToast);
+    connect(networkClient_, &NetworkClient::conferenceFailed,
+            this, &QmlClientBackend::showToast);
+    connect(networkClient_, &NetworkClient::conferenceReady, this,
+            [this](const QUrl& joinUrl, const QString&) {
+        // 短效令牌仅存在于 URL fragment 和浏览器进程内，不落盘、不写日志，也不回传 QML。
+        if (!joinUrl.isValid() || !QDesktopServices::openUrl(joinUrl))
+        {
+            showToast(QStringLiteral("无法打开音视频会议页面，请检查默认浏览器。"));
+            return;
+        }
+        showToast(QStringLiteral("音视频会议已在安全会议窗口中打开。"));
+    });
 
     connect(networkClient_, &NetworkClient::conversationListReady, this,
             [this](const QList<RemoteConversationSummary>& remote) {
@@ -372,6 +392,7 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
             networkClient_->acknowledgeRead(serverId, conversationId, sequence);
         }
         networkClient_->acknowledgeDelivery(serverId, conversationId, sequence);
+        emit incomingMessageReceived(conversationId);
         networkClient_->requestConversationList();
     });
     connect(networkClient_, &NetworkClient::fileMessageReceived, this,
@@ -380,6 +401,7 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
         // 文件描述解析与资产去重统一由历史映射执行，避免推送和历史响应各追加一次文件名。
         if (conversationId == currentConversationId_)
             networkClient_->requestMessageHistory(conversationId, 0, 100);
+        emit incomingMessageReceived(conversationId);
         networkClient_->requestConversationList();
     });
 
@@ -639,6 +661,65 @@ void QmlClientBackend::setCurrentSection(int section)
     refreshCurrentSection();
 }
 
+void QmlClientBackend::configureSystemTray(bool available)
+{
+    if (systemTrayAvailable_ == available) return;
+    systemTrayAvailable_ = available;
+    emit systemTrayAvailableChanged();
+}
+
+bool QmlClientBackend::requestWindowCloseToTray()
+{
+    if (!systemTrayAvailable_) return false;
+    // 关闭事件必须同步得到“已接管”结果；实际隐藏由桌面控制器完成，QML 不接触平台 API。
+    emit windowCloseToTrayRequested();
+    return true;
+}
+
+void QmlClientBackend::acknowledgeWindowForeground()
+{
+    if (!systemTrayAvailable_) return;
+    emit windowForegroundAcknowledged();
+}
+
+void QmlClientBackend::login(const QString& loginName, const QString& password)
+{
+    login(loginServerAddress_, loginName, password);
+}
+
+bool QmlClientBackend::configureLoginServerAddress(const QString& serverAddress)
+{
+    const auto candidate = serverAddress.trimmed();
+    const QUrl parsed(QStringLiteral("tcp://") + candidate, QUrl::StrictMode);
+    const auto port = parsed.port(-1);
+    const bool validPath = parsed.path().isEmpty() || parsed.path() == QStringLiteral("/");
+    if (!parsed.isValid() || parsed.host().isEmpty() || port <= 0 || port > 65535
+        || !validPath || !parsed.query().isEmpty() || !parsed.fragment().isEmpty())
+    {
+        showToast(QStringLiteral("服务器地址格式无效，请输入“主机:端口”。"));
+        return false;
+    }
+
+    const auto host = parsed.host().contains(QLatin1Char(':'))
+        ? QStringLiteral("[%1]").arg(parsed.host()) : parsed.host();
+    const auto normalized = QStringLiteral("%1:%2").arg(host).arg(port);
+    if (loginServerAddress_ == normalized) return true;
+
+    // 只写入 Qt 的用户配置目录，禁止把运行配置写入安装目录或发送给业务服务端。
+    QSettings localSettings;
+    localSettings.setValue(QStringLiteral("connection/serverAddress"), normalized);
+    localSettings.sync();
+    if (localSettings.status() != QSettings::NoError)
+    {
+        showToast(QStringLiteral("服务器配置保存失败，请检查当前用户配置目录权限。"));
+        return false;
+    }
+    loginServerAddress_ = normalized;
+    emit loginServerAddressChanged();
+    showToast(QStringLiteral("服务器配置已保存。"));
+    return true;
+}
+
 void QmlClientBackend::login(
     const QString& serverAddress, const QString& loginName, const QString& password)
 {
@@ -732,6 +813,27 @@ void QmlClientBackend::sendMessage(const QString& text)
         {QStringLiteral("time"), QDateTime::currentDateTime().toString(QStringLiteral("HH:mm"))}});
     emit messagesChanged();
     networkClient_->sendTextMessage(currentConversationId_, clientId, normalized);
+}
+
+void QmlClientBackend::startConference(qulonglong conversationId, bool videoEnabled)
+{
+    const auto effectiveConversationId = conversationId == 0
+        ? currentConversationId_ : conversationId;
+    if (networkClient_ == nullptr || !authenticated_ || !connected_)
+    {
+        showToast(QStringLiteral("当前未连接服务端，无法发起音视频会议。"));
+        return;
+    }
+    if (effectiveConversationId == 0)
+    {
+        showToast(QStringLiteral("请先选择一个会话。"));
+        return;
+    }
+
+    // 服务端重新校验会话成员身份并签发短效 LiveKit JWT，客户端不能自行拼装房间或访问令牌。
+    networkClient_->joinConference(effectiveConversationId, videoEnabled);
+    showToast(videoEnabled ? QStringLiteral("正在准备视频会议…")
+                           : QStringLiteral("正在准备语音会议…"));
 }
 
 void QmlClientBackend::selectGroup(qulonglong groupId)

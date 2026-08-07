@@ -18,6 +18,16 @@ ApplicationWindow {
     title: "安域通"
     color: appTheme.background
 
+    // 桌面关闭由 C++ 托盘控制器全局接管；托盘不可用或移动端仍执行平台默认关闭。
+    onClosing: function(close) {
+        if (!window.mobilePlatform && backend.requestWindowCloseToTray())
+            close.accepted = false
+    }
+    onActiveChanged: {
+        if (active && !window.mobilePlatform)
+            backend.acknowledgeWindowForeground()
+    }
+
     Theme { id: appTheme }
 
     Column {
@@ -28,11 +38,58 @@ ApplicationWindow {
             height: visible ? 64 : 0
             theme: appTheme
             targetWindow: window
+            onServerSettingsRequested: serverSettingsDialog.open()
         }
         Loader {
             width: parent.width
             height: parent.height - y
             sourceComponent: backend.authenticated ? shellComponent : loginComponent
+        }
+    }
+
+    Dialog {
+        id: serverSettingsDialog
+        objectName: "qmlLoginServerSettingsDialog"
+        parent: Overlay.overlay
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(430, window.width - 32)
+        title: "服务器设置"
+        standardButtons: Dialog.Save | Dialog.Cancel
+        onOpened: {
+            serverAddressField.text = backend.loginServerAddress
+            serverAddressField.forceActiveFocus()
+            serverAddressField.selectAll()
+        }
+        onAccepted: {
+            if (!backend.configureLoginServerAddress(serverAddressField.text))
+                Qt.callLater(function() { serverSettingsDialog.open() })
+        }
+        background: Rectangle {
+            radius: appTheme.radius
+            color: appTheme.surface
+            border.width: 1
+            border.color: appTheme.border
+        }
+        contentItem: Column {
+            spacing: 12
+            Text {
+                width: parent.width
+                text: "请输入安域通服务端地址。该配置仅保存在当前设备，不会随账号同步。"
+                wrapMode: Text.Wrap
+                color: appTheme.secondaryText
+                font.family: appTheme.uiFont
+                font.pixelSize: appTheme.bodySize
+            }
+            AppTextField {
+                id: serverAddressField
+                objectName: "qmlLoginServerAddress"
+                width: parent.width
+                theme: appTheme
+                placeholderText: "例如：192.168.1.10:7443"
+                inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
+                onAccepted: serverSettingsDialog.accept()
+            }
         }
     }
 

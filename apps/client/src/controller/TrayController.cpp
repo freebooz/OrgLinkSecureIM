@@ -61,6 +61,7 @@ void TrayController::toggleMainWindow()
         mainWindow_->showNormal();
         mainWindow_->raise();
         mainWindow_->activateWindow();
+        trayAdapter_->setAttentionFlashing(false);
         // 仅显示窗口不等于阅读全部会话；未读只在用户选择具体会话后由 MessageController 清零。
     }
 }
@@ -70,6 +71,7 @@ void TrayController::requestQuit()
     // 发出 quit 后 QApplication 事件循环返回，组合根先析构 Controller 以断开回调，再关闭 SQLite 与网络线程；
     // 因而不存在网络回调访问已关闭仓储。未来文件任务接入时需在本方法前增加退出确认。
     mainWindow_->permitApplicationClose();
+    trayAdapter_->setAttentionFlashing(false);
     trayAdapter_->hide();
     mainWindow_->close();
     emit quitRequested();
@@ -90,6 +92,7 @@ void TrayController::handleIncomingMessage(qulonglong conversationId)
         return;
     }
     // 默认隐私策略不在系统通知中展示发送者或正文；点击托盘统一回到主窗口。
+    trayAdapter_->setAttentionFlashing(true);
     trayAdapter_->showNotification(QStringLiteral("安域通新消息"), QStringLiteral("您收到一条新消息。"));
 }
 

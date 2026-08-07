@@ -20,7 +20,7 @@ Item {
                     Text { Layout.fillWidth: true; text: "我的群组"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.titleSize; font.bold: true }
                     RoundButton { text: "+"; implicitWidth: root.theme.touchTarget; implicitHeight: root.theme.touchTarget }
                 }
-                TextField { Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; placeholderText: "搜索群组"; onAccepted: backend.globalSearch(text) }
+                AppTextField { theme: root.theme; Layout.fillWidth: true; placeholderText: "搜索群组"; onAccepted: backend.globalSearch(text) }
                 ListView { id: groupsList; Layout.fillWidth: true; Layout.fillHeight: true; model: backend.groups; clip: true; spacing: 4
                     delegate: ItemDelegate { required property var modelData; width: groupsList.width; height: 70
                         onClicked: { root.detailOpen = true; backend.selectGroup(modelData.groupId) }
@@ -55,7 +55,11 @@ Item {
                 }
                 RowLayout { Layout.fillWidth: true
                     Button { text: "进入群聊"; onClicked: if (backend.groupDetail.conversationId) { backend.currentSection = 0; backend.openConversation(backend.groupDetail.conversationId, backend.groupDetail.name) } }
-                    Button { text: "群视频会议" }
+                    Button {
+                        text: "群视频会议"
+                        enabled: backend.connected && Number(backend.groupDetail.conversationId || 0) > 0
+                        onClicked: backend.startConference(backend.groupDetail.conversationId, true)
+                    }
                     Button { visible: !root.phone; text: "管理成员" }
                 }
                 Text { text: "群公告"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: 16; font.bold: true }

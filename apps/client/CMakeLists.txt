@@ -58,6 +58,18 @@ endif()
 # 桌面 Widgets 代码仅作为迁移期回归夹具保留，不参与生产入口和移动端链接。
 if(NOT ANDROID AND NOT IOS)
     find_package(Qt6 6.2 QUIET COMPONENTS Widgets Sql Test)
+    if(TARGET Qt6::Widgets)
+        # 桌面托盘属于平台组合层：生产界面仍为 QML，移动端构建不会看到 QWidget 依赖。
+        target_sources(orglink-client-ui PRIVATE
+            src/controller/QuickTrayController.cpp
+            src/controller/QuickTrayController.h
+            src/tray/ITrayAdapter.h
+            src/tray/TrayState.h
+            src/tray/QtTrayAdapter.cpp
+            src/tray/QtTrayAdapter.h)
+        target_link_libraries(orglink-client-ui PRIVATE Qt6::Widgets)
+        target_compile_definitions(orglink-client-ui PRIVATE ORGLINK_DESKTOP_TRAY=1)
+    endif()
     if(TARGET Qt6::Widgets AND TARGET Qt6::Sql)
         add_library(orglink-client-widgets-legacy STATIC
             src/tray/ITrayAdapter.h
@@ -100,7 +112,6 @@ if(NOT ANDROID AND NOT IOS)
             src/view/calendar/CalendarCenterView.cpp
             src/view/calendar/CalendarCenterView.h
             src/view/main/MainWindow.cpp
-            src/tray/QtTrayAdapter.cpp
             src/controller/TrayController.cpp
         )
         target_include_directories(orglink-client-widgets-legacy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

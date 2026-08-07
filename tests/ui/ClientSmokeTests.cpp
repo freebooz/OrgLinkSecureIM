@@ -4,6 +4,7 @@
 #include "controller/PersonnelController.h"
 #include "controller/TrayController.h"
 #include "controller/FileTransferController.h"
+#include "controller/QuickTrayController.h"
 #include "model/DepartmentPersonnelModel.h"
 #include "model/ConversationListModel.h"
 #include "model/OrganizationTreeModel.h"
@@ -34,6 +35,7 @@
 #include <QTableView>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QWindow>
 
 #if defined(ORGLINK_TEST_HAS_GATEWAY)
 #include "GatewayServer.h"
@@ -72,6 +74,17 @@ private slots:
         QCOMPARE(backend.currentAccountName(), QStringLiteral("尚未登录"));
         QCOMPARE(backend.currentDisplayName(), QStringLiteral("尚未登录"));
         QCOMPARE(backend.currentUser(), backend.currentDisplayName());
+        QSignalSpy closeToTrayRequested(&backend, &QmlClientBackend::windowCloseToTrayRequested);
+        QSignalSpy foregroundAcknowledged(&backend, &QmlClientBackend::windowForegroundAcknowledged);
+        QVERIFY(!backend.requestWindowCloseToTray());
+        QCOMPARE(closeToTrayRequested.count(), 0);
+        backend.configureSystemTray(true);
+        QVERIFY(backend.systemTrayAvailable());
+        QVERIFY(backend.requestWindowCloseToTray());
+        QCOMPARE(closeToTrayRequested.count(), 1);
+        backend.acknowledgeWindowForeground();
+        QCOMPARE(foregroundAcknowledged.count(), 1);
+        backend.configureSystemTray(false);
         // 关于页的本机投影在离线模式也必须可用，且不得依赖服务端固定假数据才能创建界面。
         QCOMPARE(backend.aboutSystem().value(QStringLiteral("productName")).toString(),
                  QStringLiteral("安域通"));
@@ -102,6 +115,24 @@ private slots:
         QCOMPARE(navigationIcon->property("height").toInt(), 26);
         QVERIFY(navigationIcon->property("lineWidth").toDouble() >= 2.0);
 
+        // 所有设置页共用蓝色开关尺寸令牌，避免再次回退到平台黑色原生轨道。
+        QQmlComponent switchComponent(
+            &engine, QUrl(QStringLiteral("qrc:/orglink/qml/AppSwitch.qml")));
+        std::unique_ptr<QObject> appSwitch(switchComponent.createWithInitialProperties(
+            {{QStringLiteral("theme"), QVariant::fromValue(theme.get())},
+             {QStringLiteral("checked"), true}}));
+        QVERIFY2(appSwitch != nullptr, qPrintable(switchComponent.errorString()));
+        QCOMPARE(appSwitch->property("implicitWidth").toInt(), 48);
+        QCOMPARE(appSwitch->property("implicitHeight").toInt(), 30);
+
+        // 单行与多行输入框共享 8px 倒角令牌，搜索、登录和聊天编辑器不得自行漂移。
+        QCOMPARE(theme->property("fieldRadius").toInt(), 8);
+        QQmlComponent inputComponent(
+            &engine, QUrl(QStringLiteral("qrc:/orglink/qml/AppTextField.qml")));
+        std::unique_ptr<QObject> inputField(inputComponent.createWithInitialProperties(
+            {{QStringLiteral("theme"), QVariant::fromValue(theme.get())}}));
+        QVERIFY2(inputField != nullptr, qPrintable(inputComponent.errorString()));
+
         const QStringList pages{
             QStringLiteral("MessagePage.qml"), QStringLiteral("DirectoryPage.qml"),
             QStringLiteral("GroupPage.qml"), QStringLiteral("FileCenterPage.qml"),
@@ -126,6 +157,12 @@ private slots:
                 std::unique_ptr<QObject> object(component.createWithInitialProperties(properties));
                 QVERIFY2(object != nullptr,
                          qPrintable(page + QStringLiteral(": ") + component.errorString()));
+                if (page == QStringLiteral("MessagePage.qml"))
+                {
+                    // 会话头部必须暴露真实语音/视频入口，按钮只向 C++ 用例门面转发意图。
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlVoiceCallButton")) != nullptr);
+                    QVERIFY(object->findChild<QObject*>(QStringLiteral("qmlVideoCallButton")) != nullptr);
+                }
                 if (page == QStringLiteral("SettingsPage.qml"))
                 {
                     // 四种尺寸都必须默认进入账号资料页；桌面专属侧栏只在宽屏显示。
@@ -249,6 +286,19 @@ private slots:
         // 主窗口必须始终完全不透明，防止宿主桌面内容干扰业务信息阅读或意外透出敏感内容。
         QCOMPARE(mainWindow->property("opacity").toDouble(), 1.0);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlWindowTitleBar")) != nullptr);
+        auto* loginServerSettingsButton = mainWindow->findChild<QObject*>(
+            QStringLiteral("qmlLoginServerSettingsButton"));
+        QVERIFY(loginServerSettingsButton != nullptr);
+        QVERIFY(loginServerSettingsButton->property("visible").toBool());
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginServerSettingsDialog")) != nullptr);
+        auto* loginMinimizeButton = mainWindow->findChild<QObject*>(
+            QStringLiteral("qmlWindowMinimizeButton"));
+        auto* loginMaximizeButton = mainWindow->findChild<QObject*>(
+            QStringLiteral("qmlWindowMaximizeButton"));
+        QVERIFY(loginMinimizeButton != nullptr);
+        QVERIFY(loginMaximizeButton != nullptr);
+        QVERIFY(!loginMinimizeButton->property("visible").toBool());
+        QVERIFY(!loginMaximizeButton->property("visible").toBool());
         auto* titleBarBackground = mainWindow->findChild<QObject*>(
             QStringLiteral("qmlTitleBarBackground"));
         QVERIFY(titleBarBackground != nullptr);
@@ -284,6 +334,37 @@ private slots:
         QCOMPARE(navigationBackground->property("source").toUrl(),
                  QUrl(QStringLiteral("qrc:/orglink/assets/backgrounds/main-shell-background.png")));
         QVERIFY(mobileShell->findChild<QObject*>(QStringLiteral("qmlCurrentUserAvatar")) != nullptr);
+    }
+
+    /** @brief 验证 Qt Quick 生产入口的关闭转托盘、实时消息闪烁和前台恢复策略。 */
+    void quickTrayGlobalPolicyTest()
+    {
+        QmlClientBackend backend(nullptr);
+        FakeTrayAdapter tray(true);
+        QWindow window;
+        window.setTitle(QStringLiteral("安域通托盘策略测试"));
+        window.show();
+        QCoreApplication::processEvents();
+
+        QuickTrayController controller(&window, &tray, &backend);
+        controller.initialize();
+        QVERIFY(backend.systemTrayAvailable());
+        QVERIFY(tray.visible());
+
+        QVERIFY(backend.requestWindowCloseToTray());
+        QCoreApplication::processEvents();
+        QVERIFY(!window.isVisible());
+
+        // 入站信号只携带会话编号；隐藏窗口时必须闪烁且通知正文保持隐私摘要。
+        emit backend.incomingMessageReceived(9001);
+        QVERIFY(tray.attentionFlashing());
+        QCOMPARE(tray.notificationCount(), 1);
+
+        backend.acknowledgeWindowForeground();
+        QCoreApplication::processEvents();
+        QVERIFY(window.isVisible());
+        QVERIFY(!tray.attentionFlashing());
+        window.hide();
     }
 
     /** @brief 验证文件名裁剪、危险扩展阻断和媒体类型分流不依赖具体窗口实现。 */

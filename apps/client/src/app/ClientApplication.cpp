@@ -3,6 +3,13 @@
 #include "network/NetworkClient.h"
 #include "qml/QmlClientBackend.h"
 
+#if defined(ORGLINK_DESKTOP_TRAY)
+#include "controller/QuickTrayController.h"
+#include "tray/QtTrayAdapter.h"
+#include <QApplication>
+#include <QWindow>
+#endif
+
 #include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -47,7 +54,12 @@ int ClientApplication::run(int argc, char* argv[])
 
     // Basic 样式在 Windows、Linux 和移动端具有一致指标，业务页面不依赖平台原生控件的隐式边距。
     QQuickStyle::setStyle(QStringLiteral("Basic"));
+#if defined(ORGLINK_DESKTOP_TRAY)
+    // 桌面端使用 QApplication 仅为承载系统托盘；所有可见界面仍由 Qt Quick/QML 创建。
+    QApplication application(argc, argv);
+#else
     QGuiApplication application(argc, argv);
+#endif
     QGuiApplication::setApplicationName(QStringLiteral("安域通"));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("安域通"));
     // 版本由 CMake 工程元数据注入，关于页和升级比较共用同一真实来源，避免界面硬编码漂移。
@@ -83,6 +95,18 @@ int ClientApplication::run(int argc, char* argv[])
     }, Qt::DirectConnection);
     engine.load(QUrl(QStringLiteral("qrc:/orglink/qml/Main.qml")));
     if (!rootCreated || engine.rootObjects().isEmpty()) return 2;
+
+#if defined(ORGLINK_DESKTOP_TRAY)
+    std::unique_ptr<QtTrayAdapter> trayAdapter;
+    std::unique_ptr<QuickTrayController> trayController;
+    if (auto* mainWindow = qobject_cast<QWindow*>(engine.rootObjects().constFirst()); mainWindow != nullptr)
+    {
+        trayAdapter = std::make_unique<QtTrayAdapter>();
+        trayController = std::make_unique<QuickTrayController>(
+            mainWindow, trayAdapter.get(), &backend);
+        trayController->initialize();
+    }
+#endif
     return application.exec();
 }
 

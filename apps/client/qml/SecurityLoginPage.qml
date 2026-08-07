@@ -111,32 +111,9 @@ Item {
         }
     }
 
-    // 安全页开关使用统一主色轨道和 28px 触控指示器，避免平台原生样式在不同系统出现黑色或尺寸漂移。
-    component SecuritySwitch: Switch {
-        id: securitySwitch
-        implicitWidth: 48
-        implicitHeight: 30
-        padding: 0
-        indicator: Rectangle {
-            implicitWidth: 44
-            implicitHeight: 24
-            x: securitySwitch.leftPadding
-            y: (securitySwitch.height - height) / 2
-            radius: 12
-            color: securitySwitch.checked ? root.theme.primary : "#D8DEE8"
-            Rectangle {
-                width: 20
-                height: 20
-                radius: 10
-                y: 2
-                x: securitySwitch.checked ? parent.width - width - 2 : 2
-                color: "white"
-                border.width: 1
-                border.color: "#D0D7E2"
-                Behavior on x { NumberAnimation { duration: root.theme.animationDuration } }
-            }
-        }
-        contentItem: Item { }
+    // 页面别名只绑定主题；尺寸、颜色与动画由全局开关组件统一维护。
+    component SecuritySwitch: AppSwitch {
+        theme: root.theme
     }
 
     component StatusRow: RowLayout {

@@ -923,7 +923,7 @@ Item {
                                                         Text { text: "允许通过手机号找到我"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true }
                                                         Text { Layout.fillWidth: true; text: "关闭后，其他人将无法通过手机号搜索到您"; color: root.theme.captionText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; elide: Text.ElideRight }
                                                     }
-                                                    Switch { checked: Boolean(backend.settingsProfile.phoneSearchEnabled); onToggled: backend.updateSetting("phoneSearchEnabled", checked) }
+                                                    AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile.phoneSearchEnabled); onToggled: backend.updateSetting("phoneSearchEnabled", checked) }
                                                 }
                                             }
                                         }
@@ -1082,7 +1082,7 @@ Item {
                                                             Layout.fillWidth: true; Layout.minimumHeight: 50; spacing: 11
                                                             IconCanvas { width: 21; height: 21; kind: modelData[0]; color: root.theme.secondaryText }
                                                             ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { Layout.fillWidth: true; text: modelData[2]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; elide: Text.ElideRight } }
-                                                            Switch { checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) }
+                                                            AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) }
                                                         }
                                                     }
                                                 }
@@ -1099,7 +1099,7 @@ Item {
                                                         onActivated: backend.updateSetting("notificationSoundName", root.notificationSoundValues[currentIndex])
                                                     }
                                                     ToolButton { implicitWidth: 38; implicitHeight: 38; onClicked: backend.sendTestNotification(); contentItem: IconCanvas { kind: 31; color: root.theme.primary } }
-                                                    Switch { checked: Boolean(backend.settingsProfile.notificationSoundEnabled); onToggled: backend.updateSetting("notificationSoundEnabled", checked) }
+                                                    AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile.notificationSoundEnabled); onToggled: backend.updateSetting("notificationSoundEnabled", checked) }
                                                 }
                                             }
                                         }
@@ -1124,7 +1124,7 @@ Item {
                                                         required property var modelData
                                                         Layout.fillWidth: true; spacing: 0
                                                         Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
-                                                        RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 48; spacing: 11; IconCanvas { width: 21; height: 21; kind: modelData[0]; color: root.theme.secondaryText } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { Layout.fillWidth: true; text: modelData[2]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; elide: Text.ElideRight } } Switch { checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) } }
+                                                        RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 48; spacing: 11; IconCanvas { width: 21; height: 21; kind: modelData[0]; color: root.theme.secondaryText } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { Layout.fillWidth: true; text: modelData[2]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; elide: Text.ElideRight } } AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) } }
                                                     }
                                                 }
                                                 Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
@@ -1146,7 +1146,7 @@ Item {
                                                     IconCanvas { width: 21; height: 21; kind: 5; color: root.theme.secondaryText }
                                                     ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: "日程提醒"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { text: "接收日程开始前提醒"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
                                                     ComboBox { visible: !root.phone; Layout.preferredWidth: 178; model: root.reminderLabels; currentIndex: root.valueIndex(root.reminderValues, root.settingNumber("calendarReminderMinutes", 15)); onActivated: backend.updateSetting("calendarReminderMinutes", root.reminderValues[currentIndex]) }
-                                                    Switch { checked: Boolean(backend.settingsProfile.calendarNotificationEnabled); onToggled: backend.updateSetting("calendarNotificationEnabled", checked) }
+                                                    AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile.calendarNotificationEnabled); onToggled: backend.updateSetting("calendarNotificationEnabled", checked) }
                                                 }
                                             }
                                         }
@@ -1185,7 +1185,7 @@ Item {
                                                         required property var modelData
                                                         Layout.fillWidth: true; spacing: 0
                                                         Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
-                                                        RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 48; spacing: 11; IconCanvas { width: 21; height: 21; kind: modelData[0]; color: root.theme.secondaryText } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { text: modelData[2]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } Switch { checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) } }
+                                                        RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 48; spacing: 11; IconCanvas { width: 21; height: 21; kind: modelData[0]; color: root.theme.secondaryText } ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: modelData[1]; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { text: modelData[2]; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } AppSwitch { theme: root.theme; checked: Boolean(backend.settingsProfile[modelData[3]]); onToggled: backend.updateSetting(modelData[3], checked) } }
                                                     }
                                                 }
                                                 Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
@@ -1417,7 +1417,7 @@ Item {
                                                 RowLayout { anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 12; spacing: 9
                                                     IconCanvas { width: 20; height: 20; kind: 31; color: root.theme.secondaryText }
                                                     ColumnLayout { Layout.fillWidth: true; spacing: 1; Text { text: "动画效果"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true } Text { text: "启用界面动画与过渡效果"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
-                                                    Switch { checked: backend.settingsProfile.animationEnabled === undefined ? true : Boolean(backend.settingsProfile.animationEnabled); onToggled: backend.updateSetting("animationEnabled", checked) }
+                                                    AppSwitch { theme: root.theme; checked: backend.settingsProfile.animationEnabled === undefined ? true : Boolean(backend.settingsProfile.animationEnabled); onToggled: backend.updateSetting("animationEnabled", checked) }
                                                 }
                                             }
                                             Rectangle {
@@ -1502,8 +1502,9 @@ Item {
             spacing: 12
             Text { Layout.fillWidth: true; text: "姓名、岗位、部门、联系方式和办公地点由组织目录统一维护；您可以在此修改个人签名。"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; wrapMode: Text.Wrap }
             Text { text: "个性签名"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true }
-            TextArea {
+            AppTextArea {
                 id: signatureEditor
+                theme: root.theme
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
                 placeholderText: "介绍您的工作方向或当前状态"
@@ -1511,7 +1512,6 @@ Item {
                 font.family: root.theme.uiFont
                 font.pixelSize: root.theme.bodySize
                 onTextChanged: if (text.length > 160) text = text.substring(0, 160)
-                background: Rectangle { radius: 7; color: root.theme.surfaceMuted; border.width: 1; border.color: signatureEditor.activeFocus ? root.theme.primary : root.theme.border }
             }
             Text { Layout.alignment: Qt.AlignRight; text: signatureEditor.text.length + "/160"; color: root.theme.captionText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
         }

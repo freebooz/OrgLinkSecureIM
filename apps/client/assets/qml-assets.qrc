@@ -5,6 +5,9 @@
         <file alias="IconCanvas.qml">../qml/IconCanvas.qml</file>
         <file alias="WindowTitleBar.qml">../qml/WindowTitleBar.qml</file>
         <file alias="UserAvatar.qml">../qml/UserAvatar.qml</file>
+        <file alias="AppSwitch.qml">../qml/AppSwitch.qml</file>
+        <file alias="AppTextField.qml">../qml/AppTextField.qml</file>
+        <file alias="AppTextArea.qml">../qml/AppTextArea.qml</file>
         <file alias="NavButton.qml">../qml/NavButton.qml</file>
         <file alias="LoginPage.qml">../qml/LoginPage.qml</file>
         <file alias="ApplicationShell.qml">../qml/ApplicationShell.qml</file>

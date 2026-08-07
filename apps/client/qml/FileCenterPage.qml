@@ -33,7 +33,7 @@ Item {
         modal: true; anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: { backend.createFolder(folderName.text); folderName.clear() }
-        TextField { id: folderName; width: 260; implicitHeight: root.theme.touchTarget; placeholderText: "文件夹名称" }
+        AppTextField { id: folderName; theme: root.theme; width: 260; placeholderText: "文件夹名称" }
     }
 
     RowLayout { anchors.fill: parent; spacing: 8
@@ -43,7 +43,7 @@ Item {
             radius: root.theme.radius; color: root.theme.surface
             ColumnLayout { anchors.fill: parent; anchors.margins: 14; spacing: 8
                 Text { text: "文件中心"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.titleSize; font.bold: true }
-                TextField { Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; placeholderText: "搜索文件名/类型/共享人"; onAccepted: backend.globalSearch(text) }
+                AppTextField { theme: root.theme; Layout.fillWidth: true; placeholderText: "搜索文件名/类型/共享人"; onAccepted: backend.globalSearch(text) }
                 Repeater { model: ["我的文件", "最近文件", "已接收", "团队共享", "收藏", "回收站"]
                     delegate: ItemDelegate { required property string modelData; required property int index; Layout.fillWidth: true; implicitHeight: root.theme.touchTarget; text: modelData; highlighted: index === 0 }
                 }

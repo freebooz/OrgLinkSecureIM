@@ -30,6 +30,8 @@ class QmlClientBackend final : public QObject
     Q_PROPERTY(bool authenticated READ authenticated NOTIFY authenticatedChanged)
     Q_PROPERTY(bool connected READ connected NOTIFY connectionChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(bool systemTrayAvailable READ systemTrayAvailable NOTIFY systemTrayAvailableChanged)
+    Q_PROPERTY(QString loginServerAddress READ loginServerAddress NOTIFY loginServerAddressChanged)
     // 账号名属于认证凭据标识，用户显示名属于人员资料；两者必须独立暴露，界面不得混用。
     Q_PROPERTY(QString currentAccountName READ currentAccountName NOTIFY currentAccountNameChanged)
     Q_PROPERTY(QString currentDisplayName READ currentDisplayName NOTIFY currentDisplayNameChanged)
@@ -81,6 +83,10 @@ public:
     [[nodiscard]] bool authenticated() const noexcept { return authenticated_; }
     [[nodiscard]] bool connected() const noexcept { return connected_; }
     [[nodiscard]] bool busy() const noexcept { return busy_; }
+    /** @brief 返回当前桌面环境是否提供可恢复窗口的系统托盘；移动端恒为 false。 */
+    [[nodiscard]] bool systemTrayAvailable() const noexcept { return systemTrayAvailable_; }
+    /** @brief 当前登录服务器的本机配置值，格式固定为“主机:端口”，不随账号同步到服务端。 */
+    [[nodiscard]] const QString& loginServerAddress() const noexcept { return loginServerAddress_; }
     /** @brief 返回当前登录账号标识；仅用于账号资料，不应用于头像旁姓名。 */
     [[nodiscard]] QString currentAccountName() const { return currentAccountName_; }
     /** @brief 返回当前人员的姓名或昵称；值来自认证响应及人员主数据。 */
@@ -125,10 +131,24 @@ public:
 
     /** @brief 切换公共导航当前模块并按模块刷新真实服务端数据。 */
     void setCurrentSection(int section);
+    /** @brief 由桌面组合根写入平台托盘可用性；QML 不得自行伪造该状态。 */
+    void configureSystemTray(bool available);
 
-    /** @brief 提交登录；口令只转发到 NetworkClient，不保存为属性或日志。 */
+    /** @brief 请求把桌面窗口隐藏到托盘；托盘不可用时返回 false 让系统执行普通关闭。 */
+    Q_INVOKABLE bool requestWindowCloseToTray();
+    /** @brief 通知桌面控制器窗口已回到前台，用于停止未读消息闪烁。 */
+    Q_INVOKABLE void acknowledgeWindowForeground();
+
+    /** @brief 使用本机服务器配置提交登录；口令只转发到 NetworkClient，不保存为属性或日志。 */
+    Q_INVOKABLE void login(const QString& loginName, const QString& password);
+    /** @brief 兼容测试与迁移调用的显式服务器登录入口；生产 QML 不直接展示服务器输入框。 */
     Q_INVOKABLE void login(const QString& serverAddress, const QString& loginName,
                            const QString& password);
+    /**
+     * @brief 校验并保存登录服务器到当前设备前端配置。
+     * @return 保存成功返回 true；地址无效时返回 false 并显示脱敏错误，不触发网络连接。
+     */
+    Q_INVOKABLE bool configureLoginServerAddress(const QString& serverAddress);
     /** @brief 重新请求当前模块数据；离线状态只给出提示。 */
     Q_INVOKABLE void refreshCurrentSection();
     /** @brief 公共顶栏搜索按当前模块路由，权限过滤仍由服务器执行。 */
@@ -137,6 +157,13 @@ public:
     Q_INVOKABLE void openConversation(qulonglong conversationId, const QString& displayName);
     /** @brief 发送纯文本消息；空白正文和未打开会话不会进入网络队列。 */
     Q_INVOKABLE void sendMessage(const QString& text);
+    /**
+     * @brief 为当前或指定会话请求语音/视频会议，并在取得短效凭据后打开内网会议页。
+     * @param conversationId 服务端签发的会话编号；传入 0 时使用当前打开会话。
+     * @param videoEnabled true 表示摄像头默认开启，false 表示仅默认开启音频。
+     * @note QML 不接触 LiveKit 令牌；失败、离线或会话无效时仅返回脱敏提示。
+     */
+    Q_INVOKABLE void startConference(qulonglong conversationId, bool videoEnabled);
     /** @brief 选择群组、通知、联系人、文件或日程详情。 */
     Q_INVOKABLE void selectGroup(qulonglong groupId);
     Q_INVOKABLE void selectNotification(qulonglong notificationId);
@@ -223,6 +250,10 @@ signals:
     void authenticatedChanged();
     void connectionChanged();
     void busyChanged();
+    /** @brief 桌面托盘可用性变化；只由平台组合根触发。 */
+    void systemTrayAvailableChanged();
+    /** @brief 当前设备的登录服务器配置已更新；不包含账号、口令或访问令牌。 */
+    void loginServerAddressChanged();
     /** @brief 认证账号标识变化；不得驱动头像旁姓名。 */
     void currentAccountNameChanged();
     /** @brief 人员姓名或昵称变化；公共头像和名片使用此信号。 */
@@ -261,6 +292,12 @@ signals:
     void callDeviceInfoChanged();
     void aboutSystemChanged();
     void previewChanged();
+    /** @brief QML 已确认普通关闭应转为隐藏；桌面托盘控制器同步处理该信号。 */
+    void windowCloseToTrayRequested();
+    /** @brief 窗口获得前台焦点；托盘控制器据此结束闪烁但不擅自清除服务端未读。 */
+    void windowForegroundAcknowledged();
+    /** @brief 收到服务端实时消息推送；正文不随信号进入桌面平台层。 */
+    void incomingMessageReceived(qulonglong conversationId);
 
 private:
     /** @brief 发出脱敏短提示；相同文本也会重新触发 QML Toast。 */
@@ -297,6 +334,10 @@ private:
     bool authenticated_{false};
     bool connected_{false};
     bool busy_{false};
+    /** @brief 桌面平台托盘的真实可用性；控制关闭策略，移动端和无托盘桌面保持 false。 */
+    bool systemTrayAvailable_{false};
+    /** @brief 当前设备持久化的登录网关地址；生命周期覆盖全部登录尝试，默认指向本机开发网关。 */
+    QString loginServerAddress_{QStringLiteral("127.0.0.1:7443")};
     qulonglong currentPersonId_{0};
     /** @brief 通讯录当前请求目标；用于防止账号自资料响应覆盖联系人详情面板。 */
     qulonglong selectedContactPersonId_{0};
