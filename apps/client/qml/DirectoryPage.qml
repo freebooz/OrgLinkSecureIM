@@ -599,6 +599,7 @@ Item {
                         contentItem: RowLayout {
                             spacing: 7
                             Text {
+                                Layout.alignment: Qt.AlignVCenter
                                 text: root.collapsedUnitKeys[String(modelData.key)] === true ? "›" : "⌄"
                                 color: "#315983"
                                 font.family: root.theme.uiFont
@@ -606,8 +607,9 @@ Item {
                                 TapHandler { onTapped: root.toggleUnit(unitDelegate.modelData) }
                             }
                             IconCanvas {
-                                width: 17
-                                height: 17
+                                Layout.preferredWidth: 18
+                                Layout.preferredHeight: 18
+                                Layout.alignment: Qt.AlignVCenter
                                  // 企业根节点与部门节点使用楼宇语义图标，避免误读为安全盾牌或联系人卡片。
                                  kind: modelData.type === "organization" ? 45 : 46
                                 color: root.selectedUnitKey === String(modelData.key)
@@ -616,6 +618,7 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
                                 text: String(modelData.name || "组织节点")
                                 elide: Text.ElideRight
                                 color: root.selectedUnitKey === String(modelData.key)
@@ -626,6 +629,7 @@ Item {
                             }
                             Text {
                                 visible: Number(modelData.peopleCount || 0) > 0
+                                Layout.alignment: Qt.AlignVCenter
                                 text: Number(modelData.peopleCount)
                                 color: root.theme.captionText
                                 font.family: root.theme.uiFont
