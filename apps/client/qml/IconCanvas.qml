@@ -172,6 +172,24 @@ Canvas {
             ctx.roundedRect(2, 5, 15, 14, 2, 2); ctx.moveTo(17, 10); line(ctx, 22, 7, 22, 17); line(ctx, 22, 17, 17, 14); ctx.moveTo(8, 9); line(ctx, 13, 12, 8, 15); ctx.closePath()
         } else if (kind === 44) { // 文档
             ctx.moveTo(5, 2); line(ctx, 5, 22, 19, 22); line(ctx, 19, 22, 19, 7); line(ctx, 19, 7, 14, 2); ctx.closePath(); line(ctx, 14, 2, 14, 7); line(ctx, 14, 7, 19, 7); line(ctx, 8, 12, 16, 12); line(ctx, 8, 16, 16, 16)
+        } else if (kind === 50) { // 语音通话
+            // 话筒轮廓配合外侧声波，表达正在呼叫而不是普通电话记录。
+            ctx.moveTo(7, 4); ctx.quadraticCurveTo(4, 5, 5, 9); ctx.quadraticCurveTo(8, 17, 16, 20); ctx.quadraticCurveTo(20, 21, 21, 17); line(ctx, 17, 14); line(ctx, 14, 17); line(ctx, 7, 4)
+            ctx.moveTo(17, 5); ctx.quadraticCurveTo(21, 8, 21, 12); ctx.moveTo(19, 3); ctx.quadraticCurveTo(23, 7, 23, 12)
+        } else if (kind === 51) { // 视频通话
+            // 摄像头主体、镜头和外置摄像头凸起组成视频通话专用图形。
+            ctx.roundedRect(2, 6, 14, 12, 2, 2); ctx.moveTo(16, 10); line(ctx, 22, 7, 22, 17); line(ctx, 22, 17, 16, 14); ctx.moveTo(7, 10); line(ctx, 11, 12, 7, 14); ctx.closePath()
+        } else if (kind === 52) { // 发送文件
+            ctx.moveTo(5, 3); line(ctx, 14, 3); line(ctx, 19, 8); line(ctx, 19, 21); line(ctx, 5, 21); ctx.closePath(); line(ctx, 14, 3, 14, 8); line(ctx, 14, 8, 19, 8)
+            line(ctx, 12, 18, 12, 11); line(ctx, 9.5, 13.5, 12, 11); line(ctx, 14.5, 13.5, 12, 11)
+        } else if (kind === 53) { // 最小化
+            line(ctx, 5, 12, 19, 12)
+        } else if (kind === 54) { // 最大化
+            ctx.roundedRect(4, 4, 16, 16, 1.5, 1.5)
+        } else if (kind === 55) { // 关闭
+            line(ctx, 6, 6, 18, 18); line(ctx, 18, 6, 6, 18)
+        } else if (kind === 56) { // 还原窗口
+            ctx.roundedRect(6, 3, 14, 14, 1.5, 1.5); line(ctx, 4, 7, 4, 20); line(ctx, 4, 20, 17, 20); line(ctx, 4, 7, 7, 7)
         } else { // 通用文档
             ctx.moveTo(6, 2); line(ctx, 6, 22, 20, 22); line(ctx, 20, 22, 20, 7); line(ctx, 20, 7, 15, 2); ctx.closePath(); line(ctx, 15, 2, 15, 8); line(ctx, 15, 8, 20, 8)
         }

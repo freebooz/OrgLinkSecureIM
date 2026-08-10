@@ -28,7 +28,8 @@ Rectangle {
         // 登录态不复用工作台背景，避免旧资源或风景图进入登录界面；背景由 Main.qml 的 LoginBackground 提供。
         visible: !root.theme.darkMode && backend.authenticated
         source: "qrc:/orglink/assets/backgrounds/main-shell-background.png"
-        sourceClipRect: Qt.rect(0, 0, 1680, 150)
+        // 背景图实际宽度为 1584px，裁剪范围不得越界，否则 Windows 合成器会在右侧补黑色块。
+        sourceClipRect: Qt.rect(0, 0, 1584, 150)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
@@ -98,8 +99,10 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 10
             Image {
-                Layout.preferredWidth: backend.authenticated ? 46 : 56
-                Layout.preferredHeight: backend.authenticated ? 46 : 56
+                // 登录态不在标题栏占用品牌空间，品牌标识由登录内容区以完整比例呈现。
+                visible: backend.authenticated
+                Layout.preferredWidth: visible ? 46 : 0
+                Layout.preferredHeight: visible ? 46 : 0
                 source: "qrc:/orglink/assets/orglink-app-icon.png"
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
@@ -136,10 +139,11 @@ Rectangle {
             }
             contentItem: IconCanvas {
                 anchors.centerIn: parent
-                width: 25
-                height: 25
+                width: 22
+                height: 22
                 kind: headerButton.iconKind
                 color: "#071E41"
+                lineWidth: 1.9
             }
             ToolTip.visible: hovered
             ToolTip.text: tooltip
@@ -212,7 +216,7 @@ Rectangle {
 
         component WindowButton: ToolButton {
             id: windowButton
-            required property string glyph
+            required property int iconKind
             property color hoverColor: root.theme.primarySoft
             implicitWidth: 42
             implicitHeight: 76
@@ -221,30 +225,29 @@ Rectangle {
                 color: windowButton.hovered ? windowButton.hoverColor
                                             : (root.theme.darkMode ? root.theme.surface : (backend.authenticated ? "#F7FAFF" : "transparent"))
             }
-            contentItem: Text {
-                text: windowButton.glyph
+            contentItem: IconCanvas {
+                width: 22
+                height: 22
+                kind: windowButton.iconKind
                 color: "#071E41"
-                font.family: "Segoe UI Symbol"
-                font.pixelSize: 16
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+                lineWidth: 1.9
             }
         }
 
         WindowButton {
             objectName: "qmlWindowMinimizeButton"
             visible: backend.authenticated
-            glyph: "−"
+            iconKind: 53
             onClicked: root.targetWindow.showMinimized()
         }
         WindowButton {
             objectName: "qmlWindowMaximizeButton"
             visible: backend.authenticated
-            glyph: root.targetWindow.visibility === Window.Maximized ? "❐" : "□"
+            iconKind: root.targetWindow.visibility === Window.Maximized ? 56 : 54
             onClicked: root.toggleMaximized()
         }
         WindowButton {
-            glyph: "×"
+            iconKind: 55
             hoverColor: "#E5484D"
             onClicked: root.targetWindow.close()
         }

@@ -362,16 +362,16 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Repeater {
-                    model: [
-                        {"text": "语音通话", "kind": 15, "mode": 0},
-                        {"text": "视频通话", "kind": 23, "mode": 1},
-                        {"text": "发送文件", "kind": 20, "mode": 2}
+                        model: [
+                        {"text": "语音通话", "kind": 50, "mode": 0},
+                        {"text": "视频通话", "kind": 51, "mode": 1},
+                        {"text": "发送文件", "kind": 52, "mode": 2}
                     ]
                     delegate: Button {
                         id: contactActionButton
                         required property var modelData
                         Layout.fillWidth: true
-                        implicitHeight: 42
+                        implicitHeight: 58
                         enabled: Number(root.selectedPerson.personId || 0) > 0
                         onClicked: {
                             const personId = Number(root.selectedPerson.personId || 0)
@@ -387,11 +387,12 @@ Item {
                             border.width: 1
                             border.color: contactActionButton.hovered ? root.theme.primary : root.theme.border
                         }
-                        contentItem: Row {
-                            spacing: 7
+                        contentItem: Column {
+                            spacing: 3
                             anchors.centerIn: parent
-                            IconCanvas { width: 18; height: 18; kind: modelData.kind; color: root.theme.primary }
+                            IconCanvas { anchors.horizontalCenter: parent.horizontalCenter; width: 22; height: 22; kind: modelData.kind; color: root.theme.primary; lineWidth: 1.9 }
                             Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
                                 text: modelData.text
                                 color: root.theme.text
                                 font.family: root.theme.uiFont

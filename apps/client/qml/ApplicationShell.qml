@@ -52,7 +52,8 @@ Item {
                 anchors.fill: parent
                 visible: !shell.theme.darkMode
                 source: "qrc:/orglink/assets/backgrounds/main-shell-background.png"
-                sourceClipRect: Qt.rect(0, 0, 1680, 150)
+                // 背景图实际宽度为 1584px，裁剪范围不得越界，避免移动端标题栏右侧出现黑色补边。
+                sourceClipRect: Qt.rect(0, 0, 1584, 150)
                 fillMode: Image.PreserveAspectCrop
                 cache: true
             }

@@ -43,6 +43,16 @@ Item {
             spacing: 0
 
             Item { Layout.preferredHeight: 12 }
+            Image {
+                objectName: "qmlLoginBrandLogo"
+                Layout.alignment: Qt.AlignLeft
+                Layout.preferredWidth: 310
+                Layout.preferredHeight: 106
+                source: "qrc:/orglink/assets/orglink-logo.png"
+                sourceClipRect: Qt.rect(246, 265, 1019, 450)
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+            }
             Text {
                 objectName: "qmlLoginHeadline"
                 Layout.fillWidth: true

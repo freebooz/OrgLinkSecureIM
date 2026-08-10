@@ -20,9 +20,10 @@ Item {
         anchors.fill: parent
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "#E9F2FF88" }
-            GradientStop { position: 0.58; color: "#F8FBFF55" }
-            GradientStop { position: 1.0; color: "#DCEAFF88" }
+            // Qt/QML 八位颜色按 AARRGGBB 解析，透明度必须放在前两位，避免误解析成荧黄色。
+            GradientStop { position: 0.0; color: "#88E9F2FF" }
+            GradientStop { position: 0.58; color: "#55F8FBFF" }
+            GradientStop { position: 1.0; color: "#88DCEAFF" }
         }
     }
 
@@ -39,7 +40,7 @@ Item {
             ctx.reset()
 
             // 城市剪影仅占底部区域，避免干扰左侧标题和右侧登录表单的阅读对比度。
-            ctx.fillStyle = "#A9CBF555"
+            ctx.fillStyle = "#55A9CBF5"
             const baseY = h * 0.79
             const buildings = [
                 [0.00, 0.055, 0.10], [0.045, 0.030, 0.18], [0.072, 0.060, 0.12],
@@ -62,7 +63,7 @@ Item {
                 ctx.moveTo(-20, startY)
                 ctx.bezierCurveTo(w * 0.28, h * (0.66 + lane * 0.025),
                                   w * 0.72, h * (1.03 - lane * 0.018), w + 20, h * 0.80)
-                ctx.strokeStyle = lane % 2 === 0 ? "#4D95EA88" : "#FFFFFFCC"
+                ctx.strokeStyle = lane % 2 === 0 ? "#884D95EA" : "#CCFFFFFF"
                 ctx.stroke()
             }
 
@@ -74,7 +75,7 @@ Item {
                 const y = nodes[n][1] * h
                 ctx.beginPath()
                 ctx.arc(x, y, Math.max(2.5, w / 300), 0, Math.PI * 2)
-                ctx.fillStyle = "#FFFFFFDD"
+                ctx.fillStyle = "#DDFFFFFF"
                 ctx.fill()
             }
         }
