@@ -23,9 +23,10 @@ Canvas {
     onPaint: {
         const ctx = getContext("2d")
         ctx.reset()
-        const sx = width / 24
-        const sy = height / 24
-        ctx.scale(sx, sy)
+        // 图标始终按短边等比缩放并居中，避免放入非正方形控件后被横向或纵向拉伸。
+        const scale = Math.min(width, height) / 24
+        ctx.translate((width - 24 * scale) / 2, (height - 24 * scale) / 2)
+        ctx.scale(scale, scale)
         ctx.strokeStyle = color
         ctx.fillStyle = "transparent"
         ctx.lineWidth = lineWidth
@@ -107,6 +108,70 @@ Canvas {
             ctx.arc(14, 11, 8, Math.PI * .35, Math.PI * 1.65); ctx.quadraticCurveTo(7, 17, 14, 20); ctx.quadraticCurveTo(6, 22, 3, 15); ctx.quadraticCurveTo(1, 8, 8, 3)
         } else if (kind === 33) { // 移动端菜单
             line(ctx, 4, 6, 20, 6); line(ctx, 4, 12, 20, 12); line(ctx, 4, 18, 20, 18)
+        } else if (kind === 34) { // 麦克风
+            ctx.roundedRect(8, 3, 8, 12, 4, 4)
+            ctx.moveTo(5, 12); ctx.arc(12, 12, 7, 0, Math.PI)
+            line(ctx, 12, 19, 12, 22); line(ctx, 8, 22, 16, 22)
+        } else if (kind === 35) { // 网络质量/连接
+            ctx.moveTo(12, 6); ctx.arc(12, 6, 3, 0, Math.PI * 2)
+            ctx.moveTo(5, 18); ctx.arc(5, 18, 3, 0, Math.PI * 2)
+            ctx.moveTo(19, 18); ctx.arc(19, 18, 3, 0, Math.PI * 2)
+            line(ctx, 9.5, 8, 6.8, 15.5); line(ctx, 14.5, 8, 17.2, 15.5)
+        } else if (kind === 36) { // 键盘快捷键
+            ctx.roundedRect(2, 6, 20, 13, 2, 2)
+            for (let row = 0; row < 2; ++row) {
+                for (let column = 0; column < 5; ++column)
+                    ctx.rect(5 + column * 3, 9 + row * 3, 1.5, 1.5)
+            }
+        } else if (kind === 37) { // 云同步
+            ctx.moveTo(7, 18); ctx.quadraticCurveTo(4, 18, 4, 15)
+            ctx.quadraticCurveTo(4, 11, 8, 10); ctx.quadraticCurveTo(10, 5, 15, 7)
+            ctx.quadraticCurveTo(19, 7, 20, 11); ctx.quadraticCurveTo(22, 12, 22, 15)
+            ctx.quadraticCurveTo(22, 18, 18, 18)
+            line(ctx, 12, 12, 12, 18); line(ctx, 9.5, 15.5, 12, 18); line(ctx, 14.5, 15.5, 12, 18)
+        } else if (kind === 38) { // 备份
+            ctx.moveTo(7, 18); ctx.quadraticCurveTo(4, 18, 4, 15)
+            ctx.quadraticCurveTo(4, 11, 8, 10); ctx.quadraticCurveTo(10, 5, 15, 7)
+            ctx.quadraticCurveTo(19, 7, 20, 11); ctx.quadraticCurveTo(22, 12, 22, 15)
+            ctx.quadraticCurveTo(22, 18, 18, 18)
+            line(ctx, 12, 18, 12, 11); line(ctx, 9.5, 13.5, 12, 11); line(ctx, 14.5, 13.5, 12, 11)
+        } else if (kind === 39) { // 屏幕共享
+            ctx.roundedRect(2, 4, 20, 13, 2, 2); line(ctx, 8, 21, 16, 21); line(ctx, 12, 17, 12, 21)
+            line(ctx, 12, 8, 12, 14); line(ctx, 9.5, 10.5, 12, 8); line(ctx, 14.5, 10.5, 12, 8)
+        } else if (kind === 40) { // 文件预览
+            ctx.moveTo(5, 2); line(ctx, 5, 22, 19, 22); line(ctx, 19, 22, 19, 7); line(ctx, 19, 7, 14, 2); ctx.closePath()
+            line(ctx, 14, 2, 14, 7); line(ctx, 14, 7, 19, 7)
+            ctx.moveTo(7, 16); ctx.quadraticCurveTo(11, 11, 15, 16); ctx.quadraticCurveTo(11, 20, 7, 16); ctx.closePath(); ctx.moveTo(10, 16); ctx.arc(11, 16, 1, 0, Math.PI * 2)
+        } else if (kind === 41) { // 图片
+            ctx.roundedRect(3, 4, 18, 17, 2, 2); ctx.moveTo(5, 18); line(ctx, 10, 13, 13, 16); line(ctx, 13, 16, 16, 12); line(ctx, 19, 18, 16, 15); ctx.moveTo(8, 8); ctx.arc(8, 8, 1.5, 0, Math.PI * 2)
+        } else if (kind === 42) { // 存储
+            // 使用圆角矩形叠层表达存储介质，避免依赖部分 Qt Canvas 版本未实现的 ellipse 接口。
+            ctx.roundedRect(4, 3, 16, 6, 3, 3); ctx.roundedRect(4, 9, 16, 6, 3, 3); ctx.roundedRect(4, 15, 16, 6, 3, 3)
+        } else if (kind === 45) { // 组织/企业
+            // 组织节点使用带门窗的楼宇轮廓，与部门节点和普通文件夹明确区分。
+            ctx.moveTo(3, 21); line(ctx, 3, 8); line(ctx, 12, 3); line(ctx, 21, 8); line(ctx, 21, 21); ctx.closePath()
+            line(ctx, 7, 11, 7, 14); line(ctx, 12, 11, 12, 14); line(ctx, 17, 11, 17, 14); line(ctx, 7, 17, 7, 20); line(ctx, 12, 17, 12, 20); line(ctx, 17, 17, 17, 20); line(ctx, 10, 21, 10, 16); line(ctx, 14, 16, 14, 21)
+        } else if (kind === 46) { // 部门
+            // 部门节点采用成组办公楼图形，突出“组织内部单元”的层级语义。
+            ctx.roundedRect(3, 8, 10, 13, 1.5, 1.5); ctx.roundedRect(13, 4, 8, 17, 1.5, 1.5)
+            line(ctx, 6, 11, 6, 14); line(ctx, 10, 11, 10, 14); line(ctx, 6, 17, 6, 20); line(ctx, 10, 17, 10, 20); line(ctx, 16, 8, 16, 11); line(ctx, 18, 8, 18, 11); line(ctx, 16, 14, 16, 17); line(ctx, 18, 14, 18, 17)
+        } else if (kind === 47) { // 通讯录
+            // 通讯录采用带书脊、分页和人员剪影的图形，比普通用户头像更能表达“找人目录”。
+            ctx.roundedRect(3, 2, 18, 20, 2, 2); line(ctx, 8, 2, 8, 22); line(ctx, 5, 6, 7, 6); line(ctx, 5, 10, 7, 10); line(ctx, 5, 14, 7, 14)
+            ctx.arc(14, 9, 2.5, 0, Math.PI * 2); ctx.moveTo(10.5, 18); ctx.arc(14, 18, 3.5, Math.PI, 0)
+        } else if (kind === 48) { // 群组
+            // 群组导航突出多成员协作关系，使用中心成员与两侧成员的组合轮廓。
+            ctx.arc(12, 7, 3.2, 0, Math.PI * 2); ctx.moveTo(5, 20); ctx.arc(12, 20, 6.5, Math.PI, 0)
+            ctx.arc(5, 10, 2.2, 0, Math.PI * 2); ctx.moveTo(1.5, 19); ctx.arc(5, 19, 4, Math.PI, 0)
+            ctx.arc(19, 10, 2.2, 0, Math.PI * 2); ctx.moveTo(15, 19); ctx.arc(19, 19, 4, Math.PI, 0)
+        } else if (kind === 49) { // 文件
+            // 文件导航使用叠放文档和折角，区别于“文件夹”动作图标，表达文件中心入口。
+            ctx.moveTo(5, 3); line(ctx, 14, 3); line(ctx, 19, 8); line(ctx, 19, 21); line(ctx, 5, 21); ctx.closePath(); line(ctx, 14, 3, 14, 8); line(ctx, 14, 8, 19, 8)
+            ctx.moveTo(3, 6); line(ctx, 3, 19); line(ctx, 3, 19, 5, 19); line(ctx, 8, 6, 3, 6); line(ctx, 8, 6, 8, 3)
+        } else if (kind === 43) { // 视频
+            ctx.roundedRect(2, 5, 15, 14, 2, 2); ctx.moveTo(17, 10); line(ctx, 22, 7, 22, 17); line(ctx, 22, 17, 17, 14); ctx.moveTo(8, 9); line(ctx, 13, 12, 8, 15); ctx.closePath()
+        } else if (kind === 44) { // 文档
+            ctx.moveTo(5, 2); line(ctx, 5, 22, 19, 22); line(ctx, 19, 22, 19, 7); line(ctx, 19, 7, 14, 2); ctx.closePath(); line(ctx, 14, 2, 14, 7); line(ctx, 14, 7, 19, 7); line(ctx, 8, 12, 16, 12); line(ctx, 8, 16, 16, 16)
         } else { // 通用文档
             ctx.moveTo(6, 2); line(ctx, 6, 22, 20, 22); line(ctx, 20, 22, 20, 7); line(ctx, 20, 7, 15, 2); ctx.closePath(); line(ctx, 15, 2, 15, 8); line(ctx, 15, 8, 20, 8)
         }

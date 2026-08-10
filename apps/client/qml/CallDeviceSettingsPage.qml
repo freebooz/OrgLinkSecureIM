@@ -224,17 +224,17 @@ Item {
                 SectionCard {
                     objectName: "qmlDeviceSelectionCard"; title: "设备选择"
                     OptionRow {
-                        Layout.fillWidth: true; iconKind: 24; title: "麦克风"; subtitle: root.clientBackend.callDeviceInfo.microphoneAvailable ? "已检测到可用输入设备" : "未检测到或权限未授权"
+                        Layout.fillWidth: true; iconKind: 34; title: "麦克风"; subtitle: root.clientBackend.callDeviceInfo.microphoneAvailable ? "已检测到可用输入设备" : "未检测到或权限未授权"
                         trailing: Component { RowLayout { DeviceCombo { deviceKind: "microphone"; entries: root.clientBackend.callDeviceInfo.microphones || []; selectedToken: root.clientBackend.callDeviceInfo.selectedMicrophoneToken || "" } CallButton { text: "测试"; onClicked: root.clientBackend.testCallDevice("microphone") } } }
                     }
                     Divider { Layout.fillWidth: true }
                     OptionRow {
-                        Layout.fillWidth: true; iconKind: 20; title: "扬声器"; subtitle: root.clientBackend.callDeviceInfo.speakerAvailable ? "已检测到可用输出设备" : "未检测到输出设备"
+                        Layout.fillWidth: true; iconKind: 24; title: "扬声器"; subtitle: root.clientBackend.callDeviceInfo.speakerAvailable ? "已检测到可用输出设备" : "未检测到输出设备"
                         trailing: Component { RowLayout { DeviceCombo { deviceKind: "speaker"; entries: root.clientBackend.callDeviceInfo.speakers || []; selectedToken: root.clientBackend.callDeviceInfo.selectedSpeakerToken || "" } CallButton { text: "测试"; onClicked: root.clientBackend.testCallDevice("speaker") } } }
                     }
                     Divider { Layout.fillWidth: true }
                     OptionRow {
-                        Layout.fillWidth: true; iconKind: 22; title: "摄像头"; subtitle: "预览仅在用户主动点击后启动"
+                        Layout.fillWidth: true; iconKind: 23; title: "摄像头"; subtitle: "预览仅在用户主动点击后启动"
                         trailing: Component { DeviceCombo { deviceKind: "camera"; entries: root.clientBackend.callDeviceInfo.cameras || []; selectedToken: root.clientBackend.callDeviceInfo.selectedCameraToken || "" } }
                     }
                 }
@@ -242,35 +242,35 @@ Item {
                     objectName: "qmlAudioProcessingCard"; title: "音频处理"
                     OptionRow { Layout.fillWidth: true; iconKind: 24; title: "回声消除"; subtitle: "减少回声干扰，提升通话体验"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.echoCancellationEnabled); onToggled: root.clientBackend.updateSetting("echoCancellationEnabled", checked) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 17; title: "噪声抑制"; subtitle: "去除环境噪声，保留人声"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.noiseSuppressionEnabled); onToggled: root.clientBackend.updateSetting("noiseSuppressionEnabled", checked) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 34; title: "噪声抑制"; subtitle: "去除环境噪声，保留人声"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.noiseSuppressionEnabled); onToggled: root.clientBackend.updateSetting("noiseSuppressionEnabled", checked) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 15; title: "自动增益"; subtitle: "自动调整麦克风音量"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.autoGainControlEnabled); onToggled: root.clientBackend.updateSetting("autoGainControlEnabled", checked) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 34; title: "自动增益"; subtitle: "自动调整麦克风音量"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.autoGainControlEnabled); onToggled: root.clientBackend.updateSetting("autoGainControlEnabled", checked) } } }
                 }
                 SectionCard {
                     objectName: "qmlVideoSettingsCard"; title: "视频设置"
-                    OptionRow { Layout.fillWidth: true; iconKind: 22; title: "摄像头镜像"; subtitle: "在预览中镜像画面"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.cameraMirrorEnabled); onToggled: root.clientBackend.updateSetting("cameraMirrorEnabled", checked) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 23; title: "摄像头镜像"; subtitle: "在预览中镜像画面"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.cameraMirrorEnabled); onToggled: root.clientBackend.updateSetting("cameraMirrorEnabled", checked) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 18; title: "视频分辨率"; subtitle: "最终输出仍受摄像头与会议策略约束"; trailing: Component { CallCombo { model: ["720p (1280×720)", "1080p (1920×1080)", "2160p (3840×2160)"]; currentIndex: root.settingNumber("videoResolutionMode", 1); onActivated: root.clientBackend.updateSetting("videoResolutionMode", currentIndex) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 23; title: "视频分辨率"; subtitle: "最终输出仍受摄像头与会议策略约束"; trailing: Component { CallCombo { model: ["720p (1280×720)", "1080p (1920×1080)", "2160p (3840×2160)"]; currentIndex: root.settingNumber("videoResolutionMode", 1); onActivated: root.clientBackend.updateSetting("videoResolutionMode", currentIndex) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 13; title: "带宽优化"; subtitle: "弱网时允许媒体层降低质量以保证流畅"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.bandwidthOptimizationEnabled); onToggled: root.clientBackend.updateSetting("bandwidthOptimizationEnabled", checked) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 35; title: "带宽优化"; subtitle: "弱网时允许媒体层降低质量以保证流畅"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.bandwidthOptimizationEnabled); onToggled: root.clientBackend.updateSetting("bandwidthOptimizationEnabled", checked) } } }
                 }
                 SectionCard {
                     objectName: "qmlCallAssistCard"; title: "通话辅助"
-                    OptionRow { Layout.fillWidth: true; iconKind: 9; title: "通话快捷键"; subtitle: "显示/隐藏通话窗口"; trailing: Component { CallButton { text: root.clientBackend.settingsProfile.callShortcut || "Alt+C"; onClicked: root.clientBackend.updateSetting("callShortcut", "Alt+C") } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 36; title: "通话快捷键"; subtitle: "显示/隐藏通话窗口"; trailing: Component { CallButton { text: root.clientBackend.settingsProfile.callShortcut || "Alt+C"; onClicked: root.clientBackend.updateSetting("callShortcut", "Alt+C") } } }
                     Divider { Layout.fillWidth: true }
                     OptionRow { Layout.fillWidth: true; iconKind: 12; title: "录音设备权限"; subtitle: "允许发起录音请求，仍需参与方同意"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.recordingPermissionEnabled); onToggled: root.clientBackend.updateSetting("recordingPermissionEnabled", checked) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 1; title: "来电弹窗位置"; subtitle: "设置桌面端来电窗口位置"; trailing: Component { CallCombo { model: ["右下角", "左下角", "屏幕中央", "跟随系统"]; currentIndex: root.settingNumber("incomingCallWindowPosition", 0); onActivated: root.clientBackend.updateSetting("incomingCallWindowPosition", currentIndex) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 21; title: "来电弹窗位置"; subtitle: "设置桌面端来电窗口位置"; trailing: Component { CallCombo { model: ["右下角", "左下角", "屏幕中央", "跟随系统"]; currentIndex: root.settingNumber("incomingCallWindowPosition", 0); onActivated: root.clientBackend.updateSetting("incomingCallWindowPosition", currentIndex) } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 20; title: "蓝牙耳机优先"; subtitle: "优先使用当前系统已连接的蓝牙音频端点"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.bluetoothPreferred); onToggled: root.clientBackend.updateSetting("bluetoothPreferred", checked) } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 24; title: "蓝牙耳机优先"; subtitle: "优先使用当前系统已连接的蓝牙音频端点"; trailing: Component { CallSwitch { checked: Boolean(root.clientBackend.settingsProfile.bluetoothPreferred); onToggled: root.clientBackend.updateSetting("bluetoothPreferred", checked) } } }
                 }
                 SectionCard {
                     objectName: "qmlDeviceConnectionCard"; title: "设备连接状态"
-                    OptionRow { Layout.fillWidth: true; iconKind: 24; title: "麦克风设备"; subtitle: root.clientBackend.callDeviceInfo.selectedMicrophoneName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.microphoneAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.microphoneAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 34; title: "麦克风设备"; subtitle: root.clientBackend.callDeviceInfo.selectedMicrophoneName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.microphoneAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.microphoneAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 20; title: "扬声器设备"; subtitle: root.clientBackend.callDeviceInfo.selectedSpeakerName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.speakerAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.speakerAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 24; title: "扬声器设备"; subtitle: root.clientBackend.callDeviceInfo.selectedSpeakerName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.speakerAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.speakerAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
                     Divider { Layout.fillWidth: true }
-                    OptionRow { Layout.fillWidth: true; iconKind: 22; title: "摄像头设备"; subtitle: root.clientBackend.callDeviceInfo.selectedCameraName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.cameraAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.cameraAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
+                    OptionRow { Layout.fillWidth: true; iconKind: 23; title: "摄像头设备"; subtitle: root.clientBackend.callDeviceInfo.selectedCameraName || "未检测到"; trailing: Component { Text { text: root.clientBackend.callDeviceInfo.cameraAvailable ? "已连接" : "不可用"; color: root.clientBackend.callDeviceInfo.cameraAvailable ? "#18A85F" : root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } } }
                 }
                 SideCards { visible: root.phone || root.tablet; Layout.fillWidth: true }
                 Item { Layout.fillWidth: true; Layout.preferredHeight: 6 }

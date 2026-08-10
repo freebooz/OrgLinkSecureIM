@@ -16,6 +16,14 @@ Item {
     property bool tablet: width >= 720 && width < 1180
     property var sections: ["消息", "通讯录", "群组", "文件", "通知", "日程", "设置"]
 
+    /** 一级入口统一使用与公共导航轨相同的语义图标，抽屉和桌面导航保持视觉一致。 */
+    function iconKindForSection(index) {
+        if (index === 1) return 47
+        if (index === 2) return 48
+        if (index === 3) return 49
+        return index
+    }
+
     Rectangle { anchors.fill: parent; color: shell.theme.background }
     Image {
         id: mainShellBackground
@@ -224,7 +232,7 @@ Item {
                     required property string modelData
                     Layout.fillWidth: true
                     theme: shell.theme
-                    iconKind: index
+                    iconKind: shell.iconKindForSection(index)
                     text: modelData
                     badge: index === 0 ? backend.unreadMessages
                                           : index === 4 ? backend.unreadNotifications : 0

@@ -105,10 +105,13 @@ void drawUiIcon(QPainter& painter, UiIcon kind, const QColor& color)
     case UiIcon::Filter:
         painter.drawPolyline(QPolygonF{QPointF(3, 5), QPointF(21, 5), QPointF(14, 13), QPointF(14, 20), QPointF(10, 18), QPointF(10, 13), QPointF(3, 5)});
         break;
-    case UiIcon::Export:
     case UiIcon::Download:
         painter.drawRoundedRect(QRectF(4, 15, 16, 6), 1.5, 1.5);
         line(12, 3, 12, 16); line(7.5, 11.5, 12, 16); line(16.5, 11.5, 12, 16);
+        break;
+    case UiIcon::Export:
+        painter.drawRoundedRect(QRectF(4, 15, 16, 6), 1.5, 1.5);
+        line(12, 17, 12, 4); line(7.5, 8.5, 12, 4); line(16.5, 8.5, 12, 4);
         break;
     case UiIcon::Upload:
         painter.drawRoundedRect(QRectF(4, 15, 16, 6), 1.5, 1.5);

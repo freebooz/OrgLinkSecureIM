@@ -561,7 +561,8 @@ Item {
                             IconCanvas {
                                 width: 17
                                 height: 17
-                                kind: modelData.type === "organization" ? 12 : 1
+                                 // 企业根节点与部门节点使用楼宇语义图标，避免误读为安全盾牌或联系人卡片。
+                                 kind: modelData.type === "organization" ? 45 : 46
                                 color: root.selectedUnitKey === String(modelData.key)
                                        ? root.theme.primary : "#174B8A"
                                 lineWidth: 1.8

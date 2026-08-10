@@ -391,11 +391,11 @@ Item {
                             rowSpacing: 8
                             Repeater {
                                 model: [
-                                    { icon: 34, title: "许可证", subtitle: "查看软件与第三方许可信息", action: "license" },
-                                    { icon: 34, title: "更新日志", subtitle: "查看版本更新历史记录", action: "change-log" },
-                                    { icon: 34, title: "服务协议", subtitle: "阅读安域通服务协议", action: "agreement" },
+                                    { icon: 44, title: "许可证", subtitle: "查看软件与第三方许可信息", action: "license" },
+                                    { icon: 44, title: "更新日志", subtitle: "查看版本更新历史记录", action: "change-log" },
+                                    { icon: 44, title: "服务协议", subtitle: "阅读安域通服务协议", action: "agreement" },
                                     { icon: 10, title: "帮助中心", subtitle: "获取使用帮助与常见问题", action: "help" },
-                                    { icon: 34, title: "隐私政策", subtitle: "了解隐私与数据保护规则", action: "privacy" },
+                                    { icon: 44, title: "隐私政策", subtitle: "了解隐私与数据保护规则", action: "privacy" },
                                     { icon: 17, title: "意见反馈", subtitle: "分享建议与使用体验", action: "feedback" },
                                     { icon: 6, title: "开源组件", subtitle: "查看随程序发布的许可目录", action: "open-source" },
                                     { icon: 15, title: "联系客服", subtitle: "联系部署方技术支持团队", action: "support" }

@@ -19,6 +19,14 @@ Rectangle {
     signal sectionRequested(int index)
     signal menuRequested()
 
+    /** 返回一级导航专用图标，避免通讯录、群组和文件复用业务动作图形导致语义混淆。 */
+    function iconKindForSection(index) {
+        if (index === 1) return 47
+        if (index === 2) return 48
+        if (index === 3) return 49
+        return index
+    }
+
     implicitWidth: 72
     color: "#07336F"
     clip: true
@@ -57,7 +65,7 @@ Rectangle {
                     anchors.centerIn: parent
                     width: 25
                     height: 25
-                    kind: navigationItem.index
+                    kind: root.iconKindForSection(navigationItem.index)
                     color: "#FFFFFF"
                     lineWidth: root.currentIndex === navigationItem.index ? 2.25 : 2.0
                 }

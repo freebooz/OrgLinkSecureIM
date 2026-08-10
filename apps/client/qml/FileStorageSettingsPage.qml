@@ -278,7 +278,7 @@ Item {
             Text { text: "缓存状态"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.sectionSize; font.bold: true }
             RowLayout {
                 Layout.fillWidth: true
-                IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 29; color: root.theme.primary }
+                IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 42; color: root.theme.primary }
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 4
                     RowLayout { Layout.fillWidth: true; Text { Layout.fillWidth: true; text: "已使用缓存"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: root.formatBytes(root.numberValue(root.clientBackend.fileStorageInfo, "cacheUsedBytes", 0)); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
@@ -310,7 +310,7 @@ Item {
             anchors.margins: 16
             spacing: 10
             Text { text: "云端同步状态"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.sectionSize; font.bold: true }
-            RowLayout { Layout.fillWidth: true; IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 23; color: root.theme.primary } Text { Layout.fillWidth: true; text: "同步状态"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: String(root.clientBackend.fileStorageInfo.syncStatus || "离线"); color: root.theme.primary; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; font.bold: true } }
+            RowLayout { Layout.fillWidth: true; IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 37; color: root.theme.primary } Text { Layout.fillWidth: true; text: "同步状态"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: String(root.clientBackend.fileStorageInfo.syncStatus || "离线"); color: root.theme.primary; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize; font.bold: true } }
             RowLayout { Layout.fillWidth: true; Item { Layout.preferredWidth: 44 } Text { Layout.fillWidth: true; text: "已同步文件"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: Number(root.clientBackend.fileStorageInfo.syncedFileCount || 0).toLocaleString(Qt.locale()); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
             RowLayout { Layout.fillWidth: true; Item { Layout.preferredWidth: 44 } Text { Layout.fillWidth: true; text: "最新同步时间"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: String(root.clientBackend.fileStorageInfo.lastSyncAt || "暂无记录"); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
             FileButton { Layout.fillWidth: true; text: "查看同步详情"; onClicked: root.clientBackend.openFileStorageLocation("sync") }
@@ -330,7 +330,7 @@ Item {
             anchors.margins: 16
             spacing: 10
             Text { text: "备份信息"; color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.sectionSize; font.bold: true }
-            RowLayout { Layout.fillWidth: true; IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 23; color: root.theme.primary } Text { Layout.fillWidth: true; text: "最近备份时间"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: String(root.clientBackend.fileStorageInfo.backupAt || "尚未备份"); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
+            RowLayout { Layout.fillWidth: true; IconCanvas { Layout.preferredWidth: 34; Layout.preferredHeight: 34; kind: 38; color: root.theme.primary } Text { Layout.fillWidth: true; text: "最近备份时间"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: String(root.clientBackend.fileStorageInfo.backupAt || "尚未备份"); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
             RowLayout { Layout.fillWidth: true; Item { Layout.preferredWidth: 44 } Text { Layout.fillWidth: true; text: "备份大小"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } Text { text: root.formatBytes(root.numberValue(root.clientBackend.fileStorageInfo, "backupSizeBytes", 0)); color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize } }
             FileButton { Layout.fillWidth: true; highlighted: true; text: "立即备份"; onClicked: root.clientBackend.createFileStorageBackup() }
         }
@@ -393,42 +393,42 @@ Item {
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 20; title: "自动保存接收文件"; subtitle: "接收的文件将自动保存到本地"
+                            Layout.fillWidth: true; iconKind: 8; title: "自动保存接收文件"; subtitle: "接收的文件将自动保存到本地"
                             trailing: Component { FileSwitch { checked: Boolean(root.clientBackend.settingsProfile.autoSaveReceivedFiles); onToggled: root.clientBackend.updateSetting("autoSaveReceivedFiles", checked) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 23; title: "离线文件"; subtitle: "设置文件离线可用，便于无网络访问"
+                            Layout.fillWidth: true; iconKind: 37; title: "离线文件"; subtitle: "设置文件离线可用，便于无网络访问"
                             trailing: Component { FileButton { text: "管理离线文件"; onClicked: root.clientBackend.openFileStorageLocation("offline") } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 17; title: "最近文件保留天数"; subtitle: "超过设定天数的最近文件记录将被清除"
+                            Layout.fillWidth: true; iconKind: 28; title: "最近文件保留天数"; subtitle: "超过设定天数的最近文件记录将被清除"
                             trailing: Component { FileCombo { model: ["7 天", "30 天", "90 天", "180 天"]; currentIndex: Math.max(0, [7, 30, 90, 180].indexOf(root.numberValue(root.clientBackend.settingsProfile, "recentFileRetentionDays", 30))); onActivated: root.clientBackend.updateSetting("recentFileRetentionDays", [7, 30, 90, 180][currentIndex]) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 14; title: "自动清理缓存"; subtitle: "定期清理缓存以释放磁盘空间"
+                            Layout.fillWidth: true; iconKind: 30; title: "自动清理缓存"; subtitle: "定期清理缓存以释放磁盘空间"
                             trailing: Component { FileSwitch { checked: Boolean(root.clientBackend.settingsProfile.autoCacheCleanupEnabled); onToggled: root.clientBackend.updateSetting("autoCacheCleanupEnabled", checked) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 29; title: "缓存大小上限"; subtitle: "当缓存大小超过上限时将自动清理"
+                            Layout.fillWidth: true; iconKind: 42; title: "缓存大小上限"; subtitle: "当缓存大小超过上限时将自动清理"
                             trailing: Component { FileCombo { model: ["512 MB", "1 GB", "2 GB", "5 GB"]; currentIndex: Math.max(0, [512, 1024, 2048, 5120].indexOf(root.numberValue(root.clientBackend.settingsProfile, "cacheSizeLimitMb", 2048))); onActivated: root.clientBackend.updateSetting("cacheSizeLimitMb", [512, 1024, 2048, 5120][currentIndex]) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 10; title: "文件预览方式"; subtitle: "选择文件在聊天中点击时的预览方式"
+                            Layout.fillWidth: true; iconKind: 40; title: "文件预览方式"; subtitle: "选择文件在聊天中点击时的预览方式"
                             trailing: Component { FileCombo { model: ["在应用内预览", "系统默认程序"]; currentIndex: root.numberValue(root.clientBackend.settingsProfile, "filePreviewMode", 0); onActivated: root.clientBackend.updateSetting("filePreviewMode", currentIndex) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 18; title: "图片自动压缩"; subtitle: "发送图片时自动压缩以节省流量"
+                            Layout.fillWidth: true; iconKind: 41; title: "图片自动压缩"; subtitle: "发送图片时自动压缩以节省流量"
                             trailing: Component { FileSwitch { checked: Boolean(root.clientBackend.settingsProfile.imageAutoCompressEnabled); onToggled: root.clientBackend.updateSetting("imageAutoCompressEnabled", checked) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 22; title: "视频自动转码"; subtitle: "上传视频时自动转码为兼容格式"
+                            Layout.fillWidth: true; iconKind: 43; title: "视频自动转码"; subtitle: "上传视频时自动转码为兼容格式"
                             trailing: Component { FileCombo { model: ["智能转码（推荐）", "保留原始格式"]; currentIndex: root.numberValue(root.clientBackend.settingsProfile, "videoTranscodeMode", 0); onActivated: root.clientBackend.updateSetting("videoTranscodeMode", currentIndex) } }
                         }
                         Divider { Layout.fillWidth: true }
@@ -438,12 +438,12 @@ Item {
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 30; title: "外发水印"; subtitle: "对外发送的文件自动添加水印"
+                            Layout.fillWidth: true; iconKind: 26; title: "外发水印"; subtitle: "对外发送的文件自动添加水印"
                             trailing: Component { FileCombo { model: ["显示水印", "不添加水印"]; currentIndex: root.numberValue(root.clientBackend.settingsProfile, "externalWatermarkMode", 0); onActivated: root.clientBackend.updateSetting("externalWatermarkMode", currentIndex) } }
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 21; title: "共享权限默认值"; subtitle: "创建共享文件/文件夹时的默认权限"
+                            Layout.fillWidth: true; iconKind: 20; title: "共享权限默认值"; subtitle: "创建共享文件/文件夹时的默认权限"
                             trailing: Component { FileCombo { model: ["组织内可查看", "指定人员可查看", "指定人员可编辑"]; currentIndex: root.numberValue(root.clientBackend.settingsProfile, "defaultSharePermission", 0); onActivated: root.clientBackend.updateSetting("defaultSharePermission", currentIndex) } }
                         }
                         Divider { Layout.fillWidth: true }
@@ -453,7 +453,7 @@ Item {
                         }
                         Divider { Layout.fillWidth: true }
                         SettingRow {
-                            Layout.fillWidth: true; iconKind: 16; title: "备份与恢复"; subtitle: "备份本地文件与设置，支持恢复"
+                            Layout.fillWidth: true; iconKind: 38; title: "备份与恢复"; subtitle: "备份本地文件与设置，支持恢复"
                             trailing: Component { FileButton { text: "管理备份"; onClicked: root.clientBackend.openFileStorageLocation("backup") } }
                         }
                         SideCards { visible: root.phone || root.tablet; Layout.fillWidth: true; Layout.topMargin: 8 }
