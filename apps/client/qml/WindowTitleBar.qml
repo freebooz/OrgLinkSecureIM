@@ -16,7 +16,8 @@ Rectangle {
     required property var targetWindow
     signal serverSettingsRequested()
 
-    color: root.theme.darkMode ? root.theme.surface : "#F7FAFF"
+    // 登录页由 Main.qml 提供连续的冷色背景；工作台继续使用浅色标题栏底色。
+    color: root.theme.darkMode ? root.theme.surface : (backend.authenticated ? "#F7FAFF" : "transparent")
     implicitHeight: 76
     clip: true
 
@@ -24,7 +25,8 @@ Rectangle {
         id: titleBarBackground
         objectName: "qmlTitleBarBackground"
         anchors.fill: parent
-        visible: !root.theme.darkMode
+        // 登录态不复用工作台背景，避免旧资源或风景图进入登录界面；背景由 Main.qml 的 LoginBackground 提供。
+        visible: !root.theme.darkMode && backend.authenticated
         source: "qrc:/orglink/assets/backgrounds/main-shell-background.png"
         sourceClipRect: Qt.rect(0, 0, 1680, 150)
         fillMode: Image.PreserveAspectCrop
@@ -54,13 +56,12 @@ Rectangle {
     }
 
     Rectangle {
-        // Windows 无边框窗口在右侧控制区的隐藏控件边距上可能露出黑色合成底层；
-        // 用独立不透明底板覆盖控制区及安全余量，按钮仍由下方布局负责交互。
+        // 控制区保持透明，让标题栏背景纹理贯穿最小化、最大化和关闭按钮区域。
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         width: backend.authenticated ? 148 : 90
-        color: root.theme.darkMode ? root.theme.surface : "#F7FAFF"
+        color: root.theme.darkMode ? root.theme.surface : (backend.authenticated ? "#F7FAFF" : "transparent")
     }
 
     function toggleMaximized() {
@@ -218,7 +219,7 @@ Rectangle {
             // Windows 原生 Control 样式在透明背景上可能回退为黑色；显式铺底保持标题栏连续不透明。
             background: Rectangle {
                 color: windowButton.hovered ? windowButton.hoverColor
-                                            : (root.theme.darkMode ? root.theme.surface : "#F7FAFF")
+                                            : (root.theme.darkMode ? root.theme.surface : (backend.authenticated ? "#F7FAFF" : "transparent"))
             }
             contentItem: Text {
                 text: windowButton.glyph

@@ -58,7 +58,16 @@ ApplicationWindow {
     // 会议窗口与主工作台同属当前进程；关闭会议不影响主窗口和安全连接。
     ConferenceWindow { theme: appTheme }
 
+    // 登录页背景置于公共标题栏和登录内容之后，确保无边框标题栏也能连续显示冷色背景。
+    LoginBackground {
+        anchors.fill: parent
+        visible: !backend.authenticated
+        theme: appTheme
+        z: 0
+    }
+
     Column {
+        z: 1
         anchors.fill: parent
         WindowTitleBar {
             visible: !window.mobilePlatform

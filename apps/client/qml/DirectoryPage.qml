@@ -26,6 +26,10 @@ Item {
     property string statusFilter: "all"
     property var collapsedUnitKeys: ({})
     property var selectedPerson: ({})
+    // 人员表分页状态仅属于视图层；服务端仍提供完整目录快照，切页不会改变权限或数据源。
+    property int peoplePageSize: 10
+    property int peoplePage: 1
+    readonly property int peoplePageCount: Math.max(1, Math.ceil(root.filteredPeople().length / root.peoplePageSize))
     // 姓名、页面标题和分区标题使用纯黑建立最高层级；说明字段统一使用中性灰黑。
     readonly property color criticalText: theme.darkMode ? theme.text : "#000000"
     readonly property color mutedInk: theme.darkMode ? theme.secondaryText : "#4B5565"
@@ -103,6 +107,7 @@ Item {
         root.selectedUnitId = String(unit.unitId || "")
         root.selectedUnitType = String(unit.type || "")
         root.selectedUnitName = String(unit.name || "全部联系人")
+        root.peoplePage = 1
         if (root.phone)
             root.mobileStage = 1
     }
@@ -129,6 +134,41 @@ Item {
                 .map(function(value) { return String(value || "").toLowerCase() }).join(" ")
             return haystack.indexOf(keyword) >= 0
         })
+    }
+
+    /** 返回当前页人员，统一在 QML 模型层完成切片，避免重复请求目录数据。 */
+    function pagedPeople() {
+        const people = root.filteredPeople()
+        const page = Math.min(Math.max(1, root.peoplePage), root.peoplePageCount)
+        const start = (page - 1) * root.peoplePageSize
+        return people.slice(start, start + root.peoplePageSize)
+    }
+
+    /** 返回紧凑分页按钮模型；页数较多时使用省略号保持底部布局稳定。 */
+    function peoplePageButtons() {
+        const count = root.peoplePageCount
+        const current = Math.min(Math.max(1, root.peoplePage), count)
+        if (count <= 7) {
+            const simple = ["‹"]
+            for (let i = 1; i <= count; ++i) simple.push(String(i))
+            simple.push("›")
+            return simple
+        }
+        const buttons = ["‹", "1"]
+        if (current > 4) buttons.push("…")
+        const start = Math.max(2, current - 1)
+        const end = Math.min(count - 1, current + 1)
+        for (let page = start; page <= end; ++page) buttons.push(String(page))
+        if (current < count - 3) buttons.push("…")
+        buttons.push(String(count), "›")
+        return buttons
+    }
+
+    /** 执行分页按钮动作；省略号是展示占位，不应触发页码变化。 */
+    function activatePeoplePage(token) {
+        if (token === "‹") root.peoplePage = Math.max(1, root.peoplePage - 1)
+        else if (token === "›") root.peoplePage = Math.min(root.peoplePageCount, root.peoplePage + 1)
+        else if (token !== "…") root.peoplePage = Math.min(root.peoplePageCount, Math.max(1, Number(token)))
     }
 
     function countByStatus(status) {
@@ -176,9 +216,15 @@ Item {
 
     Connections {
         target: backend
-        function onDirectoryPeopleChanged() { Qt.callLater(root.ensureSelection) }
+        function onDirectoryPeopleChanged() {
+            root.peoplePage = Math.min(root.peoplePage, root.peoplePageCount)
+            Qt.callLater(root.ensureSelection)
+        }
         function onContactFileTransferReady() { contactFileDialog.open() }
     }
+    onPeopleSearchTextChanged: root.peoplePage = 1
+    onStatusFilterChanged: root.peoplePage = 1
+    onSelectedUnitIdChanged: root.peoplePage = 1
     Component.onCompleted: Qt.callLater(root.ensureSelection)
 
     component CircleAction: ToolButton {
@@ -749,7 +795,7 @@ Item {
                         implicitWidth: 102
                         implicitHeight: 42
                         text: "筛选"
-                        onClicked: root.statusFilter = root.statusFilter === "all" ? "在线" : "all"
+                         onClicked: { root.statusFilter = root.statusFilter === "all" ? "在线" : "all"; root.peoplePage = 1 }
                         background: Rectangle {
                             radius: root.theme.fieldRadius
                             color: filterButton.hovered ? root.theme.primarySoft : root.theme.surface
@@ -882,7 +928,7 @@ Item {
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
                     clip: true
-                    model: root.filteredPeople()
+                     model: root.pagedPeople()
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     delegate: ItemDelegate {
                         id: personDelegate
@@ -1041,22 +1087,28 @@ Item {
                         font.pixelSize: 13
                     }
                     Repeater {
-                        model: ["‹", "1", "2", "3", "…", "›"]
-                        delegate: Button {
-                            id: pageButton
-                            required property string modelData
-                            implicitWidth: 36
-                            implicitHeight: 34
-                            text: modelData
-                            background: Rectangle {
-                                radius: 5
-                                color: pageButton.text === "1" ? root.theme.primary : root.theme.surface
-                                border.width: 1
-                                border.color: pageButton.text === "1" ? root.theme.primary : root.theme.border
-                            }
-                            contentItem: Text {
-                                text: pageButton.text
-                                color: pageButton.text === "1" ? "white" : root.theme.secondaryText
+                         model: root.peoplePageButtons()
+                         delegate: Button {
+                             id: pageButton
+                             required property string modelData
+                             property bool placeholder: pageButton.modelData === "…"
+                             property bool previous: pageButton.modelData === "‹"
+                             property bool next: pageButton.modelData === "›"
+                             implicitWidth: 36
+                             implicitHeight: 34
+                             text: modelData
+                             enabled: !placeholder && (!previous || root.peoplePage > 1)
+                                      && (!next || root.peoplePage < root.peoplePageCount)
+                             onClicked: root.activatePeoplePage(pageButton.modelData)
+                             background: Rectangle {
+                                 radius: 5
+                                 color: pageButton.text === String(root.peoplePage) ? root.theme.primary : root.theme.surface
+                                 border.width: 1
+                                 border.color: pageButton.text === String(root.peoplePage) ? root.theme.primary : root.theme.border
+                             }
+                             contentItem: Text {
+                                 text: pageButton.text
+                                 color: pageButton.text === String(root.peoplePage) ? "white" : (pageButton.enabled ? root.theme.secondaryText : root.theme.border)
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                                 font.family: root.theme.uiFont
@@ -1068,7 +1120,9 @@ Item {
                         id: pageSizeBox
                         implicitWidth: 108
                         implicitHeight: 36
-                        model: ["10 条/页", "20 条/页", "50 条/页"]
+                         model: ["10 条/页", "20 条/页", "50 条/页"]
+                         currentIndex: Math.max(0, [10, 20, 50].indexOf(root.peoplePageSize))
+                         onActivated: { root.peoplePageSize = [10, 20, 50][currentIndex]; root.peoplePage = 1 }
                         indicator: Text {
                             x: pageSizeBox.width - width - 10
                             anchors.verticalCenter: parent.verticalCenter

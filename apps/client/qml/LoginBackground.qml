@@ -3,8 +3,9 @@ import QtQuick
 /**
  * 登录页专用不透明背景。
  *
- * 复用随安装包发布的浅色网络纹理，并由 Canvas 绘制城市剪影、数据道路和节点光点，确保
- * 紧凑桌面窗口与移动端缩放时保持清晰。该组件不承载交互，也不得绘制账号等敏感数据。
+ * 使用确定性的冷色渐变，并由 Canvas 绘制城市剪影、数据道路和节点光点，确保紧凑桌面窗口与
+ * 移动端缩放时保持清晰。登录页不加载业务工作台背景资源，避免旧安装包背景或第三方风景图混入。
+ * 该组件不承载交互，也不得绘制账号等敏感数据。
  */
 Item {
     id: root
@@ -13,15 +14,6 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: "#F5F9FF"
-    }
-
-    Image {
-        anchors.fill: parent
-        source: "qrc:/orglink/assets/backgrounds/main-shell-background.png"
-        fillMode: Image.PreserveAspectCrop
-        asynchronous: true
-        cache: true
-        opacity: 0.82
     }
 
     Rectangle {
