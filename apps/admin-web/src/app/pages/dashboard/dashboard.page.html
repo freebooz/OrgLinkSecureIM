@@ -1,0 +1,37 @@
+<section class="page dashboard-page">
+  <header class="page-header">
+    <div><h1 class="page-title">管理工作台</h1><p class="page-subtitle">组织运行状态、人员在线情况与共享文件安全概览</p></div>
+    <div class="page-actions"><button class="secondary-button" type="button" (click)="refresh()"><app-icon name="refresh" />刷新数据</button></div>
+  </header>
+  @if (loading()) { <div class="loading-line"></div> }
+  @if (errorMessage()) { <div class="toast error">{{ errorMessage() }}</div> }
+  @if (overview(); as data) {
+    <div class="metric-grid">
+      <article class="metric-card card"><span class="metric-icon blue"><app-icon name="organization" /></span><div><small>组织部门</small><strong>{{ data.departments | number }}</strong><em>{{ data.organizations }} 个组织</em></div></article>
+      <article class="metric-card card"><span class="metric-icon green"><app-icon name="people" /></span><div><small>启用人员</small><strong>{{ data.people | number }}</strong><em><i class="status-dot online"></i>{{ data.onlinePeople }} 人在线</em></div></article>
+      <article class="metric-card card"><span class="metric-icon violet"><app-icon name="share" /></span><div><small>共享文件</small><strong>{{ data.sharedFiles | number }}</strong><em>当前有效共享</em></div></article>
+      <article class="metric-card card"><span class="metric-icon orange"><app-icon name="files" /></span><div><small>对象存储</small><strong>{{ formatBytes(data.storageBytes) }}</strong><em>组织文件占用</em></div></article>
+    </div>
+    <div class="dashboard-grid">
+      <article class="card quick-card">
+        <div class="card-heading"><div><h2>常用管理</h2><p>进入核心业务模块完成日常维护</p></div></div>
+        <div class="quick-actions">
+          <a routerLink="/organization"><span><app-icon name="organization" /></span><div><b>组织机构</b><small>部门层级、编码和启停状态</small></div><app-icon name="chevron" /></a>
+          <a routerLink="/organization"><span><app-icon name="people" /></span><div><b>人员与账号</b><small>人员资料、账号和临时口令</small></div><app-icon name="chevron" /></a>
+          <a routerLink="/files"><span><app-icon name="files" /></span><div><b>共享文件</b><small>集中查看共享关系与软删除</small></div><app-icon name="chevron" /></a>
+        </div>
+      </article>
+      <article class="card audit-card">
+        <div class="card-heading"><div><h2>最近管理操作</h2><p>仅显示当前管理员最近六条审计记录</p></div><app-icon name="audit" /></div>
+        @if (data.recentActivity.length) {
+          <ol class="activity-list">
+            @for (item of data.recentActivity; track item.occurredAtUtcMs + item.targetId) {
+              <li><i></i><div><b>{{ item.action }}</b><small>{{ item.targetType }} · {{ item.targetId }}</small></div><time>{{ item.occurredAtUtcMs | date:'MM-dd HH:mm' }}</time></li>
+            }
+          </ol>
+        } @else { <div class="empty-state">暂无管理操作记录</div> }
+      </article>
+    </div>
+    <article class="security-banner card"><span><app-icon name="shield" /></span><div><h2>管理链路已受保护</h2><p>管理员角色独立授权，会话 Cookie 不对脚本开放，写操作需要 CSRF 令牌；组织变更同时产生修订号和审计记录。</p></div><b>正常</b></article>
+  }
+</section>

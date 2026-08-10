@@ -8,3 +8,5 @@ docs/screenshots
 *.db
 *.sqlite
 *.log
+**/node_modules
+**/dist

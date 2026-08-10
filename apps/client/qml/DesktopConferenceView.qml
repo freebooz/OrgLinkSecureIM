@@ -41,6 +41,9 @@ Item {
             const mediaPermission = permissionRequest.permissionType === WebEnginePermission.PermissionType.MediaAudioCapture
                     || permissionRequest.permissionType === WebEnginePermission.PermissionType.MediaVideoCapture
                     || permissionRequest.permissionType === WebEnginePermission.PermissionType.MediaAudioVideoCapture
+                    // 屏幕共享同样属于会议媒体能力，仅允许当前会议源触发，避免放宽到任意站点。
+                    || permissionRequest.permissionType === WebEnginePermission.PermissionType.DesktopVideoCapture
+                    || permissionRequest.permissionType === WebEnginePermission.PermissionType.DesktopAudioVideoCapture
             if (sameOrigin && mediaPermission)
                 permissionRequest.grant()
             else

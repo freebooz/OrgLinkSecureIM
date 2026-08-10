@@ -9,6 +9,6 @@ main { padding:22px; display:grid; grid-template-columns:repeat(auto-fit,minmax(
 .participant .name { position:absolute; left:14px; bottom:12px; padding:6px 10px; border-radius:9px; background:#07101ecc; }
 footer { display:flex; align-items:center; justify-content:center; gap:14px; border-top:1px solid #27426f; background:#0b1830e8; }
 button { min-width:104px; padding:12px 18px; border:1px solid #3d5f8d; border-radius:12px; color:#eff5ff; background:#183158; cursor:pointer; font-size:15px; }
-button:hover { background:#214273; }button.active { color:#fff; background:#075df5; border-color:#3c86ff; }button.danger { background:#bb2737; border-color:#e14c5b; }
+button:hover { background:#214273; }button.active { color:#fff; background:#075df5; border-color:#3c86ff; }button.secondary { background:#2363b8; border-color:#63a0ff; }button.danger { background:#bb2737; border-color:#e14c5b; }
 .error { grid-column:1/-1; align-self:center; justify-self:center; max-width:620px; padding:24px; color:#ffd9dd; background:#481923; border:1px solid #a33a4a; border-radius:14px; }
 @media (max-width:720px) { header { grid-template-columns:1fr; gap:4px; padding:10px 18px; }#status { justify-self:start; }body { grid-template-rows:88px 1fr auto; }footer { flex-wrap:wrap; padding:12px; } }

@@ -13,7 +13,7 @@ RUN cmake -S . -B /build -G Ninja \
         -DORGLINK_BUILD_QT_CLIENT=OFF \
         -DORGLINK_BUILD_TESTS=OFF \
         -DORGLINK_ENABLE_MOCK_MODE=OFF \
-    && cmake --build /build --target orglink-server orglink-migrator --parallel
+    && cmake --build /build --target orglink-server orglink-admin-api orglink-migrator --parallel
 
 FROM ${ORGLINK_DEBIAN_IMAGE} AS runtime
 
@@ -25,6 +25,7 @@ RUN apt-get update \
     && install -d -o orglink -g orglink /var/log/orglink
 
 COPY --from=builder /build/apps/server/orglink-server /opt/orglink/bin/orglink-server
+COPY --from=builder /build/apps/admin-api/orglink-admin-api /opt/orglink/bin/orglink-admin-api
 COPY --from=builder /build/apps/tools/orglink-migrator /opt/orglink/bin/orglink-migrator
 COPY database/migrations/postgresql /opt/orglink/migrations/postgresql
 

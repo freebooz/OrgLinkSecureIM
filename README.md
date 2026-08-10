@@ -16,6 +16,7 @@
 - Windows 本地消息正文和目录联系方式使用当前用户 DPAPI，不保存明文。
 - 事务化迁移器：顺序发现、SHA-256 校验和、PG advisory lock、幂等重跑和校验和漂移拒绝。
 - Compose 首装链：PostgreSQL → TLS 证书 → 迁移 → 管理员引导 → Gateway 健康检查。
+- Angular 22 Web 管理端：提供管理员登录、组织机构与人员管理、账号重置、共享文件查询、撤销共享和软删除；浏览器只访问同源 HTTPS，管理会话使用 `HttpOnly` Cookie、`SameSite=Strict` 和 CSRF 请求头，所有写操作记录组织修订与审计日志。
 - 私有文件链：客户端 SHA-256 校验与 8 MiB 有界上传、Gateway 会话鉴权、MinIO SigV4 对象读写、PostgreSQL 元数据/文件消息事务和授权下载。
 - 文件中心链：我的/最近/已接收/团队共享/收藏/回收站范围、类型与关键词筛选、分页和用量统计均通过 Gateway 查询；文件夹、新文件、版本、个人共享授权、收藏及软删除状态写入 PostgreSQL，文件内容保持在 MinIO 私有桶中，并支持经重新鉴权后的上传、下载、恢复和撤销共享。
 - 会议链：Gateway 生成短期 LiveKit JWT，会议 Web 插件从 URL fragment 取令牌并立即清除，支持麦克风、摄像头、屏幕共享和多参与者媒体卡片。
@@ -26,7 +27,7 @@
 
 ## 尚未完成
 
-大文件分片与续传、病毒扫描、消息撤回/转发/全文搜索、群公告编辑与解散、连接池与异步数据库执行器、国密 SM2/SM3/SM4/TLCP、Web 管理后台、监控告警、自动升级以及信创软硬件实机认证仍未交付。当前版本是工程化 POC，不应直接作为生产系统上线。
+大文件分片与续传、病毒扫描、消息撤回/转发/全文搜索、群公告编辑与解散、连接池与异步数据库执行器、国密 SM2/SM3/SM4/TLCP、监控告警、自动升级以及信创软硬件实机认证仍未交付。当前版本是工程化 POC，不应直接作为生产系统上线。
 
 ## Windows 构建
 
@@ -60,11 +61,11 @@ Copy-Item deploy/docker/.env.example deploy/docker/.env
 .\deploy\docker\up.ps1
 ```
 
-默认公开 TLS `7443`、LiveKit 信令 `7880`、RTC TCP/UDP `7881/7882`、会议页 `7888` 和 MinIO 控制台 `9001`；PostgreSQL 与 MinIO API 只在 Compose 内部网络可见。客户端优先使用 `ORGLINK_TLS_CA_FILE` 指定的证书；未设置时读取发布目录中的 `certs/server.crt`：
+默认公开 TLS `7443`、Angular Web 管理端 HTTPS `7444`、LiveKit 信令 `7880`、RTC TCP/UDP `7881/7882`、会议页 `7888` 和 MinIO 控制台 `9001`；PostgreSQL、MinIO API 与管理端 C++ API 只在 Compose 内部网络可见。Web 管理端地址为 `https://<部署主机>:7444`；开发 CA 仅用于内网验证，浏览器应信任部署生成的 `runtime-certs/server.crt` 或改用单位签发证书，禁止跳过证书校验。客户端优先使用 `ORGLINK_TLS_CA_FILE` 指定的证书；未设置时读取发布目录中的 `certs/server.crt`：
 
 ```powershell
 $env:ORGLINK_TLS_CA_FILE = "<部署目录>\runtime-certs\server.crt"
 .\build\windows-qt-production\apps\client\Release\orglink-client.exe
 ```
 
-详细部署、验证证据与未完成边界见 [Docker 手册](deploy/docker/README.md)、[文件中心设计](docs/file-center.md)、[日程中心设计](docs/calendar-center.md)、[测试报告](docs/test-report.md)、[界面规格](docs/ui-wireframes.md) 和 [技术方案](docs/technical-solution.md)。
+详细部署、验证证据与未完成边界见 [Docker 手册](deploy/docker/README.md)、[Web 管理端说明](apps/admin-web/README.md)、[文件中心设计](docs/file-center.md)、[日程中心设计](docs/calendar-center.md)、[测试报告](docs/test-report.md)、[界面规格](docs/ui-wireframes.md) 和 [技术方案](docs/technical-solution.md)。

@@ -22,7 +22,10 @@
 #include <orglink/application/OrganizationService.h>
 
 #include <QApplication>
+#include <QEventLoop>
 #include <QHeaderView>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QLabel>
 #include <QListWidget>
@@ -35,8 +38,15 @@
 #include <QTableView>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 #include <QWindow>
+#if defined(ORGLINK_DESKTOP_WEBENGINE)
+#include <QtWebEngineCore/QWebEngineCertificateError>
+#include <QtWebEngineCore/QWebEnginePage>
+#include <QtWebEngineQuick/qtwebenginequickglobal.h>
+#else
 #include <QtWebView/QtWebView>
+#endif
 
 #if defined(ORGLINK_TEST_HAS_GATEWAY)
 #include "GatewayServer.h"
@@ -80,6 +90,23 @@ private slots:
         QVERIFY(backend.conferenceUrl().isEmpty());
         backend.closeConference();
         QVERIFY(!backend.conferenceVisible());
+
+        NetworkClient conferenceClient;
+        QmlClientBackend conferenceBackend(&conferenceClient);
+        // 旧 HTTP 地址必须在进入网页前被拒绝；HTTPS 会话关闭则同步清空可见状态和含令牌 URL。
+        emit conferenceClient.conferenceReady(
+            QUrl(QStringLiteral("http://192.168.0.243:7888/#token=legacy")),
+            QStringLiteral("legacy-conference"));
+        QVERIFY(!conferenceBackend.conferenceVisible());
+        QVERIFY(conferenceBackend.conferenceUrl().isEmpty());
+        emit conferenceClient.conferenceReady(
+            QUrl(QStringLiteral("https://192.168.0.243:7888/#token=short-lived")),
+            QStringLiteral("secure-conference"));
+        QVERIFY(conferenceBackend.conferenceVisible());
+        QVERIFY(!conferenceBackend.conferenceUrl().isEmpty());
+        conferenceBackend.closeConference();
+        QVERIFY(!conferenceBackend.conferenceVisible());
+        QVERIFY(conferenceBackend.conferenceUrl().isEmpty());
         QSignalSpy closeToTrayRequested(&backend, &QmlClientBackend::windowCloseToTrayRequested);
         QSignalSpy foregroundAcknowledged(&backend, &QmlClientBackend::windowForegroundAcknowledged);
         QVERIFY(!backend.requestWindowCloseToTray());
@@ -330,7 +357,15 @@ private slots:
         // 主窗口必须始终完全不透明，防止宿主桌面内容干扰业务信息阅读或意外透出敏感内容。
         QCOMPARE(mainWindow->property("opacity").toDouble(), 1.0);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlWindowTitleBar")) != nullptr);
-        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlConferenceWindow")) != nullptr);
+        auto* conferenceWindow = mainWindow->findChild<QObject*>(QStringLiteral("qmlConferenceWindow"));
+        QVERIFY(conferenceWindow != nullptr);
+        // 关闭按钮和 Esc 快捷键必须位于 WebEngine 外层，即使网页或渲染进程异常也保持可交互。
+        QVERIFY(conferenceWindow->findChild<QObject*>(
+            QStringLiteral("qmlConferenceCloseButton")) != nullptr);
+        QVERIFY(conferenceWindow->findChild<QObject*>(
+            QStringLiteral("qmlConferenceEscapeShortcut")) != nullptr);
+        QVERIFY(conferenceWindow->findChild<QObject*>(
+            QStringLiteral("qmlConferenceFailureOverlay")) != nullptr);
         auto* loginServerSettingsButton = mainWindow->findChild<QObject*>(
             QStringLiteral("qmlLoginServerSettingsButton"));
         QVERIFY(loginServerSettingsButton != nullptr);
@@ -339,9 +374,9 @@ private slots:
         // 新登录页必须同时保留品牌价值区、三张能力卡、表单和安全状态条，避免设计调整后退化成裸表单。
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginBrandPanel")) != nullptr);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginHeadline")) != nullptr);
-        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard0")) != nullptr);
-        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard1")) != nullptr);
-        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCard2")) != nullptr);
+        // 离屏平台可能只有 800px 宽，此时响应式布局会主动隐藏品牌卡片；验证三项模型容器存在，
+        // 同时避免把桌面可见性错误地强加给手机/平板布局。
+        QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFeatureCards")) != nullptr);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginFormCard")) != nullptr);
         QVERIFY(mainWindow->findChild<QObject*>(QStringLiteral("qmlLoginSecurityStrip")) != nullptr);
         auto* loginMinimizeButton = mainWindow->findChild<QObject*>(
@@ -387,6 +422,74 @@ private slots:
         QCOMPARE(navigationBackground->property("source").toUrl(),
                  QUrl(QStringLiteral("qrc:/orglink/assets/backgrounds/main-shell-background.png")));
         QVERIFY(mobileShell->findChild<QObject*>(QStringLiteral("qmlCurrentUserAvatar")) != nullptr);
+    }
+
+    /**
+     * @brief 可选地连接已部署会议页，验证 Chromium 将其识别为安全上下文并暴露 getUserMedia。
+     * @details 仅在 ORGLINK_TEST_CONFERENCE_URL 存在时执行，不让普通单元测试依赖外部服务；
+     *          自签证书回退严格限定同一 HTTPS 主机和端口，超时、导航失败或媒体 API 缺失均判定失败。
+     */
+    void conferenceSecureContextIntegrationTest()
+    {
+#if defined(ORGLINK_DESKTOP_WEBENGINE)
+        const QUrl expected(qEnvironmentVariable("ORGLINK_TEST_CONFERENCE_URL"));
+        if (expected.isEmpty()) QSKIP("未设置 ORGLINK_TEST_CONFERENCE_URL，跳过已部署会议页联调。");
+        QVERIFY2(expected.isValid() && expected.scheme() == QStringLiteral("https"),
+                 "会议联调地址必须是有效 HTTPS URL");
+
+        QWebEnginePage page;
+        bool loadSucceeded = false;
+        bool secureContext = false;
+        bool mediaDevicesAvailable = false;
+        bool timedOut = false;
+        QEventLoop eventLoop;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        QObject::connect(&timeout, &QTimer::timeout, &eventLoop, [&] {
+            timedOut = true;
+            eventLoop.quit();
+        });
+        QObject::connect(&page, &QWebEnginePage::certificateError, &page,
+                         [&](const QWebEngineCertificateError& certificateError) {
+            // 开发环境只放行当前会议端点的可覆盖自签错误，禁止把测试变成全局忽略证书。
+            auto decision = certificateError;
+            const auto failedUrl = decision.url();
+            if (decision.isOverridable() && failedUrl.scheme() == expected.scheme()
+                && failedUrl.host() == expected.host()
+                && failedUrl.port() == expected.port())
+                decision.acceptCertificate();
+            else
+                decision.rejectCertificate();
+        });
+        QObject::connect(&page, &QWebEnginePage::loadFinished, &page, [&](bool ok) {
+            loadSucceeded = ok;
+            if (!ok)
+            {
+                eventLoop.quit();
+                return;
+            }
+            page.runJavaScript(QStringLiteral(
+                "JSON.stringify({secure: window.isSecureContext === true, "
+                "media: !!(navigator.mediaDevices && "
+                "typeof navigator.mediaDevices.getUserMedia === 'function')})"),
+                [&](const QVariant& result) {
+                    const auto document = QJsonDocument::fromJson(result.toString().toUtf8());
+                    secureContext = document.object().value(QStringLiteral("secure")).toBool();
+                    mediaDevicesAvailable = document.object().value(QStringLiteral("media")).toBool();
+                    eventLoop.quit();
+                });
+        });
+
+        page.load(expected);
+        timeout.start(15000);
+        eventLoop.exec();
+        QVERIFY2(!timedOut, "会议 HTTPS 页面或脚本检查超时");
+        QVERIFY2(loadSucceeded, "会议 HTTPS 页面加载失败");
+        QVERIFY2(secureContext, "会议页未被 Chromium 识别为安全上下文");
+        QVERIFY2(mediaDevicesAvailable, "navigator.mediaDevices.getUserMedia 仍不可用");
+#else
+        QSKIP("移动端系统 WebView 权限需在 Android/iOS 实机验证。");
+#endif
     }
 
     /** @brief 验证 Qt Quick 生产入口的关闭转托盘、实时消息闪烁和前台恢复策略。 */
@@ -829,10 +932,15 @@ private slots:
 
 } // namespace orglink::client
 
-/** @brief 在 QApplication 创建前初始化 WebView，模拟生产入口并保证会议 QML 类型可安全装载。 */
+/** @brief 在 QApplication 创建前初始化目标平台浏览器后端，模拟生产入口并保证会议 QML 类型可安全装载。 */
 int main(int argc, char* argv[])
 {
+#if defined(ORGLINK_DESKTOP_WEBENGINE)
+    // 桌面冒烟测试必须与生产入口一致，否则无法发现 WebEngine 初始化顺序和 QML 导入回归。
+    QtWebEngineQuick::initialize();
+#else
     QtWebView::initialize();
+#endif
     QApplication application(argc, argv);
     orglink::client::ClientSmokeTests tests;
     return QTest::qExec(&tests, argc, argv);

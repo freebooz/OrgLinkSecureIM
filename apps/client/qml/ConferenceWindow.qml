@@ -51,6 +51,7 @@ Window {
     Component.onCompleted: conferenceWindow.synchronizeVisibility()
 
     Shortcut {
+        objectName: "qmlConferenceEscapeShortcut"
         // 即使网页渲染进程失去响应，Esc 仍由外层 QML 窗口直接处理并立即清理会议令牌。
         sequence: StandardKey.Cancel
         enabled: conferenceWindow.visible
@@ -142,6 +143,7 @@ Window {
                 }
                 ToolButton {
                     id: closeButton
+                    objectName: "qmlConferenceCloseButton"
                     Layout.preferredWidth: conferenceWindow.mobilePlatform ? 56 : 46
                     Layout.fillHeight: true
                     text: "×"
@@ -185,6 +187,7 @@ Window {
             }
 
             Rectangle {
+                objectName: "qmlConferenceFailureOverlay"
                 anchors.fill: parent
                 visible: conferenceWebLoader.item !== null && conferenceWebLoader.item.loadFailed
                 color: "#081426"

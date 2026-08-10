@@ -60,7 +60,7 @@ services:
     command:
       - >-
         if [ ! -s /certs/server.crt ] || [ ! -s /certs/server.key ] ||
-          ! openssl x509 -in /certs/server.crt "$${ORGLINK_TLS_CHECK_OPTION}" "$${ORGLINK_PUBLIC_HOST}" -noout >/dev/null 2>&1; then
+          ! openssl x509 -in /certs/server.crt "$${ORGLINK_TLS_CHECK_OPTION}" "$${ORGLINK_PUBLIC_HOST}" -noout 2>/dev/null | grep -q 'does match certificate'; then
           rm -f /certs/server.crt /certs/server.key;
           openssl req -x509 -newkey rsa:3072 -sha256 -nodes -days 825 -subj /CN=orglink-server -addext "subjectAltName=DNS:orglink-server,DNS:localhost,IP:127.0.0.1,$${ORGLINK_TLS_PUBLIC_SAN}" -addext basicConstraints=critical,CA:TRUE -keyout /certs/server.key -out /certs/server.crt;
           chown orglink:orglink /certs/server.crt /certs/server.key;
@@ -236,6 +236,55 @@ services:
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
+    networks: [backend, frontend]
+
+  orglink-admin-api:
+    image: orglink-secure-im/server:0.2.0
+    restart: unless-stopped
+    entrypoint: ["/opt/orglink/bin/orglink-admin-api"]
+    environment:
+      <<: *server-environment
+      ORGLINK_ADMIN_API_LISTEN: 0.0.0.0
+      ORGLINK_ADMIN_API_PORT: "7080"
+      ORGLINK_ADMIN_SECURE_COOKIE: "1"
+    depends_on:
+      orglink-bootstrap-admin:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/opt/orglink/bin/orglink-admin-api", "--check-runtime"]
+      interval: 15s
+      timeout: 8s
+      retries: 3
+      start_period: 15s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    networks: [backend]
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: apps/admin-web/Dockerfile
+    image: orglink-secure-im/admin-web:0.1.0
+    restart: unless-stopped
+    ports:
+      - "${ORGLINK_ADMIN_WEB_PORT:-7444}:8444"
+    volumes:
+      - ./runtime-certs:/etc/orglink/tls:ro
+    depends_on:
+      certificate-generator:
+        condition: service_completed_successfully
+      orglink-admin-api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m,mode=0755
+      - /var/run:size=1m,mode=0755
+    security_opt:
+      - no-new-privileges:true
     networks: [backend, frontend]
 
 networks:

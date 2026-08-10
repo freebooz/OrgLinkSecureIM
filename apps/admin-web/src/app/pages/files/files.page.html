@@ -1,0 +1,44 @@
+<section class="page files-page">
+  <header class="page-header">
+    <div><h1 class="page-title">共享文件管理</h1><p class="page-subtitle">集中检查组织文件、所有者和有效共享关系</p></div>
+    <div class="page-actions"><button class="secondary-button" type="button" (click)="load()"><app-icon name="refresh" />刷新列表</button></div>
+  </header>
+  @if (loading()) { <div class="loading-line"></div> }
+  <div class="file-stats">
+    <article class="card"><span class="blue"><app-icon name="files" /></span><div><small>查询结果</small><b>{{ page().total }}</b></div></article>
+    <article class="card"><span class="green"><app-icon name="share" /></span><div><small>本页有效共享</small><b>{{ activeShares() }}</b></div></article>
+    <article class="card"><span class="orange"><app-icon name="shield" /></span><div><small>本页有效文件</small><b>{{ activeFiles() }}</b></div></article>
+  </div>
+  <article class="file-card card">
+    <div class="file-toolbar"><div class="search-box"><app-icon name="search" /><input class="search-input" [(ngModel)]="searchText" placeholder="搜索文件名或所有者" (keyup.enter)="load(1)" /><button type="button" (click)="load(1)">搜索</button></div><span>文件对象正文由 MinIO 私有桶托管</span></div>
+    <div class="table-wrap">
+      <table class="data-table file-table">
+        <colgroup><col class="file-col" /><col class="owner-col" /><col class="type-col" /><col class="size-col" /><col class="share-col" /><col class="time-col" /><col class="state-col" /><col class="action-col" /></colgroup>
+        <thead><tr><th>文件名</th><th>所有者</th><th>类型</th><th>大小</th><th>有效共享</th><th>更新时间</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody>
+          @for (file of page().items; track file.uuid) {
+            <tr [class.selected]="selected()?.uuid === file.uuid" [class.deleted]="file.deleted" (click)="selected.set(file)">
+              <td><div class="file-name"><span><app-icon name="files" /></span><div><b>{{ file.name }}</b><small>{{ file.mediaType }}</small></div></div></td>
+              <td><b class="black-text">{{ file.ownerName }}</b><small class="cell-note">{{ file.ownerEmployeeNumber }}</small></td>
+              <td><span class="kind-badge">{{ fileKind(file.mediaType) }}</span></td>
+              <td>{{ formatBytes(file.sizeBytes) }}</td>
+              <td><b class="share-count">{{ file.activeShareCount }}</b><small class="cell-note">历史撤销 {{ file.revokedShareCount }}</small></td>
+              <td>{{ file.updatedAtUtcMs | date:'yyyy-MM-dd HH:mm' }}</td>
+              <td><span class="state-badge" [class.disabled]="file.deleted"><i class="status-dot" [class.online]="!file.deleted"></i>{{ file.deleted ? '已删除' : '有效' }}</span></td>
+              <td><div class="row-actions"><button type="button" title="撤销全部共享" [disabled]="file.activeShareCount === 0 || file.deleted" (click)="$event.stopPropagation(); confirm(file, 'revoke')"><app-icon name="share" /></button><button class="delete" type="button" title="软删除文件" [disabled]="file.deleted" (click)="$event.stopPropagation(); confirm(file, 'delete')"><app-icon name="trash" /></button></div></td>
+            </tr>
+          } @empty { <tr><td colspan="8"><div class="empty-state">当前条件下没有共享文件</div></td></tr> }
+        </tbody>
+      </table>
+    </div>
+    <footer class="pagination"><span>共 {{ page().total }} 条，第 {{ page().page }} / {{ pageCount() }} 页</span><div><button type="button" [disabled]="page().page <= 1" (click)="load(page().page - 1)">上一页</button><button type="button" [disabled]="page().page >= pageCount()" (click)="load(page().page + 1)">下一页</button></div></footer>
+  </article>
+  @if (selected(); as file) {
+    <aside class="selection-card card"><div><span><app-icon name="files" /></span><div><small>当前选中文件</small><b>{{ file.name }}</b></div></div><p>所有者：{{ file.ownerName }}　·　有效共享：{{ file.activeShareCount }}　·　修订：{{ file.revision }}</p></aside>
+  }
+  @if (errorMessage()) { <div class="toast error" (click)="errorMessage.set('')">{{ errorMessage() }}</div> }
+  @if (toastMessage()) { <div class="toast">{{ toastMessage() }}</div> }
+  @if (pendingAction(); as action) {
+    <div class="modal-backdrop"><div class="modal confirm-modal"><div class="confirm-icon" [class.danger]="action === 'delete'"><app-icon [name]="action === 'delete' ? 'trash' : 'share'" /></div><h2>{{ action === 'delete' ? '确认软删除文件？' : '确认撤销全部共享？' }}</h2><p><b>{{ selected()?.name }}</b></p><p>{{ action === 'delete' ? '文件会进入删除状态，共享关系同时撤销；MinIO 对象正文继续保留，避免破坏历史版本。' : '所有当前有效的人员与群组共享都会被撤销，历史记录仍保留供审计。' }}</p><div class="modal-actions"><button class="secondary-button" type="button" (click)="cancelAction()">取消</button><button [class]="action === 'delete' ? 'danger-button' : 'primary-button'" type="button" [disabled]="loading()" (click)="executeAction()">确认执行</button></div></div></div>
+  }
+</section>

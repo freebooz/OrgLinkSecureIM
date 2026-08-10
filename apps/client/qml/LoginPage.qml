@@ -71,6 +71,7 @@ Item {
             Item { Layout.preferredHeight: 22 }
 
             Repeater {
+                objectName: "qmlLoginFeatureCards"
                 model: root.featureModel
                 delegate: Rectangle {
                     id: featureCard

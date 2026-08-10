@@ -1,0 +1,40 @@
+<main class="login-page">
+  <section class="brand-panel">
+    <div class="brand-lockup">
+      <span class="brand-shield"><svg viewBox="0 0 64 64"><path d="M32 4 56 13v16c0 14.5-10 25.5-24 31C18 54.5 8 43.5 8 29V13z"/><path d="m19 33 8 8 18-22"/></svg></span>
+      <span><strong>安域通</strong><small>OrgLink Secure IM</small></span>
+    </div>
+    <div class="brand-copy">
+      <p class="eyebrow">企业级安全协作平台</p>
+      <h1>统一管理组织、人员<br />与共享文件</h1>
+      <p>组织数据全程留痕，管理操作权限隔离，文件正文安全存储于私有对象存储。</p>
+      <div class="feature-list">
+        <span><app-icon name="organization" /><b>组织架构</b><small>修订号与审计日志</small></span>
+        <span><app-icon name="people" /><b>人员账号</b><small>状态与权限分离</small></span>
+        <span><app-icon name="files" /><b>共享文件</b><small>共享关系集中管控</small></span>
+      </div>
+    </div>
+    <footer>安域通 · 安全连接组织，高效协同沟通</footer>
+  </section>
+  <section class="login-panel">
+    <form class="login-card" [formGroup]="form" (ngSubmit)="submit()">
+      <span class="login-icon"><app-icon name="shield" /></span>
+      <h2>管理控制台</h2>
+      <p>请使用管理员账号登录</p>
+      @if (errorMessage()) { <div class="login-error" role="alert">{{ errorMessage() }}</div> }
+      <div class="field">
+        <label for="login-name">管理员账号</label>
+        <input id="login-name" formControlName="loginName" autocomplete="username" placeholder="请输入管理员账号" />
+      </div>
+      <div class="field password-field">
+        <label for="password">密码</label>
+        <input id="password" formControlName="password" [type]="passwordVisible() ? 'text' : 'password'" autocomplete="current-password" placeholder="请输入密码" />
+        <button type="button" (click)="passwordVisible.set(!passwordVisible())">{{ passwordVisible() ? '隐藏' : '显示' }}</button>
+      </div>
+      <button class="primary-button login-button" type="submit" [disabled]="auth.busy()">
+        {{ auth.busy() ? '安全校验中…' : '登录' }}
+      </button>
+      <div class="security-row"><span><i></i>同源 TLS</span><span><i></i>CSRF 防护</span><span><i></i>操作审计</span></div>
+    </form>
+  </section>
+</main>

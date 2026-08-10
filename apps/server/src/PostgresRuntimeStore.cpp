@@ -642,12 +642,22 @@ WITH organization AS (
     INSERT INTO person_assignments(person_id, department_id, primary_assignment)
     SELECT id, primary_department_id, true FROM person
     ON CONFLICT DO NOTHING
-), account AS (
+), account_insert AS (
     INSERT INTO user_accounts(person_id, login_name, password_hash, password_algorithm, status)
     SELECT id, $1, convert_to(crypt($2, gen_salt('bf', 12)), 'UTF8'), 'pgcrypt-bf', 0 FROM person
     ON CONFLICT (login_name) DO NOTHING RETURNING id
+), account AS (
+    SELECT id FROM account_insert
+    UNION ALL
+    SELECT ua.id FROM user_accounts ua JOIN person ON person.id=ua.person_id
+    WHERE ua.login_name=$1 AND NOT EXISTS (SELECT 1 FROM account_insert)
+), administrator_role AS (
+    -- 首装管理员的管理授权与普通登录账号分离；重复启动只补齐缺失角色，不重置口令。
+    INSERT INTO administrator_roles(account_id, role_name)
+    SELECT id, 'super_admin' FROM account
+    ON CONFLICT (account_id) DO NOTHING
 )
-SELECT COUNT(*)::text FROM account
+SELECT COUNT(*)::text FROM account_insert
 )SQL", {loginName, password, displayName});
     if (!tuplesOk(result) || PQntuples(result.get()) != 1)
     {

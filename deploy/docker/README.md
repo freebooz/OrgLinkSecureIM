@@ -6,12 +6,14 @@ Compose 按健康依赖启动：
 
 1. `postgres`：数据库与最小权限 `orglink_app` 角色；
 2. `certificate-generator`：缺少任一 TLS 文件时精确删除证书/私钥对并完整重建；
-3. `orglink-migrator`：使用 owner 账号执行 001～007，持有 advisory lock 并校验 SHA-256；
+3. `orglink-migrator`：使用 owner 账号执行全部已登记迁移，持有 advisory lock 并校验 SHA-256；
 4. `orglink-bootstrap-admin`：幂等创建初始组织、部门、人员和管理员，不重置已有口令；
 5. `minio` / `minio-init`：创建私有 `orglink-files` 桶，API 仅供后端网络访问；
 6. `livekit`：提供 WebRTC 信令、ICE TCP 与 UDP 媒体平面；
 7. `conference-web`：提供不依赖运行时 CDN 的会议 Web 客户端；
-8. `orglink-server`：TLS Gateway、PostgreSQL 认证、消息中心、MinIO 文件鉴权与 LiveKit 短期令牌签发。
+8. `orglink-server`：TLS Gateway、PostgreSQL 认证、消息中心、MinIO 文件鉴权与 LiveKit 短期令牌签发；
+9. `orglink-admin-api`：仅在 `backend` 内网监听的 C++ 管理 REST 服务，负责管理员身份、组织机构、人员和共享文件管理；
+10. `admin-web`：Angular 22 管理控制台，通过 Nginx 在 HTTPS `7444` 同源反向代理管理 API。
 
 ## 一键启动
 
@@ -50,7 +52,17 @@ docker compose --env-file .env -f compose.yml exec orglink-server `
   /opt/orglink/bin/orglink-server --check-runtime
 ```
 
-`--check-runtime` 检查 PostgreSQL 基础模式和本机 TLS 握手。默认端口为 `7443`，可用 `ORGLINK_GATEWAY_PUBLISHED_PORT` 修改宿主机映射；MinIO API 与 PostgreSQL 不映射宿主机端口。可另外检查 `http://127.0.0.1:7880`（LiveKit）和 `http://127.0.0.1:7888`（会议页）。
+`--check-runtime` 检查 PostgreSQL 基础模式和本机 TLS 握手。默认端口为 `7443`，可用 `ORGLINK_GATEWAY_PUBLISHED_PORT` 修改宿主机映射；管理端默认使用 `7444`，可通过 `ORGLINK_ADMIN_WEB_PORT` 修改。MinIO API、PostgreSQL 与管理 API 都不映射宿主机端口。可另外检查 `http://127.0.0.1:7880`（LiveKit）和 `http://127.0.0.1:7888`（会议页）。
+
+## Web 管理端
+
+部署完成后，使用 `https://<部署主机>:7444` 访问“安域通管理控制台”。首个具有 `administrator_roles` 授权的管理员可登录；账号和口令由部署 `.env` 的初始化管理员参数决定，文档和日志不得记录明文口令。
+
+管理端全程复用部署证书，开发环境生成的自签名证书不会被浏览器默认信任。应将 `runtime-certs/server.crt` 导入单位受控的信任链，或替换为单位 CA 签发的证书；不要使用忽略证书错误的浏览器选项。可执行以下冒烟脚本，它用该证书作为信任锚验证登录、查询接口与 CSRF 拒绝：
+
+```powershell
+.\smoke-admin.ps1
+```
 
 ## 数据、升级与停止
 
@@ -65,6 +77,7 @@ docker compose --env-file .env -f compose.yml exec orglink-server `
 - Gateway 强制 TLS；非回环地址缺证书时拒绝启动。
 - 运行容器只读、非 root、移除 capabilities，并启用 `no-new-privileges`。
 - `backend` 网络为 internal，数据库不暴露给客户端网段。
+- `admin-web` 仅反向代理同源 `/api`；会话令牌只保存为 `HttpOnly; Secure; SameSite=Strict` Cookie，所有管理写操作必须附带 CSRF 令牌。管理 API 不暴露宿主机端口。
 - 当前消息静态加密使用 PostgreSQL `pgcrypto` AES-256 过渡方案；国密 SM4/TLCP 和 HSM 尚未接入。
 - LiveKit API Secret 只存在于服务端环境，客户端只获取 10 分钟短期 JWT；MinIO 桶保持私有，客户端不能直连对象 API。
 

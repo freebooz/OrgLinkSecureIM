@@ -1,6 +1,8 @@
 /build/
 /.tools/
 /deploy/docker/runtime-certs/
+/deploy/conference-web/node_modules/
+/deploy/conference-web/dist/
 /.vs/
 /deploy/docker/.env
 *.user

@@ -28,6 +28,7 @@ add_subdirectory(libs/application)
 add_subdirectory(libs/protocol)
 add_subdirectory(libs/persistence)
 add_subdirectory(apps/server)
+add_subdirectory(apps/admin-api)
 add_subdirectory(apps/admin)
 add_subdirectory(apps/tools)
 

@@ -1,0 +1,76 @@
+<section class="page organization-page">
+  <header class="page-header">
+    <div><h1 class="page-title">组织与人员</h1><p class="page-subtitle">维护组织层级、人员资料、登录账号与启停状态</p></div>
+    <div class="page-actions"><button class="secondary-button" type="button" (click)="loadTree()"><app-icon name="refresh" />刷新</button><button class="secondary-button" type="button" (click)="openCreateDepartment()"><app-icon name="plus" />新建部门</button><button class="primary-button" type="button" (click)="openCreatePerson()"><app-icon name="plus" />新增人员</button></div>
+  </header>
+  @if (loading()) { <div class="loading-line"></div> }
+  <div class="organization-layout">
+    <aside class="tree-panel card">
+      <div class="panel-title"><div><h2>组织架构</h2><small>{{ tree().organizations[0]?.name || '当前组织' }}</small></div><button class="small-icon" type="button" aria-label="新建部门" (click)="openCreateDepartment()"><app-icon name="plus" /></button></div>
+      <button class="tree-row root" [class.selected]="selectedDepartmentId() === '0'" type="button" (click)="selectDepartment('0')"><span><app-icon name="organization" /></span><b>全部人员</b><em>{{ peoplePage().total }}</em></button>
+      <div class="tree-scroll">
+        @for (department of departmentViews(); track department.id) {
+          <button class="tree-row" [class.selected]="selectedDepartmentId() === department.id" [style.padding-left.px]="14 + department.depth * 18" type="button" (click)="selectDepartment(department.id)">
+            <span><app-icon name="organization" /></span><b>{{ department.name }}</b><em>{{ department.personCount }}</em>
+          </button>
+        }
+      </div>
+      @if (selectedDepartment()) { <button class="edit-department" type="button" (click)="openEditDepartment()"><app-icon name="edit" />编辑当前部门</button> }
+    </aside>
+    <article class="people-panel card">
+      <div class="people-toolbar">
+        <div><h2>{{ selectedDepartment()?.name || '全部人员' }}</h2><small>共 {{ peoplePage().total }} 人</small></div>
+        <div class="search-box"><app-icon name="search" /><input class="search-input" [(ngModel)]="searchText" placeholder="搜索姓名、工号或账号" (keyup.enter)="loadPeople(1)" /><button type="button" (click)="loadPeople(1)">搜索</button></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table people-table">
+          <colgroup><col class="name-col" /><col class="account-col" /><col class="department-col" /><col class="contact-col" /><col class="state-col" /><col class="action-col" /></colgroup>
+          <thead><tr><th>姓名</th><th>账号 / 工号</th><th>部门 / 职位</th><th>联系方式</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody>
+            @for (person of peoplePage().items; track person.id) {
+              <tr [class.disabled]="!person.enabled">
+                <td><div class="person-cell"><span class="person-avatar">{{ initials(person.displayName) }}</span><div><b>{{ person.displayName }}</b><small>{{ person.employeeNumber }}</small></div></div></td>
+                <td><b class="plain-black">{{ person.loginName }}</b><small class="cell-note">人员与账号独立</small></td>
+                <td><b class="plain-black">{{ person.departmentName || '-' }}</b><small class="cell-note">{{ person.positionName || '未设置职位' }}</small></td>
+                <td><span>{{ person.workPhone || '-' }}</span><small class="cell-note">{{ person.workEmail || '未设置邮箱' }}</small></td>
+                <td><span class="presence"><i class="status-dot" [class.online]="person.presence === 'online'"></i>{{ person.presence === 'online' ? '在线' : '离线' }}</span><small class="cell-note">{{ person.enabled ? '账号启用' : '账号停用' }}</small></td>
+                <td><div class="row-actions"><button type="button" title="编辑资料" (click)="openEditPerson(person)"><app-icon name="edit" /></button><button type="button" title="重置密码" (click)="openPassword(person)"><app-icon name="lock" /></button></div></td>
+              </tr>
+            } @empty { <tr><td colspan="6"><div class="empty-state">当前条件下没有人员</div></td></tr> }
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination"><span>第 {{ peoplePage().page }} / {{ pageCount() }} 页</span><div><button type="button" [disabled]="peoplePage().page <= 1" (click)="loadPeople(peoplePage().page - 1)">上一页</button><button type="button" [disabled]="peoplePage().page >= pageCount()" (click)="loadPeople(peoplePage().page + 1)">下一页</button></div></footer>
+    </article>
+  </div>
+  @if (errorMessage()) { <div class="toast error" (click)="errorMessage.set('')">{{ errorMessage() }}</div> }
+  @if (toastMessage()) { <div class="toast">{{ toastMessage() }}</div> }
+
+  @if (dialog() === 'department') {
+    <div class="modal-backdrop"><form class="modal" (ngSubmit)="saveDepartment()"><div class="modal-header"><h2>{{ editingDepartment() ? '编辑部门' : '新建部门' }}</h2><button class="modal-close" type="button" (click)="closeDialog()">×</button></div><div class="form-grid">
+      <div class="field"><label>部门编码</label><input [(ngModel)]="departmentDraft.code" name="departmentCode" [disabled]="!!editingDepartment()" maxlength="64" required /></div>
+      <div class="field"><label>部门名称</label><input [(ngModel)]="departmentDraft.name" name="departmentName" maxlength="255" required /></div>
+      <div class="field"><label>部门简称</label><input [(ngModel)]="departmentDraft.shortName" name="departmentShortName" maxlength="128" /></div>
+      <div class="field"><label>上级部门</label><select [(ngModel)]="departmentDraft.parentId" name="departmentParent"><option [ngValue]="null">组织根节点</option>@for (item of departmentViews(); track item.id) { @if (item.id !== editingDepartment()?.id) { <option [ngValue]="item.id">{{ '　'.repeat(item.depth) }}{{ item.name }}</option> } }</select></div>
+      <div class="field"><label>排序值</label><input type="number" [(ngModel)]="departmentDraft.sortOrder" name="departmentSort" /></div>
+      <div class="field"><label>启用状态</label><select [(ngModel)]="departmentDraft.enabled" name="departmentEnabled"><option [ngValue]="true">启用</option><option [ngValue]="false">停用</option></select></div>
+    </div><div class="modal-actions"><button class="secondary-button" type="button" (click)="closeDialog()">取消</button><button class="primary-button" type="submit" [disabled]="loading()">保存部门</button></div></form></div>
+  }
+  @if (dialog() === 'person') {
+    <div class="modal-backdrop"><form class="modal" (ngSubmit)="savePerson()"><div class="modal-header"><h2>{{ editingPerson() ? '编辑人员资料' : '新增人员与账号' }}</h2><button class="modal-close" type="button" (click)="closeDialog()">×</button></div><div class="form-grid">
+      <div class="field"><label>姓名</label><input [(ngModel)]="personDraft.displayName" name="personName" maxlength="255" required /></div>
+      <div class="field"><label>工号</label><input [(ngModel)]="personDraft.employeeNumber" name="employeeNumber" maxlength="64" [disabled]="!!editingPerson()" required /></div>
+      <div class="field"><label>账号名称</label><input [(ngModel)]="personDraft.loginName" name="loginName" maxlength="128" [disabled]="!!editingPerson()" required /></div>
+      @if (!editingPerson()) { <div class="field"><label>临时密码（至少 12 位）</label><input type="password" [(ngModel)]="temporaryPassword" name="temporaryPassword" minlength="12" autocomplete="new-password" required /></div> }
+      <div class="field"><label>所属部门</label><select [(ngModel)]="personDraft.departmentId" name="personDepartment" required><option value="">请选择部门</option>@for (item of departmentViews(); track item.id) { <option [value]="item.id">{{ '　'.repeat(item.depth) }}{{ item.name }}</option> }</select></div>
+      <div class="field"><label>职位</label><select [(ngModel)]="personDraft.positionId" name="personPosition"><option value="0">未设置</option>@for (position of tree().positions; track position.id) { <option [value]="position.id">{{ position.name }}</option> }</select></div>
+      <div class="field"><label>办公电话</label><input [(ngModel)]="personDraft.workPhone" name="workPhone" maxlength="64" /></div>
+      <div class="field"><label>分机</label><input [(ngModel)]="personDraft.extensionNumber" name="extension" maxlength="32" /></div>
+      <div class="field full"><label>工作邮箱</label><input type="email" [(ngModel)]="personDraft.workEmail" name="workEmail" maxlength="255" /></div>
+      @if (editingPerson()) { <div class="field"><label>账号状态</label><select [(ngModel)]="personDraft.enabled" name="personEnabled"><option [ngValue]="true">启用</option><option [ngValue]="false">停用</option></select></div> }
+    </div><div class="modal-actions"><button class="secondary-button" type="button" (click)="closeDialog()">取消</button><button class="primary-button" type="submit" [disabled]="loading()">保存人员</button></div></form></div>
+  }
+  @if (dialog() === 'password') {
+    <div class="modal-backdrop"><form class="modal password-modal" (ngSubmit)="savePassword()"><div class="modal-header"><h2>重置 {{ passwordPerson()?.displayName }} 的密码</h2><button class="modal-close" type="button" (click)="closeDialog()">×</button></div><p>保存后会立即撤销该账号所有客户端和 Web 管理会话。</p><div class="field"><label>临时密码（至少 12 位）</label><input type="password" [(ngModel)]="temporaryPassword" name="resetPassword" minlength="12" autocomplete="new-password" required /></div><div class="modal-actions"><button class="secondary-button" type="button" (click)="closeDialog()">取消</button><button class="danger-button" type="submit" [disabled]="loading()">确认重置</button></div></form></div>
+  }
+</section>

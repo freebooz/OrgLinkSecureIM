@@ -40,9 +40,16 @@ function Resolve-OrgLinkLanAddress {
     $routes = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
         Where-Object { $_.State -eq 'Alive' } |
         Sort-Object RouteMetric, InterfaceMetric
+
+    # 先选择 RFC1918 私网地址，避免 Mihomo/Clash TUN、Hyper-V、Docker 等虚拟默认路由抢占
+    # 自动探测结果。局域网会议地址必须能被其他终端直达，198.18.0.0/15 等代理测试网段不可发布。
     foreach ($route in $routes) {
         $address = Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $route.InterfaceIndex -ErrorAction SilentlyContinue |
-            Where-Object { $_.IPAddress -notlike '127.*' -and $_.AddressState -eq 'Preferred' } |
+            Where-Object {
+                $_.AddressState -eq 'Preferred' -and
+                ($_.IPAddress -like '10.*' -or $_.IPAddress -like '192.168.*' -or
+                    $_.IPAddress -match '^172\.(1[6-9]|2[0-9]|3[01])\.')
+            } |
             Select-Object -First 1 -ExpandProperty IPAddress
         if ($address) { return [string]$address }
     }

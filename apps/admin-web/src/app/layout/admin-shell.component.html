@@ -1,0 +1,31 @@
+<div class="admin-shell" [class.menu-open]="menuOpen()">
+  <header class="topbar">
+    <button class="icon-button mobile-menu" type="button" aria-label="打开导航" (click)="menuOpen.set(!menuOpen())">
+      <app-icon name="menu" />
+    </button>
+    <a class="brand" routerLink="/dashboard" aria-label="安域通管理控制台">
+      <span class="brand-mark">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 42 10v12c0 11-7.5 19-18 23C13.5 41 6 33 6 22V10z"/><path d="m14 25 6 6 14-16"/></svg>
+      </span>
+      <span><strong>安域通</strong><small>OrgLink Secure IM 管理控制台</small></span>
+    </a>
+    <div class="topbar-spacer"></div>
+    <button class="icon-button" type="button" aria-label="通知"><app-icon name="bell" /><i></i></button>
+    <div class="admin-profile">
+      <span class="avatar">{{ initials() }}</span>
+      <span class="profile-copy"><strong>{{ auth.session()?.displayName }}</strong><small>{{ auth.session()?.role === 'super_admin' ? '超级管理员' : '组织管理员' }}</small></span>
+    </div>
+    <button class="icon-button" type="button" aria-label="退出管理端" (click)="auth.logout()"><app-icon name="logout" /></button>
+  </header>
+
+  <aside class="sidebar">
+    <nav aria-label="管理模块">
+      <a routerLink="/dashboard" routerLinkActive="active" (click)="closeMenu()"><app-icon name="dashboard" /><span>工作台</span></a>
+      <a routerLink="/organization" routerLinkActive="active" (click)="closeMenu()"><app-icon name="organization" /><span>组织与人员</span></a>
+      <a routerLink="/files" routerLinkActive="active" (click)="closeMenu()"><app-icon name="files" /><span>共享文件</span></a>
+    </nav>
+    <div class="sidebar-security"><app-icon name="shield" /><span><strong>安全连接</strong><small>管理操作全量审计</small></span></div>
+  </aside>
+  <button class="menu-scrim" type="button" aria-label="关闭导航" (click)="closeMenu()"></button>
+  <main class="content"><router-outlet /></main>
+</div>
