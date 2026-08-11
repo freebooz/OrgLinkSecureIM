@@ -72,8 +72,8 @@ int ClientApplication::run(int argc, char* argv[])
 #else
     QGuiApplication application(argc, argv);
 #endif
-    QGuiApplication::setApplicationName(QStringLiteral("安域通"));
-    QGuiApplication::setApplicationDisplayName(QStringLiteral("安域通"));
+    QGuiApplication::setApplicationName(QStringLiteral("安信通"));
+    QGuiApplication::setApplicationDisplayName(QStringLiteral("安信通"));
     // 版本由 CMake 工程元数据注入，关于页和升级比较共用同一真实来源，避免界面硬编码漂移。
     QGuiApplication::setApplicationVersion(QStringLiteral(ORGLINK_PROJECT_VERSION));
     QGuiApplication::setOrganizationName(QStringLiteral("OrgLink"));

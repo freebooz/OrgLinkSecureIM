@@ -120,7 +120,7 @@ private slots:
         backend.configureSystemTray(false);
         // 关于页的本机投影在离线模式也必须可用，且不得依赖服务端固定假数据才能创建界面。
         QCOMPARE(backend.aboutSystem().value(QStringLiteral("productName")).toString(),
-                 QStringLiteral("安域通"));
+                 QStringLiteral("安信通"));
         QVERIFY(!backend.aboutSystem().value(QStringLiteral("version")).toString().isEmpty());
         QVERIFY(!backend.aboutSystem().value(QStringLiteral("systemEnvironment")).toString().isEmpty());
         QQmlApplicationEngine engine;
@@ -349,7 +349,7 @@ private slots:
         QVERIFY2(!engine.rootObjects().isEmpty(), "生产 QML 主入口创建失败");
         auto* mainWindow = engine.rootObjects().constFirst();
         QCOMPARE(mainWindow->objectName(), QStringLiteral("qmlMainWindow"));
-        QCOMPARE(mainWindow->property("title").toString(), QStringLiteral("安域通"));
+        QCOMPARE(mainWindow->property("title").toString(), QStringLiteral("安信通"));
         QCoreApplication::processEvents();
         // 未登录窗口按表单最小所需空间创建，避免沿用工作台 1680px 大画布。
         QVERIFY(mainWindow->property("width").toInt() <= 980);
@@ -498,7 +498,7 @@ private slots:
         QmlClientBackend backend(nullptr);
         FakeTrayAdapter tray(true);
         QWindow window;
-        window.setTitle(QStringLiteral("安域通托盘策略测试"));
+        window.setTitle(QStringLiteral("安信通托盘策略测试"));
         window.show();
         QCoreApplication::processEvents();
 

@@ -216,6 +216,12 @@ private:
 
     QTcpSocket* socket_{nullptr};
     QTimer heartbeatTimer_;
+    /**
+     * @brief 登录阶段的一次性超时定时器。
+     * @details 覆盖 TLS 握手后的 LoginResponse 等待，避免服务端无响应时界面长期保持“正在登录”。
+     *          定时器只在连接登录流程中运行，认证成功、认证失败、断开和关闭时都会停止。
+     */
+    QTimer loginTimeoutTimer_;
     protocol::FrameDecoder decoder_;
     std::optional<protocol::LoginRequest> pendingLogin_;
     QHash<qulonglong, QPair<qulonglong, QString>> pendingConversations_;
@@ -226,6 +232,8 @@ private:
     std::uint64_t deviceId_{0};
     qint64 lastPongUtcMs_{0};
     bool authenticated_{false};
+    /** @brief 当前连接是否仍在等待 LoginResponse；与口令副本是否已清理相互独立。 */
+    bool loginPending_{false};
     bool shuttingDown_{false};
     /** @brief 单次连接失败是否已上报；用于阻断 abort() 触发 errorOccurred 后的递归失败处理。 */
     bool socketFailureHandled_{false};

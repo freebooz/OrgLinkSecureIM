@@ -497,7 +497,7 @@ Item {
         background: Rectangle { radius: root.theme.radius; color: root.theme.surface; border.width: 1; border.color: root.theme.border }
         contentItem: Text {
             width: 360
-            text: "将删除安域通当前设备上的临时文件缓存，不会删除已下载文件、离线文件或云端对象。"
+            text: "将删除安信通当前设备上的临时文件缓存，不会删除已下载文件、离线文件或云端对象。"
             color: root.theme.text
             font.family: root.theme.uiFont
             font.pixelSize: root.theme.bodySize

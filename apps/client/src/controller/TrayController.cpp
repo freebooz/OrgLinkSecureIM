@@ -93,7 +93,7 @@ void TrayController::handleIncomingMessage(qulonglong conversationId)
     }
     // 默认隐私策略不在系统通知中展示发送者或正文；点击托盘统一回到主窗口。
     trayAdapter_->setAttentionFlashing(true);
-    trayAdapter_->showNotification(QStringLiteral("安域通新消息"), QStringLiteral("您收到一条新消息。"));
+    trayAdapter_->showNotification(QStringLiteral("安信通新消息"), QStringLiteral("您收到一条新消息。"));
 }
 
 } // namespace orglink::client

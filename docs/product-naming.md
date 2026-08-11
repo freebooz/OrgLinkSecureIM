@@ -4,8 +4,8 @@
 
 | 项目 | 规范值 |
 |---|---|
-| 中文产品名称 | 安域通 |
-| 中文简称 | 安域通 |
+| 中文产品名称 | 安信通 |
+| 中文简称 | 安信通 |
 | 英文产品名称 | OrgLink Secure IM |
 | 工程内部名称 | OrgLinkSecureIM |
 | 建议 Git 仓库名 | orglink-secure-im |

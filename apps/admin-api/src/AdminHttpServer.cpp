@@ -196,7 +196,7 @@ bool AdminHttpServer::start(const AdminHttpConfiguration& configuration, QString
         server_ = nullptr;
         return false;
     }
-    diagnostic = QStringLiteral("安域通 Web 管理 REST API 已启动");
+    diagnostic = QStringLiteral("安信通 Web 管理 REST API 已启动");
     return true;
 }
 

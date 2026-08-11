@@ -5,7 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 /**
- * 安域通登录页。
+ * 安信通登录页。
  *
  * 桌面端按“品牌价值区 + 登录卡片”布局，移动端只保留品牌标识和登录卡片。View 仅采集
  * 账号口令并转发给 QmlClientBackend；服务器地址由标题栏设置窗口管理，口令不在 QML 持久化。
@@ -240,7 +240,7 @@ Item {
                     implicitHeight: 46
                     leftPadding: 42
                     rightPadding: 34
-                    model: ["安域通科技有限公司"]
+                    model: ["安信通科技有限公司"]
                     indicator: Text {
                         x: organizationBox.width - width - 14
                         anchors.verticalCenter: parent.verticalCenter

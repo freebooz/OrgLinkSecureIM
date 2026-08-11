@@ -1,4 +1,4 @@
-# OrgLink Secure IM（安域通）
+# OrgLink Secure IM（安信通）
 
 基于 C++20、Qt 6、PostgreSQL 的局域网即时通信工程。当前已形成可运行的安全通信垂直切片：TLS 登录、组织目录、可靠单聊与群聊、群组中心、文件中心、通知中心、日程中心、设置中心、服务端会话历史、MinIO 私有文件对象、LiveKit 音视频会议入口、本地加密缓存、托盘驻留，以及 Docker Compose 一键部署。
 

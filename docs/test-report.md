@@ -21,7 +21,7 @@
 - 生产入口已切换为 Qt Quick/QML，`orglink-client-ui` 不再链接 QWidget；旧 Widgets 页面隔离到 `orglink-client-widgets-legacy`，仅供桌面迁移回归测试。
 - 消息、通讯录、群组、文件、通知、日程和设置七页在 390×844 手机、900×1180 平板、1360×820 桌面及 1584×992 设计稿画布四组尺寸下全部由真实 QQmlEngine 成功创建；手机公共标题区和桌面无边框自定义标题栏均有对象级回归断言。
 - 文件下载由 C++ 执行资产请求合并、安全文件名裁剪、`QSaveFile` 原子落盘和危险扩展阻断；图片/音频/视频在 QML 内预览，普通文档交给系统关联程序。消息、群详情、通知附件和文件中心均按资产 UUID 去重。
-- Release 已重新构建，`windeployqt --qmldir` 成功部署 Qt Quick、Quick Controls、Dialogs、Multimedia、FFmpeg 和平台插件；两个发布客户端进程均在无 Qt SDK 参数的直接启动方式下保持响应，窗口标题为“安域通”。
+- Release 已重新构建，`windeployqt --qmldir` 成功部署 Qt Quick、Quick Controls、Dialogs、Multimedia、FFmpeg 和平台插件；两个发布客户端进程均在无 Qt SDK 参数的直接启动方式下保持响应，窗口标题为“安信通”。
 - Android/iOS 包元数据和最小权限清单已加入，移动端生产库无 Widgets 依赖；当前 Windows 环境未安装移动 Kit、SDK/NDK 或 Xcode，因此未执行 APK/IPA 构建与真机验证。
 
 ### 工程、MVC 与迁移回归

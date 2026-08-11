@@ -25,7 +25,7 @@ function mediaErrorMessage(error) {
   const message = error instanceof Error ? error.message : '';
   const normalized = message.toLowerCase();
   if (normalized.includes('permission') || normalized.includes('notallowed'))
-    return '麦克风或摄像头权限被拒绝，请在系统隐私设置中允许安域通访问。';
+    return '麦克风或摄像头权限被拒绝，请在系统隐私设置中允许安信通访问。';
   if (normalized.includes('notfound') || normalized.includes('not found'))
     return '未找到可用的麦克风或摄像头，请检查设备连接。';
   if (normalized.includes('in use') || normalized.includes('deviceinuse'))

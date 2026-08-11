@@ -531,7 +531,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     text: Number(backend.settingsProfile.notificationPreviewMode || 0) === 2
-                                          ? "安域通" : (notificationSide.latest.actor || "李明")
+                                          ? "安信通" : (notificationSide.latest.actor || "李明")
                                     color: root.theme.text; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; font.bold: true; elide: Text.ElideRight
                                 }
                                 Text { text: "刚刚"; color: root.theme.captionText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }

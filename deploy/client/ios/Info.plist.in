@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>zh_CN</string>
-    <key>CFBundleDisplayName</key><string>安域通</string>
+    <key>CFBundleDisplayName</key><string>安信通</string>
     <key>CFBundleExecutable</key><string>${EXECUTABLE_NAME}</string>
     <key>CFBundleIdentifier</key><string>com.orglink.secureim</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>

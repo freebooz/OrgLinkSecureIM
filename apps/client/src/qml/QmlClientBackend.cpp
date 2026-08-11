@@ -26,6 +26,8 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QSysInfo>
+#include <QTime>
+#include <QTimeZone>
 #include <QTimer>
 #include <QUuid>
 #include <QVersionNumber>
@@ -264,6 +266,44 @@ QVariantMap contactMap(const RemoteContactSummary& item)
             {QStringLiteral("interactionCount"), item.interactionCount}};
 }
 
+/**
+ * @brief 将服务端日程 DTO 转换为 QML 只读投影。
+ * @details 参与人仅暴露显示名、资源头像和响应状态；服务端内部组织关系、账号口令及会议令牌
+ * 不会进入页面。时间统一转为本地时间，周网格无需自行解释 UTC。
+ */
+QVariantMap calendarEventMap(const RemoteCalendarEvent& item)
+{
+    QVariantList participants;
+    for (const auto& participant : item.participants)
+    {
+        participants.push_back(QVariantMap{
+            {QStringLiteral("personId"), identifier(participant.personId)},
+            {QStringLiteral("displayName"), participant.displayName},
+            {QStringLiteral("avatar"), qmlAssetUrl(participant.avatarResourceId)},
+            {QStringLiteral("status"), participant.status}});
+    }
+    return {{QStringLiteral("eventUuid"), item.eventUuid},
+            {QStringLiteral("title"), item.title},
+            {QStringLiteral("description"), item.description},
+            {QStringLiteral("location"), item.location},
+            {QStringLiteral("calendar"), item.calendarName},
+            {QStringLiteral("kind"), item.kind},
+            {QStringLiteral("color"), item.color},
+            {QStringLiteral("organizerPersonId"), identifier(item.organizerPersonId)},
+            {QStringLiteral("organizer"), item.organizerDisplayName},
+            {QStringLiteral("startsAt"), QDateTime::fromMSecsSinceEpoch(
+                static_cast<qint64>(item.startsAtUtcMs)).toLocalTime()},
+            {QStringLiteral("endsAt"), QDateTime::fromMSecsSinceEpoch(
+                static_cast<qint64>(item.endsAtUtcMs)).toLocalTime()},
+            {QStringLiteral("allDay"), item.allDay},
+            {QStringLiteral("cancelled"), item.cancelled},
+            {QStringLiteral("meetingNumber"), item.meetingNumber},
+            {QStringLiteral("reminderMinutes"), item.reminderMinutes},
+            {QStringLiteral("editable"), item.editable},
+            {QStringLiteral("participants"), participants},
+            {QStringLiteral("revision"), identifier(item.revision)}};
+}
+
 } // namespace
 
 QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent)
@@ -353,7 +393,7 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
         conferenceUuid_ = conferenceUuid;
         conferenceVisible_ = true;
         emit conferenceChanged();
-        showToast(QStringLiteral("音视频会议已在安域通应用内打开。"));
+        showToast(QStringLiteral("音视频会议已在安信通应用内打开。"));
     });
 
     connect(networkClient_, &NetworkClient::conversationListReady, this,
@@ -640,8 +680,26 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
     connect(networkClient_, &NetworkClient::notificationListReady, this,
             [this](const QList<RemoteNotificationSummary>& remote,
                    const RemoteNotificationStatistics& statistics) {
-        notifications_.clear();
-        for (const auto& item : remote) notifications_.push_back(notificationMap(item));
+        if (!appendNotifications_)
+            notifications_.clear();
+
+        // 追加页按稳定通知编号去重，防止服务端新通知插入排序头部后造成重复行。
+        QSet<QString> existingIds;
+        for (const auto& value : notifications_)
+            existingIds.insert(value.toMap().value(QStringLiteral("notificationId")).toString());
+        for (const auto& item : remote)
+        {
+            const auto mapped = notificationMap(item);
+            const auto identifierText = mapped.value(QStringLiteral("notificationId")).toString();
+            if (existingIds.contains(identifierText)) continue;
+            existingIds.insert(identifierText);
+            notifications_.push_back(mapped);
+        }
+        const bool previousHasMore = hasMoreNotifications_;
+        hasMoreNotifications_ = remote.size() >= notificationLimit_;
+        notificationNextOffset_ = std::clamp(
+            notificationRequestOffset_ + static_cast<int>(remote.size()), 0, 100'000);
+        appendNotifications_ = false;
         unreadNotifications_ = statistics.unreadCount;
         notificationStatistics_ = {
             {QStringLiteral("totalCount"), statistics.totalCount},
@@ -656,6 +714,8 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
             {QStringLiteral("refreshedAt"), QDateTime::currentDateTime().toString(
                  QStringLiteral("yyyy-MM-dd HH:mm"))}};
         emit notificationsChanged();
+        if (previousHasMore != hasMoreNotifications_)
+            emit hasMoreNotificationsChanged();
         emit unreadNotificationsChanged();
         emit notificationStatisticsChanged();
     });
@@ -686,7 +746,19 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
             [this](qulonglong, int, int unread) {
         unreadNotifications_ = unread;
         emit unreadNotificationsChanged();
-        networkClient_->requestNotificationList();
+        loadNotifications(notificationCategory_, notificationUnreadOnly_,
+                          notificationSearchText_, notificationOffset_, notificationLimit_);
+    });
+    connect(networkClient_, &NetworkClient::notificationAllRead, this,
+            [this](int updatedCount, int unread) {
+        unreadNotifications_ = unread;
+        emit unreadNotificationsChanged();
+        // 由服务端事务确认更新数量后再反馈，避免本地先行修改列表造成跨端状态不一致。
+        showToast(updatedCount > 0
+            ? QStringLiteral("已将 %1 条通知标记为已读。").arg(updatedCount)
+            : QStringLiteral("当前范围内没有未读通知。"));
+        loadNotifications(notificationCategory_, notificationUnreadOnly_,
+                          notificationSearchText_, notificationOffset_, notificationLimit_);
     });
     connect(networkClient_, &NetworkClient::notificationOperationFailed,
             this, &QmlClientBackend::showToast);
@@ -788,16 +860,24 @@ QmlClientBackend::QmlClientBackend(NetworkClient* networkClient, QObject* parent
             [this](const QList<RemoteCalendarEvent>& remote) {
         calendarEvents_.clear();
         for (const auto& item : remote)
-            calendarEvents_.push_back(QVariantMap{{QStringLiteral("eventUuid"), item.eventUuid},
-                {QStringLiteral("title"), item.title}, {QStringLiteral("description"), item.description},
-                {QStringLiteral("location"), item.location}, {QStringLiteral("calendar"), item.calendarName},
-                {QStringLiteral("color"), item.color}, {QStringLiteral("organizer"), item.organizerDisplayName},
-                {QStringLiteral("startsAt"), QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(item.startsAtUtcMs))},
-                {QStringLiteral("endsAt"), QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(item.endsAtUtcMs))},
-                {QStringLiteral("allDay"), item.allDay}, {QStringLiteral("cancelled"), item.cancelled},
-                {QStringLiteral("meetingNumber"), item.meetingNumber}, {QStringLiteral("editable"), item.editable},
-                {QStringLiteral("revision"), identifier(item.revision)}});
+            calendarEvents_.push_back(calendarEventMap(item));
         emit calendarEventsChanged();
+    });
+    connect(networkClient_, &NetworkClient::calendarEventCreated, this,
+            [this](const RemoteCalendarEvent&) {
+        // 创建响应只做成功确认，随后按当前周重载，避免本地拼接导致跨端排序或参与人状态不一致。
+        showToast(QStringLiteral("日程已创建。"));
+        requestCurrentCalendarRange();
+    });
+    connect(networkClient_, &NetworkClient::calendarEventUpdated, this,
+            [this](const RemoteCalendarEvent&) {
+        showToast(QStringLiteral("日程已更新。"));
+        requestCurrentCalendarRange();
+    });
+    connect(networkClient_, &NetworkClient::calendarEventDeleted, this,
+            [this](const RemoteCalendarEvent&) {
+        showToast(QStringLiteral("日程已取消。"));
+        requestCurrentCalendarRange();
     });
     connect(networkClient_, &NetworkClient::calendarOperationFailed,
             this, &QmlClientBackend::showToast);
@@ -1047,8 +1127,8 @@ void QmlClientBackend::startConference(qulonglong conversationId, bool videoEnab
     }
 
     // 服务端重新校验会话成员身份并签发短效 LiveKit JWT，客户端不能自行拼装房间或访问令牌。
-    conferenceTitle_ = videoEnabled ? QStringLiteral("安域通视频会议")
-                                    : QStringLiteral("安域通语音会议");
+    conferenceTitle_ = videoEnabled ? QStringLiteral("安信通视频会议")
+                                    : QStringLiteral("安信通语音会议");
     networkClient_->joinConference(effectiveConversationId, videoEnabled);
     showToast(videoEnabled ? QStringLiteral("正在准备视频会议…")
                            : QStringLiteral("正在准备语音会议…"));
@@ -1063,7 +1143,7 @@ void QmlClientBackend::closeConference()
     conferenceVisible_ = false;
     conferenceUrl_.clear();
     conferenceUuid_.clear();
-    conferenceTitle_ = QStringLiteral("安域通会议");
+    conferenceTitle_ = QStringLiteral("安信通会议");
     emit conferenceChanged();
 
     if (networkClient_ != nullptr && !conferenceUuid.isEmpty())
@@ -1079,6 +1159,42 @@ void QmlClientBackend::selectNotification(qulonglong notificationId)
 {
     if (networkClient_ != nullptr && notificationId != 0)
         networkClient_->requestNotificationDetail(notificationId);
+}
+
+void QmlClientBackend::loadNotifications(
+    int category, bool unreadOnly, const QString& searchText, int offset, int limit)
+{
+    if (networkClient_ == nullptr)
+    {
+        showToast(QStringLiteral("通知服务暂不可用，请先连接服务器。"));
+        return;
+    }
+
+    // QML 只传递展示条件，实际分类边界、分页边界和认证人员范围始终在 C++ 与服务端双重限制。
+    notificationCategory_ = std::clamp(category, 0, 7);
+    notificationUnreadOnly_ = unreadOnly;
+    notificationSearchText_ = searchText.trimmed().left(255);
+    notificationOffset_ = std::clamp(offset, 0, 100'000);
+    notificationLimit_ = std::clamp(limit, 1, 100);
+    notificationRequestOffset_ = notificationOffset_;
+    notificationNextOffset_ = notificationOffset_;
+    appendNotifications_ = false;
+    networkClient_->requestNotificationList(notificationCategory_, notificationUnreadOnly_,
+                                            notificationSearchText_, notificationOffset_,
+                                            notificationLimit_);
+}
+
+void QmlClientBackend::loadMoreNotifications()
+{
+    if (networkClient_ == nullptr || !hasMoreNotifications_)
+        return;
+
+    // 服务器按最新事件排序；游标按上次实际返回条数推进，不受前端去重后的可见行数影响。
+    appendNotifications_ = true;
+    notificationRequestOffset_ = notificationNextOffset_;
+    networkClient_->requestNotificationList(notificationCategory_, notificationUnreadOnly_,
+                                            notificationSearchText_, notificationRequestOffset_,
+                                            notificationLimit_);
 }
 
 void QmlClientBackend::selectContact(qulonglong personId)
@@ -1099,6 +1215,64 @@ void QmlClientBackend::selectCalendarEvent(const QString& eventUuid)
         return value.toMap().value(QStringLiteral("eventUuid")).toString() == eventUuid;
     });
     if (found != calendarEvents_.cend()) showToast(found->toMap().value(QStringLiteral("title")).toString());
+}
+
+void QmlClientBackend::loadCalendarWeek(const QDateTime& localAnchor)
+{
+    if (networkClient_ == nullptr)
+    {
+        showToast(QStringLiteral("日程服务暂不可用，请先连接服务器。"));
+        return;
+    }
+
+    const QDate anchorDate = localAnchor.isValid()
+        ? localAnchor.toLocalTime().date() : QDate::currentDate();
+    if (!anchorDate.isValid())
+    {
+        showToast(QStringLiteral("无法识别所选日期。"));
+        return;
+    }
+    // 周一是系统唯一周起点，服务端使用 [周一零点, 下周一零点) 的 UTC 半开区间以避免时区边界重复。
+    calendarWeekStart_ = anchorDate.addDays(1 - anchorDate.dayOfWeek());
+    const QDateTime localWeekStart(calendarWeekStart_, QTime(0, 0), QTimeZone::systemTimeZone());
+    const QDateTime localWeekEnd = localWeekStart.addDays(7);
+    networkClient_->requestCalendarEvents(
+        static_cast<qulonglong>(localWeekStart.toUTC().toMSecsSinceEpoch()),
+        static_cast<qulonglong>(localWeekEnd.toUTC().toMSecsSinceEpoch()));
+}
+
+void QmlClientBackend::createCalendarEvent(
+    const QString& title, const QString& location, const QDateTime& startsAt,
+    const QDateTime& endsAt, const QString& calendarName)
+{
+    if (networkClient_ == nullptr)
+    {
+        showToast(QStringLiteral("日程服务暂不可用，请先连接服务器。"));
+        return;
+    }
+
+    RemoteCalendarDraft draft;
+    draft.title = title.trimmed().left(120);
+    draft.location = location.trimmed().left(160);
+    draft.calendarName = calendarName.trimmed().left(64);
+    if (draft.calendarName.isEmpty())
+        draft.calendarName = QStringLiteral("我的日历");
+    const auto localStart = startsAt.toLocalTime();
+    const auto localEnd = endsAt.toLocalTime();
+    if (draft.title.isEmpty() || !localStart.isValid() || !localEnd.isValid()
+        || localEnd <= localStart || localStart.daysTo(localEnd) > 31)
+    {
+        showToast(QStringLiteral("请填写有效的日程标题和时间范围。"));
+        return;
+    }
+
+    // 表单不允许指定创建者、组织或任意参与账号；这些安全边界由认证会话和服务端再次校验。
+    draft.kind = 1;
+    draft.color = QStringLiteral("#1677FF");
+    draft.startsAtUtcMs = static_cast<qulonglong>(localStart.toUTC().toMSecsSinceEpoch());
+    draft.endsAtUtcMs = static_cast<qulonglong>(localEnd.toUTC().toMSecsSinceEpoch());
+    draft.reminderMinutes = std::clamp(remoteSettings_.calendarReminderMinutes, 0, 10'080);
+    networkClient_->createCalendarEvent(draft);
 }
 
 void QmlClientBackend::uploadFile(const QUrl& localUrl, qulonglong conversationId)
@@ -1149,6 +1323,17 @@ void QmlClientBackend::recycleCurrentFile()
     const auto restore = fileDetail_.value(QStringLiteral("deleted")).toBool();
     networkClient_->updateFileCenterItem(fileDetail_.value(QStringLiteral("itemUuid")).toString(),
         fileDetail_.value(QStringLiteral("revision")).toULongLong(), restore ? 3 : 2);
+}
+
+void QmlClientBackend::markNotificationsRead(int category)
+{
+    if (networkClient_ == nullptr)
+    {
+        showToast(QStringLiteral("通知服务暂不可用，请先连接服务器。"));
+        return;
+    }
+    // 不接受 QML 传入的人员编号；服务端只按当前认证会话和合法分类执行原子更新。
+    networkClient_->markAllNotificationsRead(std::clamp(category, 0, 7));
 }
 
 void QmlClientBackend::markCurrentNotificationRead()
@@ -1783,7 +1968,7 @@ void QmlClientBackend::exportSecurityLog()
 
     // 诊断文本只包含聚合状态和偏好开关，不写入口令、账号名、设备 UUID、证书正文或本地路径。
     const auto report = QStringLiteral(
-        "安域通安全诊断日志\n"
+        "安信通安全诊断日志\n"
         "生成时间：%1\n"
         "客户端版本：%2\n"
         "服务端发布版本：%3\n"
@@ -1815,7 +2000,7 @@ void QmlClientBackend::exportSecurityLog()
              remoteSettings_.chatWatermarkEnabled ? QStringLiteral("已开启") : QStringLiteral("已关闭"),
              remoteSettings_.screenshotProtectionEnabled ? QStringLiteral("已开启") : QStringLiteral("已关闭"));
 
-    const auto fileName = QStringLiteral("安域通安全诊断-%1.txt")
+    const auto fileName = QStringLiteral("安信通安全诊断-%1.txt")
         .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
     QSaveFile output(QDir(targetDirectory).filePath(fileName));
     if (!output.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -1870,7 +2055,7 @@ void QmlClientBackend::exportSystemInformation()
         return;
     }
 
-    const auto fileName = QStringLiteral("安域通系统信息-%1.txt")
+    const auto fileName = QStringLiteral("安信通系统信息-%1.txt")
         .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
     const auto targetPath = QDir(targetDirectory).filePath(fileName);
     QSaveFile output(targetPath);
@@ -2028,13 +2213,16 @@ void QmlClientBackend::replaceMessages(const QList<RemoteMessageItem>& remoteMes
         const auto messageKey = !item.serverMessageId.isEmpty() ? item.serverMessageId : item.clientMessageId;
         if (messageKey.isEmpty() || seenMessages.contains(messageKey)) continue;
         seenMessages.insert(messageKey);
+        // 保留本地化时间对象和短时间文本：前者用于 QML 按自然日分隔消息，后者用于紧凑气泡元数据。
+        const QDateTime createdAt = QDateTime::fromMSecsSinceEpoch(
+            static_cast<qint64>(item.createdAtUtcMs)).toLocalTime();
         QVariantMap mapped{{QStringLiteral("serverId"), item.serverMessageId},
             {QStringLiteral("clientId"), item.clientMessageId}, {QStringLiteral("sequence"), identifier(item.sequence)},
             {QStringLiteral("senderId"), identifier(item.senderPersonId)},
             {QStringLiteral("outgoing"), item.senderPersonId == currentPersonId_},
             {QStringLiteral("kind"), item.kind},
-            {QStringLiteral("time"), QDateTime::fromMSecsSinceEpoch(
-                static_cast<qint64>(item.createdAtUtcMs)).toLocalTime().toString(QStringLiteral("HH:mm"))}};
+            {QStringLiteral("createdAt"), createdAt},
+            {QStringLiteral("time"), createdAt.toString(QStringLiteral("HH:mm"))}};
         if (item.kind == 3)
         {
             const auto object = QJsonDocument::fromJson(item.content.toUtf8()).object();
@@ -2306,7 +2494,7 @@ void QmlClientBackend::rebuildAboutSystemProjection()
     const auto androidDownload = deploymentValue("ORGLINK_ANDROID_DOWNLOAD_URL");
 
     QVariantMap rebuilt{
-        {QStringLiteral("productName"), QStringLiteral("安域通")},
+        {QStringLiteral("productName"), QStringLiteral("安信通")},
         {QStringLiteral("englishName"), QStringLiteral("OrgLink Secure IM")},
         {QStringLiteral("edition"), QStringLiteral("企业版")},
         {QStringLiteral("slogan"), QStringLiteral("安全 · 高效 · 连接每一位团队成员")},
@@ -2349,7 +2537,7 @@ void QmlClientBackend::rebuildAboutSystemProjection()
 QString QmlClientBackend::sanitizedSystemInformation() const
 {
     return QStringLiteral(
-        "安域通 / OrgLink Secure IM\n"
+        "安信通 / OrgLink Secure IM\n"
         "客户端版本：%1\n"
         "服务端发布版本：%2\n"
         "构建号：%3\n"
@@ -2393,11 +2581,8 @@ void QmlClientBackend::mergeAccountSystemInfo()
 
 void QmlClientBackend::requestCurrentCalendarRange()
 {
-    if (networkClient_ == nullptr) return;
-    const auto now = QDateTime::currentDateTimeUtc();
-    networkClient_->requestCalendarEvents(
-        static_cast<qulonglong>(now.addDays(-31).toMSecsSinceEpoch()),
-        static_cast<qulonglong>(now.addDays(62).toMSecsSinceEpoch()));
+    const QDate anchor = calendarWeekStart_.isValid() ? calendarWeekStart_ : QDate::currentDate();
+    loadCalendarWeek(QDateTime(anchor, QTime(12, 0), QTimeZone::systemTimeZone()));
 }
 
 } // namespace orglink::client

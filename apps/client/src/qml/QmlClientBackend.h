@@ -5,6 +5,8 @@
 #include "network/NetworkClient.h"
 
 #include <QObject>
+#include <QDate>
+#include <QDateTime>
 #include <QSet>
 #include <QUrl>
 #include <QVariantList>
@@ -52,6 +54,7 @@ class QmlClientBackend final : public QObject
     Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QVariantMap groupDetail READ groupDetail NOTIFY groupDetailChanged)
     Q_PROPERTY(QVariantList notifications READ notifications NOTIFY notificationsChanged)
+    Q_PROPERTY(bool hasMoreNotifications READ hasMoreNotifications NOTIFY hasMoreNotificationsChanged)
     Q_PROPERTY(QVariantMap notificationDetail READ notificationDetail NOTIFY notificationDetailChanged)
     Q_PROPERTY(QVariantMap notificationStatistics READ notificationStatistics NOTIFY notificationStatisticsChanged)
     Q_PROPERTY(QVariantList contacts READ contacts NOTIFY contactsChanged)
@@ -114,6 +117,8 @@ public:
     [[nodiscard]] const QVariantList& groups() const noexcept { return groups_; }
     [[nodiscard]] const QVariantMap& groupDetail() const noexcept { return groupDetail_; }
     [[nodiscard]] const QVariantList& notifications() const noexcept { return notifications_; }
+    /** @brief 当前通知查询是否可能还有下一页；由服务端实际返回页大小推导，不伪造总数。 */
+    [[nodiscard]] bool hasMoreNotifications() const noexcept { return hasMoreNotifications_; }
     [[nodiscard]] const QVariantMap& notificationDetail() const noexcept { return notificationDetail_; }
     [[nodiscard]] const QVariantMap& notificationStatistics() const noexcept { return notificationStatistics_; }
     [[nodiscard]] const QVariantList& contacts() const noexcept { return contacts_; }
@@ -200,9 +205,43 @@ public:
     /** @brief 选择群组、通知、联系人、文件或日程详情。 */
     Q_INVOKABLE void selectGroup(qulonglong groupId);
     Q_INVOKABLE void selectNotification(qulonglong notificationId);
+    /**
+     * @brief 按当前认证人员的通知分类、未读状态和检索词请求一页通知。
+     * @param category 协议通知分类，范围 0~7；越界值会由实现裁剪。
+     * @param unreadOnly true 时仅请求未读项目。
+     * @param searchText 标题、摘要和来源的服务端检索词，最长 255 个字符。
+     * @param offset 服务端分页偏移，超出范围会被限制。
+     * @param limit 单页数量，范围 1~100。
+     * @note 此接口只编排网络用例，QML 不直接构造或解析协议。
+     */
+    Q_INVOKABLE void loadNotifications(int category, bool unreadOnly, const QString& searchText,
+                                       int offset = 0, int limit = 20);
+    /**
+     * @brief 在最近一次通知查询条件下加载下一页并去重追加。
+     * @note 仅当服务端上一页已满且存在网络客户端时发起请求；不会改变分类或检索条件。
+     */
+    Q_INVOKABLE void loadMoreNotifications();
     Q_INVOKABLE void selectContact(qulonglong personId);
     Q_INVOKABLE void selectFile(const QString& itemUuid);
     Q_INVOKABLE void selectCalendarEvent(const QString& eventUuid);
+    /**
+     * @brief 请求以指定本地日期所在周为范围的可见日程。
+     * @param localAnchor 用户在界面选择的本地日期时间；无效时回退到本地当前时间。
+     * @note C++ 统一换算本地周一零点和 UTC 半开区间，QML 不直接组织网络时间参数。
+     */
+    Q_INVOKABLE void loadCalendarWeek(const QDateTime& localAnchor);
+    /**
+     * @brief 创建当前认证人员拥有的普通日程。
+     * @param title 标题，去除首尾空白后不能为空。
+     * @param location 公开展示的会议地点，可为空。
+     * @param startsAt 本地开始时间，必须早于 endsAt。
+     * @param endsAt 本地结束时间，最长持续 31 天。
+     * @param calendarName 日历名称，空值时使用“我的日历”。
+     * @note 创建者和组织范围由服务端认证会话决定，QML 不可传递人员身份。
+     */
+    Q_INVOKABLE void createCalendarEvent(const QString& title, const QString& location,
+                                         const QDateTime& startsAt, const QDateTime& endsAt,
+                                         const QString& calendarName = {});
     /** @brief 上传本地 URL 指向的文件；QML 不读取正文。 */
     Q_INVOKABLE void uploadFile(const QUrl& localUrl, qulonglong conversationId = 0);
     /** @brief 请求下载或双击预览；正文由 FileTransferController 原子落盘。 */
@@ -211,6 +250,12 @@ public:
     Q_INVOKABLE void createFolder(const QString& name);
     Q_INVOKABLE void toggleCurrentFileFavorite();
     Q_INVOKABLE void recycleCurrentFile();
+    /**
+     * @brief 将当前认证人员指定分类的全部未读通知标记为已读。
+     * @param category 协议通知分类；0 表示全部通知。
+     * @note 服务端在事务内按认证人员限定更新范围并返回新的未读数。
+     */
+    Q_INVOKABLE void markNotificationsRead(int category = 0);
     Q_INVOKABLE void markCurrentNotificationRead();
     /** @brief 更新安全设置快照中的单个字段并提交完整 revision。 */
     Q_INVOKABLE void updateSetting(const QString& key, const QVariant& value);
@@ -308,6 +353,8 @@ signals:
     void groupsChanged();
     void groupDetailChanged();
     void notificationsChanged();
+    /** @brief 通知列表的下一页可用性已由服务端响应更新。 */
+    void hasMoreNotificationsChanged();
     void notificationDetailChanged();
     void notificationStatisticsChanged();
     /** @brief 通知设置页用此信号播放本地预览动画，不携带服务端内部数据。 */
@@ -412,12 +459,26 @@ private:
     QVariantMap notificationDetail_;
     /** @brief 通知中心最近一次返回的完整统计和本地刷新时间。 */
     QVariantMap notificationStatistics_;
+    /** @brief 通知页最近一次服务端查询参数；状态动作完成后用其刷新，避免丢失用户正在查看的筛选。 */
+    int notificationCategory_{0};
+    bool notificationUnreadOnly_{false};
+    QString notificationSearchText_;
+    int notificationOffset_{0};
+    int notificationLimit_{20};
+    /** @brief 最近一次请求偏移与下一页偏移；按服务端实际返回条数推进，去重不会影响协议分页游标。 */
+    int notificationRequestOffset_{0};
+    int notificationNextOffset_{0};
+    /** @brief 下一页是否可用以及当前请求是否需要追加到既有列表。两者仅在网络响应生命周期内使用。 */
+    bool hasMoreNotifications_{false};
+    bool appendNotifications_{false};
     QVariantList contacts_;
     QVariantMap contactDetail_;
     QVariantList files_;
     QVariantMap fileStatistics_;
     QVariantMap fileDetail_;
     QVariantList calendarEvents_;
+    /** @brief 当前日程页服务端查询的本地周一起始日期；日程创建或更新成功后用其刷新当前视图。 */
+    QDate calendarWeekStart_;
     /** @brief 当前认证人员的账号资料投影；组织字段只来自服务端权威响应。 */
     QVariantMap accountProfile_;
     QVariantMap settingsProfile_;
@@ -445,7 +506,7 @@ private:
     /** @brief 服务端会议 UUID 仅用于离会请求，生命周期不超过当前会议窗口。 */
     QString conferenceUuid_;
     /** @brief 会议窗口可见标题，不含内部标识或凭据。 */
-    QString conferenceTitle_{QStringLiteral("安域通会议")};
+    QString conferenceTitle_{QStringLiteral("安信通会议")};
 };
 
 } // namespace orglink::client

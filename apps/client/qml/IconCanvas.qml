@@ -48,12 +48,13 @@ Canvas {
         } else if (kind === 6) { // 设置：重绘为齿轮，替换旧同心圆占位图形。
             for (let tooth = 0; tooth < 16; ++tooth) {
                 const angle = -Math.PI / 2 + tooth * Math.PI / 8
-                const radius = tooth % 2 === 0 ? 10.5 : 8.4
+                // 标题栏按钮统一以约 18px 可见边界绘制，避免齿轮相对关闭图标显得过大。
+                const radius = tooth % 2 === 0 ? 9.2 : 7.4
                 const x = 12 + Math.cos(angle) * radius
                 const y = 12 + Math.sin(angle) * radius
                 if (tooth === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
             }
-            ctx.closePath(); ctx.moveTo(15.4, 12); ctx.arc(12, 12, 3.4, 0, Math.PI * 2)
+            ctx.closePath(); ctx.moveTo(15, 12); ctx.arc(12, 12, 3, 0, Math.PI * 2)
         } else if (kind === 7) { // 搜索
             ctx.arc(10, 10, 6, 0, Math.PI * 2); line(ctx, 14.5, 14.5, 21, 21)
         } else if (kind === 8) { // 下载
@@ -187,9 +188,20 @@ Canvas {
         } else if (kind === 54) { // 最大化
             ctx.roundedRect(4, 4, 16, 16, 1.5, 1.5)
         } else if (kind === 55) { // 关闭
-            line(ctx, 6, 6, 18, 18); line(ctx, 18, 6, 6, 18)
+            // 关闭符号与设置齿轮共用约 18px 视觉边界，保证标题栏操作按钮权重一致。
+            line(ctx, 4, 4, 20, 20); line(ctx, 20, 4, 4, 20)
         } else if (kind === 56) { // 还原窗口
             ctx.roundedRect(6, 3, 14, 14, 1.5, 1.5); line(ctx, 4, 7, 4, 20); line(ctx, 4, 20, 17, 20); line(ctx, 4, 7, 7, 7)
+        } else if (kind === 57) { // 筛选
+            // 漏斗由宽口、收窄段和底部滤网组成，小尺寸下仍能明确表达筛选操作。
+            ctx.moveTo(3, 5); line(ctx, 21, 5); line(ctx, 14, 13); line(ctx, 14, 20); line(ctx, 10, 18); line(ctx, 10, 13); ctx.closePath()
+        } else if (kind === 58) { // 排序
+            // 上下箭头配合三条长度不同的横线，表达列表排序而非普通调整控件。
+            line(ctx, 7, 4, 7, 20); line(ctx, 4, 7, 7, 4); line(ctx, 10, 7, 7, 4); line(ctx, 17, 20, 17, 4); line(ctx, 14, 17, 17, 20); line(ctx, 20, 17, 17, 20)
+            line(ctx, 3, 9, 11, 9); line(ctx, 13, 12, 21, 12); line(ctx, 3, 15, 11, 15)
+        } else if (kind === 59) { // 刷新
+            // 不使用文字占位，绘制带箭头的圆弧以保持与标题栏刷新操作一致。
+            ctx.arc(12, 12, 8, -Math.PI * .75, Math.PI * 1.15); line(ctx, 18, 4, 20, 9); line(ctx, 18, 4, 13, 5)
         } else { // 通用文档
             ctx.moveTo(6, 2); line(ctx, 6, 22, 20, 22); line(ctx, 20, 22, 20, 7); line(ctx, 20, 7, 15, 2); ctx.closePath(); line(ctx, 15, 2, 15, 8); line(ctx, 15, 8, 20, 8)
         }

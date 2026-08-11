@@ -18,6 +18,16 @@
 namespace orglink::client
 {
 
+namespace
+{
+
+// 局域网内 TLS 握手通常在毫秒级完成；缩短失败上限可避免无服务端时登录按钮长时间卡住。
+constexpr int kTlsHandshakeTimeoutMs = 3'000;
+// 登录响应包含数据库认证结果，保留独立上限以覆盖慢数据库，同时避免 busy 状态无限持续。
+constexpr int kLoginResponseTimeoutMs = 8'000;
+
+} // namespace
+
 NetworkWorker::NetworkWorker(QObject* parent) : QObject(parent)
 {
     // 心跳定时器必须成为 Worker 的子对象，确保 Worker 迁移线程时定时器一并迁移；
@@ -25,6 +35,16 @@ NetworkWorker::NetworkWorker(QObject* parent) : QObject(parent)
     heartbeatTimer_.setParent(this);
     heartbeatTimer_.setInterval(30'000);
     connect(&heartbeatTimer_, &QTimer::timeout, this, &NetworkWorker::sendHeartbeat);
+
+    // 登录定时器与 Worker 同线程，超时回调可以安全地中止 socket 并清理口令副本。
+    loginTimeoutTimer_.setParent(this);
+    loginTimeoutTimer_.setSingleShot(true);
+    connect(&loginTimeoutTimer_, &QTimer::timeout, this, [this]() {
+        if (loginPending_ && !authenticated_ && !shuttingDown_)
+        {
+            handleSocketFailure(QStringLiteral("登录请求超时，请检查服务器地址和服务状态。"));
+        }
+    });
 }
 
 void NetworkWorker::connectAndLogin(
@@ -64,7 +84,10 @@ void NetworkWorker::connectAndLogin(
         "desktop"
 #endif
     };
+    loginPending_ = true;
     emit connectionStateChanged(QStringLiteral("正在建立安全连接…"), false);
+    // 从发起连接开始计时，确保 DNS、TCP、TLS 或身份认证任一阶段异常都能在有限时间内结束。
+    loginTimeoutTimer_.start(kLoginResponseTimeoutMs);
     createSocket(useTls, host, static_cast<quint16>(port), caCertificatePath);
 }
 
@@ -103,6 +126,8 @@ void NetworkWorker::createSocket(
             {
                 sslSocket->deleteLater();
                 clearPendingPassword();
+                loginPending_ = false;
+                loginTimeoutTimer_.stop();
                 emit loginFailed(QStringLiteral("无法读取服务器 CA 证书。"));
                 return;
             }
@@ -156,6 +181,12 @@ void NetworkWorker::createSocket(
         sessionId_ = 0;
         if (!shuttingDown_)
         {
+            // 服务端在登录响应前主动断开时立即结束 busy 状态，而不是等待登录总超时。
+            if (!wasAuthenticated && loginPending_ && !socketFailureHandled_)
+            {
+                handleSocketFailure(QStringLiteral("服务器已关闭连接，请检查服务器状态。"));
+                return;
+            }
             emit connectionStateChanged(
                 wasAuthenticated ? QStringLiteral("连接已断开，请重新登录。")
                                  : QStringLiteral("连接未建立。"), false);
@@ -174,8 +205,8 @@ void NetworkWorker::createSocket(
         sslSocket->connectToHostEncrypted(host, port);
 #if defined(Q_OS_WIN)
         // Qt 6.8 SChannel 在纯异步模式下可能停留于 ConnectedState 而不推进握手；Windows Worker 位于主事件线程，
-        // 使用有界同步等待确保握手完成。正常局域网握手通常为毫秒级，8 秒仅作为失败上限。
-        if (!sslSocket->waitForEncrypted(8'000))
+        // 使用有界同步等待确保握手完成。正常局域网握手通常为毫秒级，短超时只限制失败路径，不放宽证书校验。
+        if (!sslSocket->waitForEncrypted(kTlsHandshakeTimeoutMs))
         {
             handleSocketFailure(QStringLiteral("TLS 握手超时或证书校验失败。"));
             return;
@@ -186,7 +217,7 @@ void NetworkWorker::createSocket(
         }
 #else
         // 以 socket 为接收对象保证计时器与 socket 同线程；握手完成后口令已清除，因此回调会自然失效。
-        QTimer::singleShot(8'000, sslSocket, [this, sslSocket]() {
+        QTimer::singleShot(kTlsHandshakeTimeoutMs, sslSocket, [this, sslSocket]() {
             if (pendingLogin_ && !sslSocket->isEncrypted())
             {
                 handleSocketFailure(QStringLiteral("TLS 握手超时或证书校验失败。"));
@@ -702,11 +733,17 @@ void NetworkWorker::dispatchFrame(const protocol::Frame& frame)
     case protocol::MessageType::LoginResponse:
     {
         const auto response = protocol::decodeLoginResponse(frame.body);
+        // 无论成功或失败都结束本次登录计时，避免后续定时器误报并重复弹出错误。
+        loginTimeoutTimer_.stop();
+        loginPending_ = false;
         if (!response.success)
         {
+            clearPendingPassword();
             emit loginFailed(QString::fromStdString(response.errorMessage));
             return;
         }
+        // 登录响应已完成身份校验，口令副本不再需要，立即清理以缩短敏感数据驻留时间。
+        clearPendingPassword();
         authenticated_ = true;
         sessionId_ = response.sessionId;
         accountId_ = response.accountId;
@@ -970,8 +1007,10 @@ void NetworkWorker::handleSocketFailure(const QString& friendlyMessage)
         return;
     }
     socketFailureHandled_ = true;
+    loginPending_ = false;
     clearPendingPassword();
     heartbeatTimer_.stop();
+    loginTimeoutTimer_.stop();
     emit loginFailed(friendlyMessage);
     if (socket_ != nullptr)
     {
@@ -991,7 +1030,9 @@ void NetworkWorker::clearPendingPassword() noexcept
 void NetworkWorker::shutdown()
 {
     shuttingDown_ = true;
+    loginPending_ = false;
     heartbeatTimer_.stop();
+    loginTimeoutTimer_.stop();
     clearPendingPassword();
     pendingConversations_.clear();
     decoder_.reset();

@@ -20,7 +20,7 @@ ApplicationWindow {
     height: mobilePlatform ? Screen.height : loginDesktopHeight
     minimumWidth: mobilePlatform ? 320 : (backend.authenticated ? 1120 : 760)
     minimumHeight: mobilePlatform ? 480 : (backend.authenticated ? 680 : 600)
-    title: "安域通"
+    title: "安信通"
     color: appTheme.background
 
     /**
@@ -112,7 +112,7 @@ ApplicationWindow {
             spacing: 12
             Text {
                 width: parent.width
-                text: "请输入安域通服务端地址。该配置仅保存在当前设备，不会随账号同步。"
+                text: "请输入安信通服务端地址。该配置仅保存在当前设备，不会随账号同步。"
                 wrapMode: Text.Wrap
                 color: appTheme.secondaryText
                 font.family: appTheme.uiFont

@@ -117,7 +117,7 @@ Item {
                     spacing: 5
                     Text { Layout.fillWidth: true; text: backend.aboutSystem.englishName || "OrgLink Secure IM"; color: "white"; font.family: root.theme.uiFont; font.pixelSize: root.theme.majorSize; font.bold: true; wrapMode: Text.Wrap }
                     Text { text: "企业级安全即时通讯平台"; color: "#EAF4FF"; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize }
-                    Text { text: "安域通"; color: "#D7EBFF"; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
+                    Text { text: "安信通"; color: "#D7EBFF"; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
                 }
             }
         }
@@ -336,7 +336,7 @@ Item {
                                             Item { Layout.fillWidth: true }
                                         }
                                         Text { Layout.fillWidth: true; text: backend.aboutSystem.slogan || "安全 · 高效 · 连接每一位团队成员"; color: root.theme.secondaryText; font.family: root.theme.uiFont; font.pixelSize: root.theme.bodySize; wrapMode: Text.Wrap }
-                                        Text { text: "中文名称：安域通"; color: root.theme.captionText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
+                                        Text { text: "中文名称：安信通"; color: root.theme.captionText; font.family: root.theme.uiFont; font.pixelSize: root.theme.captionSize }
                                     }
                                 }
                                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.theme.border }
@@ -393,7 +393,7 @@ Item {
                                 model: [
                                     { icon: 44, title: "许可证", subtitle: "查看软件与第三方许可信息", action: "license" },
                                     { icon: 44, title: "更新日志", subtitle: "查看版本更新历史记录", action: "change-log" },
-                                    { icon: 44, title: "服务协议", subtitle: "阅读安域通服务协议", action: "agreement" },
+                                    { icon: 44, title: "服务协议", subtitle: "阅读安信通服务协议", action: "agreement" },
                                     { icon: 10, title: "帮助中心", subtitle: "获取使用帮助与常见问题", action: "help" },
                                     { icon: 44, title: "隐私政策", subtitle: "了解隐私与数据保护规则", action: "privacy" },
                                     { icon: 17, title: "意见反馈", subtitle: "分享建议与使用体验", action: "feedback" },

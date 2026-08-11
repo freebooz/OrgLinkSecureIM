@@ -75,17 +75,12 @@ Item {
                         color: shell.theme.text
                     }
                 }
-                Image {
-                    Layout.preferredWidth: 30
-                    Layout.preferredHeight: 30
-                    source: "qrc:/orglink/assets/orglink-app-icon.png"
-                    fillMode: Image.PreserveAspectFit
-                }
+                // 移动端公共顶部栏与桌面标题栏保持一致，不重复显示品牌图标。
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
                     Text {
-                        text: "安域通"
+                        text: "安信通"
                         color: shell.theme.text
                         font.family: shell.theme.uiFont
                         font.pixelSize: shell.theme.sectionSize

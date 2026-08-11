@@ -45,15 +45,15 @@ QtTrayAdapter::QtTrayAdapter(QObject* parent) : ITrayAdapter(parent)
     }
 
     menu_ = std::make_unique<QMenu>();
-    auto* openAction = menu_->addAction(QStringLiteral("打开安域通"));
+    auto* openAction = menu_->addAction(QStringLiteral("打开安信通"));
     menu_->addSeparator();
     unreadAction_ = menu_->addAction(QStringLiteral("未读消息（0）"));
     transferAction_ = menu_->addAction(QStringLiteral("文件传输（0）"));
     menu_->addSeparator();
-    auto* quitAction = menu_->addAction(QStringLiteral("退出安域通"));
+    auto* quitAction = menu_->addAction(QStringLiteral("退出安信通"));
 
     trayIcon_ = std::make_unique<QSystemTrayIcon>();
-    trayIcon_->setToolTip(QStringLiteral("OrgLink 安域通"));
+    trayIcon_->setToolTip(QStringLiteral("OrgLink 安信通"));
     trayIcon_->setContextMenu(menu_.get());
     trayIcon_->setIcon(createIcon(TrayState::Offline, 0));
     flashTimer_ = std::make_unique<QTimer>();
@@ -167,7 +167,7 @@ QIcon QtTrayAdapter::createIcon(TrayState state, int unreadCount) const
     }
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    // 左下角状态点使用旧状态色语义，但主体始终保留用户指定的安域通盾牌图标。
+    // 左下角状态点使用旧状态色语义，但主体始终保留用户指定的安信通盾牌图标。
     painter.setBrush(stateColor(state));
     painter.setPen(Qt::white);
     painter.drawEllipse(QRectF(2, 45, 17, 17));

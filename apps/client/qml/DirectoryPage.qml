@@ -29,6 +29,8 @@ Item {
     // 人员表分页状态仅属于视图层；服务端仍提供完整目录快照，切页不会改变权限或数据源。
     property int peoplePageSize: 10
     property int peoplePage: 1
+    // 中央人员表的排序方向仅影响当前视图，不改变后端目录顺序或服务器数据。
+    property bool peopleSortAscending: true
     readonly property int peoplePageCount: Math.max(1, Math.ceil(root.filteredPeople().length / root.peoplePageSize))
     // 姓名、页面标题和分区标题使用纯黑建立最高层级；说明字段统一使用中性灰黑。
     readonly property color criticalText: theme.darkMode ? theme.text : "#000000"
@@ -60,9 +62,9 @@ Item {
 
     /** 返回目录状态对应的可访问颜色；颜色只表达服务端状态，不参与权限判断。 */
     function statusColor(statusText) {
-        if (statusText === "在线") return root.theme.success
-        if (statusText === "忙碌" || statusText === "勿扰") return root.theme.danger
-        if (statusText === "离开") return root.theme.warning
+        // 状态点使用固定的高对比语义色，避免主题配置把在线状态误染成蓝色。
+        if (statusText === "在线") return "#18B66A"
+        if (statusText === "离开" || statusText === "忙碌" || statusText === "勿扰") return "#F97316"
         return "#A8B2C5"
     }
 
@@ -136,9 +138,24 @@ Item {
         })
     }
 
+    /**
+     * 返回按姓名排序后的人员列表。排序在分页前完成，确保翻页时顺序稳定，避免用户在不同页看到重复人员。
+     * 输入来自后端目录快照，函数只复制并排序临时数组，不会修改后端模型。
+     */
+    function orderedPeople() {
+        const people = root.filteredPeople().slice()
+        people.sort(function(left, right) {
+            const leftName = String(left.displayName || "")
+            const rightName = String(right.displayName || "")
+            const result = leftName.localeCompare(rightName, "zh-CN")
+            return root.peopleSortAscending ? result : -result
+        })
+        return people
+    }
+
     /** 返回当前页人员，统一在 QML 模型层完成切片，避免重复请求目录数据。 */
     function pagedPeople() {
-        const people = root.filteredPeople()
+        const people = root.orderedPeople()
         const page = Math.min(Math.max(1, root.peoplePage), root.peoplePageCount)
         const start = (page - 1) * root.peoplePageSize
         return people.slice(start, start + root.peoplePageSize)
@@ -177,6 +194,30 @@ Item {
         return people.filter(function(person) {
             return String(person.statusText || "离线") === status
         }).length
+    }
+
+    /**
+     * 为左侧标签分组计算可解释的本地统计值。后端暂未下发标签字段时，使用组织目录的职位/部门信息推导，
+     * 只用于导航提示，不参与权限判断和人员筛选。
+     */
+    function countByLabel(label) {
+        const people = backend.directoryPeople || []
+        if (label === "同事")
+            return people.length
+        if (label === "领导")
+            return people.filter(function(person) {
+                return /(经理|总监|负责人|主管|主任)/.test(String(person.position || ""))
+            }).length
+        if (label === "项目成员")
+            return people.filter(function(person) {
+                return /(项目|协作)/.test(String(person.department || "") + String(person.position || ""))
+            }).length
+        if (label === "技术专家")
+            return people.filter(function(person) {
+                return /(技术|研发|开发|工程师|架构)/.test(String(person.department || "") + String(person.position || ""))
+            }).length
+        // 外部联系人需要后端明确的组织归属；未标注时不虚构联系人，显示为 0。
+        return people.filter(function(person) { return !person.organizationId }).length
     }
 
     function choosePerson(person) {
@@ -225,6 +266,7 @@ Item {
     onPeopleSearchTextChanged: root.peoplePage = 1
     onStatusFilterChanged: root.peoplePage = 1
     onSelectedUnitIdChanged: root.peoplePage = 1
+    onPeopleSortAscendingChanged: root.peoplePage = 1
     Component.onCompleted: Qt.callLater(root.ensureSelection)
 
     component CircleAction: ToolButton {
@@ -692,7 +734,7 @@ Item {
                     Layout.fillWidth: true
                     Text {
                         Layout.fillWidth: true
-                        text: "状态分组"
+                        text: "标签分组"
                         color: root.criticalText
                         font.family: root.theme.uiFont
                         font.pixelSize: 15
@@ -702,10 +744,11 @@ Item {
                 }
                 Repeater {
                     model: [
-                        {"name": "在线联系人", "status": "在线", "color": root.theme.success},
-                        {"name": "忙碌联系人", "status": "忙碌", "color": root.theme.danger},
-                        {"name": "离开联系人", "status": "离开", "color": root.theme.warning},
-                        {"name": "全部联系人", "status": "all", "color": root.theme.primary}
+                        {"name": "领导", "color": "#2878F0"},
+                        {"name": "同事", "color": "#18B66A"},
+                        {"name": "项目成员", "color": "#F59E0B"},
+                        {"name": "外部联系人", "color": "#EF4444"},
+                        {"name": "技术专家", "color": "#6366F1"}
                     ]
                     delegate: ItemDelegate {
                         required property var modelData
@@ -713,7 +756,8 @@ Item {
                         implicitHeight: 30
                         leftPadding: 0
                         rightPadding: 0
-                        onClicked: root.statusFilter = modelData.status
+                        // 标签只作为组织导航提示；点击后清除状态筛选，避免标签与状态条件叠加造成空列表。
+                        onClicked: root.statusFilter = "all"
                         background: Rectangle {
                             radius: 5
                             color: root.statusFilter === modelData.status ? root.theme.primarySoft : "transparent"
@@ -728,7 +772,7 @@ Item {
                                 font.pixelSize: 12
                             }
                             Text {
-                                text: "(" + root.countByStatus(modelData.status) + ")"
+                                text: "(" + root.countByLabel(modelData.name) + ")"
                                 color: root.theme.captionText
                                 font.family: root.theme.uiFont
                                 font.pixelSize: 11
@@ -797,6 +841,7 @@ Item {
                     }
                     Button {
                         id: filterButton
+                        objectName: "qmlDirectoryFilterButton"
                         implicitWidth: 102
                         implicitHeight: 42
                         text: "筛选"
@@ -813,12 +858,77 @@ Item {
                             IconCanvas {
                                 width: 17
                                 height: 17
-                                kind: 26
+                                kind: 57
                                 color: root.theme.secondaryText
                                 lineWidth: 1.8
                             }
                             Text {
                                 text: filterButton.text
+                                color: root.theme.text
+                                font.family: root.theme.uiFont
+                                font.pixelSize: 13
+                            }
+                        }
+                    }
+                    Button {
+                        id: sortButton
+                        objectName: "qmlDirectorySortButton"
+                        visible: !root.phone
+                        implicitWidth: 102
+                        implicitHeight: 42
+                        text: "排序"
+                        onClicked: root.peopleSortAscending = !root.peopleSortAscending
+                        background: Rectangle {
+                            radius: root.theme.fieldRadius
+                            color: sortButton.hovered ? root.theme.primarySoft : root.theme.surface
+                            border.width: 1
+                            border.color: root.theme.border
+                        }
+                        contentItem: Row {
+                            anchors.centerIn: parent
+                            spacing: 7
+                            IconCanvas {
+                                width: 17
+                                height: 17
+                                kind: 58
+                                color: root.peopleSortAscending ? root.theme.primary : root.theme.secondaryText
+                                lineWidth: 1.8
+                            }
+                            Text {
+                                text: sortButton.text
+                                color: root.theme.text
+                                font.family: root.theme.uiFont
+                                font.pixelSize: 13
+                            }
+                        }
+                    }
+                    Button {
+                        id: refreshButton
+                        objectName: "qmlDirectoryRefreshButton"
+                        visible: !root.phone
+                        implicitWidth: 102
+                        implicitHeight: 42
+                        text: "刷新"
+                        // 刷新由 C++ 后端统一发起，成功后通过 directoryPeopleChanged 驱动 QML 模型更新。
+                        onClicked: backend.refreshCurrentSection()
+                        background: Rectangle {
+                            radius: root.theme.fieldRadius
+                            color: refreshButton.hovered ? root.theme.primarySoft : root.theme.surface
+                            border.width: 1
+                            border.color: root.theme.border
+                        }
+                        contentItem: Row {
+                            anchors.centerIn: parent
+                            spacing: 7
+                            IconCanvas {
+                                width: 17
+                                height: 17
+                                kind: 59
+                                color: root.theme.secondaryText
+                                lineWidth: 1.8
+                            }
+                            Text {
+                                text: refreshButton.text
                                 color: root.theme.text
                                 font.family: root.theme.uiFont
                                 font.pixelSize: 13
@@ -1043,16 +1153,16 @@ Item {
                                 height: parent.height
                                 spacing: 4
                                 CircleAction {
-                                    actionKind: 0
-                                    tooltip: "发消息"
-                                    onClicked: backend.startDirectConversation(
-                                        Number(modelData.personId || 0), String(modelData.displayName || "联系人"))
-                                }
-                                CircleAction {
                                     actionKind: 15
                                     tooltip: "语音通话"
                                     onClicked: backend.startContactConference(
                                         Number(modelData.personId || 0), String(modelData.displayName || "联系人"), false)
+                                }
+                                CircleAction {
+                                    actionKind: 0
+                                    tooltip: "发消息"
+                                    onClicked: backend.startDirectConversation(
+                                        Number(modelData.personId || 0), String(modelData.displayName || "联系人"))
                                 }
                                 CircleAction {
                                     actionKind: 13

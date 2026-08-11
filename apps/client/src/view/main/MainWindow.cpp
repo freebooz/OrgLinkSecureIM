@@ -127,7 +127,7 @@ MainWindow::MainWindow(OrganizationTreeModel* organizationModel,
     if (fileModel_ == nullptr) fileModel_ = new FileCenterModel(this);
     // 日程中心允许旧 UI 测试省略注入；生产组合根始终显式共享 Model，避免 View 私建业务状态。
     if (calendarModel_ == nullptr) calendarModel_ = new CalendarModel(this);
-    setWindowTitle(QStringLiteral("安域通"));
+    setWindowTitle(QStringLiteral("安信通"));
     setMinimumSize(1180, 700);
     if (const auto* screen = QGuiApplication::primaryScreen())
     {

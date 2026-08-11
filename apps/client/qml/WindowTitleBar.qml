@@ -6,7 +6,7 @@ import QtQuick.Window
 /**
  * 桌面端公共自定义标题栏。
  *
- * 左端品牌块与 CommonNavigationRail 组成连续深蓝边界；右端只承载全局通知、帮助、设置、
+ * 左端品牌块与 CommonNavigationRail 组成连续深蓝边界；右端只承载全局通知、帮助、
  * 当前人员头像及系统窗口操作。登录态仍遵循“仅服务器设置与关闭”的安全约束。
  */
 Rectangle {
@@ -98,19 +98,10 @@ Rectangle {
             Layout.preferredWidth: backend.authenticated ? 250 : 270
             Layout.fillHeight: true
             spacing: 10
-            Image {
-                // 登录态不在标题栏占用品牌空间，品牌标识由登录内容区以完整比例呈现。
-                visible: backend.authenticated
-                Layout.preferredWidth: visible ? 46 : 0
-                Layout.preferredHeight: visible ? 46 : 0
-                source: "qrc:/orglink/assets/orglink-app-icon.png"
-                fillMode: Image.PreserveAspectFit
-                asynchronous: true
-            }
             ColumnLayout {
                 spacing: 0
                 Text {
-                    text: "安域通"
+                    text: "安信通"
                     color: root.theme.text
                     font.family: root.theme.uiFont
                     font.pixelSize: 18
@@ -183,12 +174,6 @@ Rectangle {
             iconKind: 10
             tooltip: "帮助中心"
             onClicked: backend.globalSearch("帮助中心")
-        }
-        HeaderToolButton {
-            visible: backend.authenticated && root.width >= 760
-            iconKind: 6
-            tooltip: "设置"
-            onClicked: backend.currentSection = 6
         }
         UserAvatar {
             objectName: "qmlTitleBarUserAvatar"

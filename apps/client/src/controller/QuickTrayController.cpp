@@ -101,7 +101,7 @@ void QuickTrayController::handleIncomingMessage(qulonglong conversationId)
     updateUnreadState();
     trayAdapter_->setAttentionFlashing(true);
     // 托盘通知不包含发送者或正文，避免锁屏或共享屏幕时泄露聊天内容。
-    trayAdapter_->showNotification(QStringLiteral("安域通新消息"),
+    trayAdapter_->showNotification(QStringLiteral("安信通新消息"),
                                    QStringLiteral("您收到一条新消息。"));
 }
 

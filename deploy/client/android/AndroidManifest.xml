@@ -18,7 +18,7 @@
         android:name="org.qtproject.qt.android.bindings.QtApplication"
         android:allowBackup="false"
         android:hardwareAccelerated="true"
-        android:label="安域通"
+        android:label="安信通"
         android:theme="@style/AppTheme">
         <activity
             android:name="org.qtproject.qt.android.bindings.QtActivity"

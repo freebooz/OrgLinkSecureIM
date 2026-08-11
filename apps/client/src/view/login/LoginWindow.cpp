@@ -31,7 +31,7 @@ QPixmap loadCroppedLogo()
 
 LoginWindow::LoginWindow(QWidget* parent) : QWidget(parent)
 {
-    setWindowTitle(QStringLiteral("安域通 - 登录"));
+    setWindowTitle(QStringLiteral("安信通 - 登录"));
     setMinimumSize(900, 600);
     if (const auto* screen = QGuiApplication::primaryScreen())
     {

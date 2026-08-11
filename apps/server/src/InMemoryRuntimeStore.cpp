@@ -1346,7 +1346,7 @@ protocol::SettingsGetResponse InMemoryRuntimeStore::loadSettings(std::uint64_t r
     response.systemInfo.certificateStatus = "测试证书有效";
     response.systemInfo.transportEncryption = "测试链路";
     response.systemInfo.cryptoStatus = "协议预留";
-    response.systemInfo.productName = "安域通";
+    response.systemInfo.productName = "安信通";
     response.systemInfo.currentVersion = "1.0.0";
     response.systemInfo.updateDate = "2026-08-05";
     response.systemInfo.organizationName = "OrgLink 测试组织";

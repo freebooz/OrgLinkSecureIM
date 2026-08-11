@@ -413,14 +413,18 @@ void GatewayServer::handleLogin(
             old->second->disconnectFromHost();
         }
         onlinePeople_[state.personId] = socket;
-        store_->updatePresence(state.personId, state.deviceId, true);
     }
     const auto body = protocol::encodeMessage(response);
     sendFrame(socket, state, protocol::MessageType::LoginResponse, frame.header.requestId, body);
+    // 认证结果是首屏唯一的强依赖：先刷新 socket 缓冲让客户端立即结束登录等待。
+    socket->flush();
     if (!response.success)
     {
         return;
     }
+
+    // 审计写入和离线消息随后处理；updatePresence 失败不影响已完成的认证，仍由内存在线表提供本节点实时状态。
+    store_->updatePresence(state.personId, state.deviceId, true);
 
     // 登录响应先到达新客户端，随后目录刷新才能安全关联认证会话；其他在线人员同步看到真实上线状态。
     broadcastPresenceSnapshots();
